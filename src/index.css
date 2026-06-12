@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+/* Paleta extraída del sitio piubellaesteticapilates.com.ar */
+@theme {
+  --color-primary: #a16d47;
+  --color-primary-dark: #8a5a39;
+  --color-primary-container: #d9b89f;
+  --color-secondary: #776f4f;
+  --color-surface: #f7f3eb;
+  --color-surface-container: #f5efe7;
+  --color-surface-high: #eee8e0;
+  --color-surface-highest: #e7e1d9;
+  --color-surface-low: #fcf8f3;
+  --color-ink: #3d342c;
+  --color-ink-soft: #6f6357;
+
+  --font-display: "Cormorant Garamond", serif;
+  --font-sans: "Poppins", sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+}
