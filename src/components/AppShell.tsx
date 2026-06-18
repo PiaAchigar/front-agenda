@@ -21,9 +21,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <NavLink to="/" className={linkClass} end>
               Turnos del día
             </NavLink>
-            <NavLink to="/reservar" className={linkClass}>
+            {/* <NavLink to="/reservar" className={linkClass}>
               Reservar turno
-            </NavLink>
+            </NavLink> */}
           </nav>
         </div>
       </header>

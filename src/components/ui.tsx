@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
 
 export function Button({
@@ -31,21 +32,21 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
   );
 }
 
-export function Input({
-  label,
-  className = "",
-  ...props
-}: InputHTMLAttributes<HTMLInputElement> & { label?: string }) {
+export const Input = forwardRef<
+  HTMLInputElement,
+  InputHTMLAttributes<HTMLInputElement> & { label?: string }
+>(function Input({ label, className = "", ...props }, ref) {
   return (
     <label className="block">
       {label && <span className="mb-1 block text-xs font-medium text-ink-soft">{label}</span>}
       <input
+        ref={ref}
         className={`w-full rounded-xl border border-surface-highest bg-white px-3 py-2 text-sm outline-none focus:border-primary ${className}`}
         {...props}
       />
     </label>
   );
-}
+});
 
 export function Spinner() {
   return (
@@ -94,11 +95,15 @@ export function Modal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl bg-surface-low p-6 shadow-xl"
+        className="flex w-full max-w-md flex-col rounded-2xl bg-surface-low shadow-xl max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="mb-4 text-2xl font-semibold">{title}</h3>
-        {children}
+        <div className="shrink-0 px-6 pt-6 pb-4 border-b border-surface-high">
+          <h3 className="text-2xl font-semibold">{title}</h3>
+        </div>
+        <div className="overflow-y-auto px-6 py-4">
+          {children}
+        </div>
       </div>
     </div>
   );

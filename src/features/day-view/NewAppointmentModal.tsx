@@ -7,7 +7,7 @@ import {
   useServices,
 } from "../../api/agenda";
 import type { Customer } from "../../api/types";
-import { Button, ErrorNote, Input, Modal, Spinner } from "../../components/ui";
+import { Button, ErrorNote, Input, Modal } from "../../components/ui";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -170,17 +170,28 @@ type Props = {
   onClose: () => void;
 };
 
+const EXPIRY_OPTIONS = [
+  { value: 10,  label: "10 min" },
+  { value: 15,  label: "15 min" },
+  { value: 20,  label: "20 min" },
+  { value: 30,  label: "30 min" },
+  { value: 60,  label: "1 hora" },
+  { value: 90,  label: "1 h 30 min" },
+];
+
 export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
   const { data: services = [] } = useServices();
 
-  const [customer,   setCustomer]  = useState<Customer | null>(null);
-  const [serviceId,  setServiceId] = useState(prefill?.serviceId ?? "");
-  const [providerId, setProviderId] = useState(prefill?.providerId ?? "");
-  const [timeStr,    setTimeStr]   = useState(
+  const [customer,      setCustomer]     = useState<Customer | null>(null);
+  const [serviceId,     setServiceId]    = useState(prefill?.serviceId ?? "");
+  const [providerId,    setProviderId]   = useState(prefill?.providerId ?? "");
+  const [timeStr,       setTimeStr]      = useState(
     prefill?.minutes != null ? minToTimeStr(prefill.minutes) : "09:00",
   );
-  const [priceMode,  setPriceMode] = useState<"list" | "cash">("list");
-  const [notes,      setNotes]     = useState("");
+  const [priceMode,     setPriceMode]    = useState<"list" | "cash">("list");
+  const [notes,         setNotes]        = useState("");
+  const [apptStatus,    setApptStatus]   = useState<"scheduled" | "reserved">("scheduled");
+  const [expiryMinutes, setExpiryMinutes] = useState(60);
 
   const { data: providers = [], isFetching: loadingProviders } = useProvidersByService(
     serviceId || null,
@@ -197,6 +208,8 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
     setTimeStr(prefill?.minutes != null ? minToTimeStr(prefill.minutes) : "09:00");
     setPriceMode("list");
     setNotes("");
+    setApptStatus("scheduled");
+    setExpiryMinutes(60);
     create.reset();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -228,9 +241,11 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
         customerId: customer.id,
         serviceId,
         providerId,
-        start:      toArgentinaISO(date, timeStr),
+        start:         toArgentinaISO(date, timeStr),
         priceMode,
-        notes:      notes || undefined,
+        notes:         notes || undefined,
+        status:        apptStatus,
+        expiryMinutes: apptStatus === "reserved" ? expiryMinutes : undefined,
       },
       { onSuccess: onClose },
     );
@@ -239,9 +254,21 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
   const fieldClass =
     "w-full rounded-xl border border-surface-highest bg-white px-3 py-2 text-sm outline-none focus:border-primary disabled:bg-surface-low disabled:text-ink-soft";
 
+  const DAY_NAMES = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+  const dow = date ? new Date(`${date}T12:00:00Z`).getUTCDay() : null;
+  const dateLabel = dow !== null
+    ? `${DAY_NAMES[dow]} ${date.split("-").reverse().join("/")}`
+    : date;
+
   return (
     <Modal open={open} onClose={onClose} title="Nuevo turno">
       <div className="space-y-4">
+        {/* Fecha del turno */}
+        <div className="flex items-center gap-2 rounded-xl bg-primary/8 px-3 py-2">
+          <span className="text-base">📅</span>
+          <span className="text-sm font-medium text-primary">{dateLabel}</span>
+        </div>
+
         {/* Cliente */}
         <div>
           <label className="mb-1 block text-xs font-medium text-ink-soft">Cliente</label>
@@ -344,6 +371,58 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Estado: Turno confirmado vs Reserva temporal */}
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-ink-soft">Estado</label>
+          <div className="flex gap-2">
+            {(["scheduled", "reserved"] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setApptStatus(s)}
+                className={[
+                  "flex-1 rounded-xl border py-2.5 text-sm font-medium transition-colors",
+                  apptStatus === s
+                    ? s === "reserved"
+                      ? "border-amber-400 bg-amber-50 text-amber-700"
+                      : "border-primary bg-primary/10 text-primary"
+                    : "border-surface-highest text-ink-soft hover:bg-surface-low",
+                ].join(" ")}
+              >
+                {s === "scheduled" ? "✓ Turno confirmado" : "⏳ Reserva temporal"}
+              </button>
+            ))}
+          </div>
+
+          {apptStatus === "reserved" && (
+            <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+              <label className="mb-1.5 block text-xs font-medium text-amber-700">
+                La reserva expira en…
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {EXPIRY_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setExpiryMinutes(opt.value)}
+                    className={[
+                      "rounded-lg border px-3 py-1.5 text-sm transition-colors",
+                      expiryMinutes === opt.value
+                        ? "border-amber-500 bg-amber-500 text-white font-medium"
+                        : "border-amber-200 bg-white text-amber-700 hover:border-amber-400",
+                    ].join(" ")}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] text-amber-600">
+                Si no se confirma en ese tiempo, el turno se cancela automáticamente.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Notas */}

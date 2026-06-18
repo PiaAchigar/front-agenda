@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import {
   useAppointments,
   useCompanyConfig,
+  useProviderSchedule,
   useProviders,
   useUpdateAppointment,
 } from "../../api/agenda";
@@ -12,12 +13,14 @@ import { Badge, Button, ErrorNote, Modal } from "../../components/ui";
 import { addDays, formatDate, formatTime, todayLocal } from "../../lib/format";
 import { CalendarGrid, type ColumnMode } from "./CalendarGrid";
 import { NewAppointmentModal, type NewApptPrefill } from "./NewAppointmentModal";
+import { ReschedulingModal } from "./ReschedulingModal";
 import { ViewTabs, saveView } from "../../components/ViewTabs";
 
 const STATUS_LABELS: Record<
   string,
   { label: string; tone: "primary" | "success" | "danger" | "warning" }
 > = {
+  reserved:  { label: "Reserva",    tone: "warning"  },
   scheduled: { label: "Agendado",   tone: "primary"  },
   completed: { label: "Completado", tone: "success"  },
   cancelled: { label: "Cancelado",  tone: "danger"   },
@@ -27,9 +30,12 @@ const STATUS_LABELS: Record<
 export function DayViewPage() {
   const [searchParams] = useSearchParams();
   const [date, setDate] = useState(searchParams.get("date") ?? todayLocal);
-  const [selected, setSelected]   = useState<Appointment | null>(null);
+  const [selected, setSelected]             = useState<Appointment | null>(null);
   const [newApptOpen, setNewApptOpen]       = useState(false);
   const [newApptPrefill, setNewApptPrefill] = useState<NewApptPrefill | null>(null);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [rescheduleAppt, setRescheduleAppt] = useState<Appointment | null>(null);
+  const [expiredAppt,    setExpiredAppt]    = useState<Appointment | null>(null);
   const [columnMode, setColumnMode] = useState<ColumnMode>(() => {
     return (localStorage.getItem("agenda-column-mode") as ColumnMode) ?? "provider";
   });
@@ -37,6 +43,12 @@ export function DayViewPage() {
   function changeColumnMode(mode: ColumnMode) {
     setColumnMode(mode);
     localStorage.setItem("agenda-column-mode", mode);
+  }
+
+  function openReschedule(appt: Appointment) {
+    setSelected(null);
+    setRescheduleAppt(appt);
+    setRescheduleOpen(true);
   }
 
   // Guardar que estamos en vista "dia" cada vez que se monta esta página
@@ -48,8 +60,26 @@ export function DayViewPage() {
   }
 
   const { data: appointments = [], isLoading, error } = useAppointments(date);
+
+  // Detecta reservas que expiraron mientras la página está abierta
+  useEffect(() => {
+    const check = () => {
+      if (expiredAppt) return; // ya hay una mostrándose
+      const found = appointments.find(
+        (a) =>
+          a.status === "reserved" &&
+          a.reservationExpiresAt &&
+          new Date(a.reservationExpiresAt) <= new Date(),
+      );
+      if (found) setExpiredAppt(found);
+    };
+    check();
+    const id = setInterval(check, 60_000);
+    return () => clearInterval(id);
+  }, [appointments, expiredAppt]);
   const { data: providersRaw = [] }                   = useProviders();
   const { data: config }                              = useCompanyConfig();
+  const { data: providerSchedule }                    = useProviderSchedule(date);
   const update                                        = useUpdateAppointment();
 
   const providers = useMemo(
@@ -155,6 +185,7 @@ export function DayViewPage() {
         date={date}
         openHours={openHours}
         columnMode={columnMode}
+        providerSchedule={providerSchedule}
         onAppointmentClick={setSelected}
         onSlotClick={(columnId, minutes) =>
           columnMode === "provider"
@@ -216,7 +247,7 @@ export function DayViewPage() {
                   Cancelar turno
                 </Button>
               )}
-              {selected.status !== "scheduled" && (
+              {selected.status !== "scheduled" && selected.status !== "reserved" && (
                 <Button
                   variant="secondary"
                   onClick={() => changeStatus("scheduled")}
@@ -225,6 +256,64 @@ export function DayViewPage() {
                   Restaurar
                 </Button>
               )}
+              {selected.status === "reserved" && (
+                <Button
+                  onClick={() => changeStatus("scheduled")}
+                  disabled={update.isPending}
+                >
+                  Confirmar reserva
+                </Button>
+              )}
+              {selected.status !== "completed" && (
+                <Button
+                  variant="secondary"
+                  onClick={() => openReschedule(selected)}
+                  disabled={update.isPending}
+                >
+                  Reagendar
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Modal de reagendado ── */}
+      <ReschedulingModal
+        open={rescheduleOpen}
+        appointment={rescheduleAppt}
+        onClose={() => setRescheduleOpen(false)}
+      />
+
+      {/* ── Modal de reserva expirada ── */}
+      <Modal
+        open={Boolean(expiredAppt)}
+        onClose={() => setExpiredAppt(null)}
+        title="⏳ Reserva expirada"
+      >
+        {expiredAppt && (
+          <div className="space-y-4">
+            <p className="text-sm text-ink">
+              La reserva de{" "}
+              <span className="font-semibold">{expiredAppt.customerName ?? "Cliente"}</span>{" "}
+              para{" "}
+              <span className="font-semibold">{expiredAppt.serviceName}</span>{" "}
+              ({formatTime(expiredAppt.appointmentStart)} con {expiredAppt.providerName}) expiró y{" "}
+              será cancelada automáticamente.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  openReschedule(expiredAppt);
+                  setExpiredAppt(null);
+                }}
+              >
+                Reagendar
+              </Button>
+              <Button variant="ghost" onClick={() => setExpiredAppt(null)}>
+                Enterado
+              </Button>
             </div>
           </div>
         )}

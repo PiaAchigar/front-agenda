@@ -1,7 +1,25 @@
 import { useMemo } from "react";
 import type { Appointment } from "../../api/types";
+import type { ProviderSchedule } from "../../api/agenda";
 import { buildProviderColorMap, STATUS_BORDER_COLOR } from "../../lib/colors";
 import { formatTime, isoToLocalMinutes } from "../../lib/format";
+
+const STRIPE_BG =
+  "repeating-linear-gradient(-45deg,#f3f4f6,#f3f4f6 4px,#e5e7eb 4px,#e5e7eb 9px)";
+
+/** Reservas expiradas se tratan como canceladas hasta que el cron las limpie. */
+function isVisible(appt: Appointment): boolean {
+  if (appt.status === "cancelled") return false;
+  if (appt.status === "reserved" && appt.reservationExpiresAt) {
+    return new Date(appt.reservationExpiresAt) > new Date();
+  }
+  return true;
+}
+
+/** Minutos restantes hasta que expira la reserva (negativo = ya expiró). */
+function minutesLeft(expiresAt: string): number {
+  return Math.floor((new Date(expiresAt).getTime() - Date.now()) / 60_000);
+}
 
 // ── Constantes del grid ──────────────────────────────────────────────────────
 const PX_PER_MIN = 2;
@@ -46,6 +64,8 @@ type Props = {
   date: string;
   openHours: OpenHour[];
   columnMode: ColumnMode;
+  /** Horarios de trabajo por proveedora (minutos locales). */
+  providerSchedule?: ProviderSchedule[];
   /** Clase CSS extra para controlar la altura desde el padre (ej: "flex-1 min-h-0"). */
   className?: string;
   onAppointmentClick: (appt: Appointment) => void;
@@ -60,6 +80,7 @@ export function CalendarGrid({
   date,
   openHours,
   columnMode,
+  providerSchedule,
   className = "",
   onAppointmentClick,
   onSlotClick,
@@ -76,6 +97,13 @@ export function CalendarGrid({
   const openMin    = dayConfig?.isOpen ? timeStrToMin(dayConfig.openingTime)  : null;
   const closeMin   = dayConfig?.isOpen ? timeStrToMin(dayConfig.closingTime)  : null;
 
+  // Mapa providerId → ventanas de trabajo (minutos locales)
+  const scheduleMap = useMemo(() => {
+    const map = new Map<string, { start: number; end: number }[]>();
+    for (const s of providerSchedule ?? []) map.set(s.providerId, s.windows);
+    return map;
+  }, [providerSchedule]);
+
   // ── Columnas según modo ──────────────────────────────────────────────────
   const columns = useMemo(() => {
     if (columnMode === "provider") return providers;
@@ -88,10 +116,11 @@ export function CalendarGrid({
     return [...seen.entries()].map(([id, name]) => ({ id, name }));
   }, [columnMode, providers, appointments]);
 
-  // ── Turnos agrupados por columna ─────────────────────────────────────────
+  // ── Turnos agrupados por columna (excluye cancelados y reservas expiradas) ─
   const byColumn = useMemo(() => {
     const map = new Map<string, Appointment[]>();
     for (const appt of appointments) {
+      if (!isVisible(appt)) continue;
       const key = columnMode === "provider"
         ? (appt.providerId ?? "__unassigned")
         : (appt.serviceId  ?? "__unknown");
@@ -106,6 +135,14 @@ export function CalendarGrid({
   function isClosedSlot(slotMin: number): boolean {
     if (openMin === null || closeMin === null) return true;
     return slotMin < openMin || slotMin >= closeMin;
+  }
+
+  /** True si la proveedora no trabaja en ese slot (pero el local sí está abierto). */
+  function isProviderUnavailable(providerId: string, slotMin: number): boolean {
+    if (columnMode !== "provider") return false;
+    const windows = scheduleMap.get(providerId);
+    if (!windows || windows.length === 0) return windows !== undefined; // sin dato = no pintar
+    return !windows.some((w) => slotMin >= w.start && slotMin < w.end);
   }
 
   function cardTopPx(iso: string): number {
@@ -191,19 +228,36 @@ export function CalendarGrid({
                 style={{ flex: 1, minWidth: COL_MIN_W, height: TOTAL_PX }}
               >
                 {/* Fondos de slots + zona clickeable */}
-                {SLOTS.map((slotMin) => (
-                  <div
-                    key={slotMin}
-                    className={[
-                      "absolute w-full border-b border-surface-high cursor-pointer transition-colors",
-                      isClosedSlot(slotMin)
-                        ? "bg-surface-high hover:bg-surface-highest"
-                        : "bg-white hover:bg-surface-low",
-                    ].join(" ")}
-                    style={{ top: (slotMin - START_MIN) * PX_PER_MIN, height: SLOT_PX }}
-                    onClick={() => onSlotClick(col.id, slotMin)}
-                  />
-                ))}
+                {SLOTS.map((slotMin) => {
+                  const closed      = isClosedSlot(slotMin);
+                  const unavailable = !closed && isProviderUnavailable(col.id, slotMin);
+                  return (
+                    <div
+                      key={slotMin}
+                      className={[
+                        "absolute w-full border-b border-surface-high cursor-pointer",
+                        "flex items-center justify-center",
+                        closed
+                          ? "bg-surface-high hover:bg-surface-highest"
+                          : unavailable
+                            ? "" // background via inline style; hover gestionado abajo
+                            : "bg-white hover:bg-surface-low transition-colors",
+                      ].join(" ")}
+                      style={{
+                        top:    (slotMin - START_MIN) * PX_PER_MIN,
+                        height: SLOT_PX,
+                        ...(unavailable ? { background: STRIPE_BG } : {}),
+                      }}
+                      onClick={() => onSlotClick(col.id, slotMin)}
+                    >
+                      {!unavailable && (
+                        <span className="text-sm font-light text-gray-200 select-none pointer-events-none">
+                          +
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
 
                 {/* Cards de turnos */}
                 {appts.map((appt) => {
@@ -219,6 +273,12 @@ export function CalendarGrid({
                     ? appt.serviceName
                     : appt.providerName;
 
+                  const isReserved = appt.status === "reserved";
+                  const minsLeft   = isReserved && appt.reservationExpiresAt
+                    ? minutesLeft(appt.reservationExpiresAt)
+                    : null;
+                  const urgentReserve = minsLeft !== null && minsLeft <= 10;
+
                   return (
                     <button
                       key={appt.id}
@@ -227,23 +287,33 @@ export function CalendarGrid({
                         "absolute left-0.5 right-0.5 rounded text-left text-[11px]",
                         "overflow-hidden shadow-sm hover:shadow-md transition-shadow z-10 px-1.5 py-0.5",
                         isCancelled ? "opacity-50" : "",
+                        isReserved ? "border border-dashed border-amber-400" : "",
                       ].join(" ")}
                       style={{
                         top,
                         height,
-                        backgroundColor: color?.bg ?? "#e5e7eb",
-                        color:           color?.text ?? "#374151",
+                        backgroundColor: isReserved ? "#fffbeb" : (color?.bg ?? "#e5e7eb"),
+                        color:           isReserved ? "#92400e"  : (color?.text ?? "#374151"),
                         borderLeft:      `4px solid ${borderColor}`,
                       }}
                     >
-                      <p className="font-semibold truncate leading-tight">
+                      <p className="font-semibold truncate leading-tight flex items-center gap-1">
+                        {isReserved && (
+                          <span className={urgentReserve ? "text-red-500" : "text-amber-500"}>
+                            ⏳
+                          </span>
+                        )}
                         {formatTime(appt.appointmentStart)}{" "}
                         <span className={isCancelled ? "line-through" : ""}>
                           {appt.customerName ?? "Cliente"}
                         </span>
                       </p>
                       {height >= 44 && (
-                        <p className="truncate opacity-80">{cardSubtext}</p>
+                        <p className="truncate opacity-80">
+                          {isReserved && minsLeft !== null
+                            ? `Reserva · expira en ${minsLeft} min`
+                            : cardSubtext}
+                        </p>
                       )}
                     </button>
                   );

@@ -35,6 +35,17 @@ export function useAvailability(serviceId: string | null, date: string | null) {
   });
 }
 
+export type ProviderWindow = { start: number; end: number };
+export type ProviderSchedule = { providerId: string; windows: ProviderWindow[] };
+
+export function useProviderSchedule(date: string) {
+  return useQuery({
+    queryKey: ["provider-schedule", date],
+    queryFn: () => api<ProviderSchedule[]>(`/api/agenda/providers/schedule?date=${date}`),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useAppointments(date: string) {
   return useQuery({
     queryKey: ["appointments", date],
@@ -93,6 +104,8 @@ export type CreateAppointmentInput = {
   start: string;
   priceMode?: "list" | "cash";
   notes?: string;
+  status?: "scheduled" | "reserved";
+  expiryMinutes?: number;
 };
 
 export function useCreateAppointment() {
@@ -117,6 +130,21 @@ export function useUpdateAppointment() {
       api<Appointment>(`/api/agenda/appointments/${id}`, {
         method: "PATCH",
         body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["availability"] });
+    },
+  });
+}
+
+export function useRescheduleAppointment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, newStart }: { id: string; newStart: string }) =>
+      api<Appointment>(`/api/agenda/appointments/${id}/reschedule`, {
+        method: "PATCH",
+        body: JSON.stringify({ newStart }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });

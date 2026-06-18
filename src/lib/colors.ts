@@ -25,6 +25,7 @@ export function buildProviderColorMap(providerIds: string[]): Map<string, Provid
 // Borde izquierdo de la card según estado.
 // scheduled-seña (naranja) queda pendiente hasta que exista el sub-estado.
 export const STATUS_BORDER_COLOR: Record<string, string> = {
+  reserved:  "#f59e0b", // ámbar
   scheduled: "#3b82f6", // azul
   completed: "#22c55e", // verde
   cancelled: "#9ca3af", // gris

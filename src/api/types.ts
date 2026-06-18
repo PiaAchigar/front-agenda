@@ -45,6 +45,7 @@ export type Appointment = {
   durationMinutes: number | null;
   servicePrice: number | null;
   status: string | null;
+  reservationExpiresAt: string | null;
   notes: string | null;
   customerId: string | null;
   customerName: string | null;

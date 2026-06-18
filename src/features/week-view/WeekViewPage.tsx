@@ -6,8 +6,21 @@ import { api } from "../../api/client";
 import type { Appointment } from "../../api/types";
 import { buildProviderColorMap, STATUS_BORDER_COLOR } from "../../lib/colors";
 import { addDays, formatDate, formatTime, isoToLocalMinutes, todayLocal } from "../../lib/format";
+
+function isVisible(appt: { status: string | null; reservationExpiresAt: string | null }): boolean {
+  if (appt.status === "cancelled") return false;
+  if (appt.status === "reserved" && appt.reservationExpiresAt) {
+    return new Date(appt.reservationExpiresAt) > new Date();
+  }
+  return true;
+}
+
+function minutesLeft(expiresAt: string): number {
+  return Math.floor((new Date(expiresAt).getTime() - Date.now()) / 60_000);
+}
 import { ViewTabs, saveView } from "../../components/ViewTabs";
 import { Spinner } from "../../components/ui";
+import { NewAppointmentModal, type NewApptPrefill } from "../day-view/NewAppointmentModal";
 
 // ── Constantes del grid ──────────────────────────────────────────────────────
 const PX_PER_MIN       = 2;
@@ -72,12 +85,21 @@ function computeOverlapOffsets(appts: Appointment[]): Map<string, number> {
 export function WeekViewPage() {
   const navigate    = useNavigate();
   const [anchorDate, setAnchorDate] = useState(todayLocal);
+  const [newApptOpen,    setNewApptOpen]    = useState(false);
+  const [newApptDate,    setNewApptDate]    = useState("");
+  const [newApptPrefill, setNewApptPrefill] = useState<NewApptPrefill | null>(null);
+
+  function openNewAppt(date: string, minutes: number) {
+    setNewApptDate(date);
+    setNewApptPrefill({ minutes });
+    setNewApptOpen(true);
+  }
 
   // Bug fix: memoizar monday y weekDates para que no se recreen en cada render,
   // evitando que apptsByDate recalcule innecesariamente.
   const monday    = useMemo(() => weekStart(anchorDate), [anchorDate]);
   const weekDates = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addDays(monday, i)),
+    () => Array.from({ length: 6 }, (_, i) => addDays(monday, i)), // Lun a Sáb
     [monday],
   );
   const today = todayLocal();
@@ -112,7 +134,7 @@ export function WeekViewPage() {
 
   useEffect(() => { saveView("semana"); }, []);
 
-  const totalMinWidth = TIME_COL_W + 7 * DAY_COL_MIN;
+  const totalMinWidth = TIME_COL_W + 6 * DAY_COL_MIN;
 
   function navigateWeek(n: -1 | 1) {
     setAnchorDate((d) => addDays(d, n * 7));
@@ -136,7 +158,7 @@ export function WeekViewPage() {
             ‹
           </button>
           <span className="text-xl font-semibold min-w-56 text-center">
-            {formatDate(monday)} – {formatDate(weekDates[6]!)}
+            {formatDate(monday)} – {formatDate(weekDates[5]!)}
           </span>
           <button
             onClick={() => navigateWeek(1)}
@@ -236,25 +258,34 @@ export function WeekViewPage() {
                       <div
                         key={s}
                         className={[
-                          "absolute w-full border-b border-surface-high",
-                          closed ? "bg-surface-high" : "bg-white",
+                          "absolute w-full border-b border-surface-high cursor-pointer transition-colors",
+                          "flex items-center justify-center",
+                          closed ? "bg-surface-high hover:bg-surface-highest" : "bg-white hover:bg-surface-low",
                         ].join(" ")}
                         style={{ top: (s - START_MIN) * PX_PER_MIN, height: SLOT_PX }}
-                      />
+                        onClick={() => openNewAppt(d, s)}
+                      >
+                        <span className="text-sm font-light text-gray-200 select-none pointer-events-none">
+                          +
+                        </span>
+                      </div>
                     );
                   })}
 
                   {/* Cards de turnos */}
-                  {dayAppts.map((appt) => {
+                  {dayAppts.filter(isVisible).map((appt) => {
                     const top    = (isoToLocalMinutes(appt.appointmentStart) - START_MIN) * PX_PER_MIN;
                     const height = Math.max((appt.durationMinutes ?? SLOT_MIN) * PX_PER_MIN, 20);
                     if (top + height <= 0 || top >= TOTAL_PX) return null;
 
-                    const overlapIdx  = offsets.get(appt.id) ?? 0;
-                    const color       = colorMap.get(appt.providerId ?? "");
-                    const borderColor = STATUS_BORDER_COLOR[appt.status ?? "scheduled"]
+                    const overlapIdx    = offsets.get(appt.id) ?? 0;
+                    const isReserved    = appt.status === "reserved";
+                    const minsLeft      = isReserved && appt.reservationExpiresAt
+                      ? minutesLeft(appt.reservationExpiresAt) : null;
+                    const urgentReserve = minsLeft !== null && minsLeft <= 10;
+                    const color         = colorMap.get(appt.providerId ?? "");
+                    const borderColor   = STATUS_BORDER_COLOR[appt.status ?? "scheduled"]
                       ?? STATUS_BORDER_COLOR.scheduled;
-                    const isCancelled = appt.status === "cancelled";
 
                     const startLabel = formatTime(appt.appointmentStart);
                     const endLabel   = formatTime(appt.appointmentEnd);
@@ -266,33 +297,38 @@ export function WeekViewPage() {
                         className={[
                           "absolute right-0.5 rounded text-left text-[10px]",
                           "overflow-hidden shadow-sm hover:shadow-md transition-shadow px-1 py-0.5",
-                          isCancelled ? "opacity-40" : "",
+                          isReserved ? "border border-dashed border-amber-400" : "",
                         ].join(" ")}
                         style={{
                           top,
                           height,
                           left:            overlapIdx * OVERLAP_OFFSET + 2,
                           zIndex:          10 + overlapIdx,
-                          backgroundColor: color?.bg   ?? "#e5e7eb",
-                          color:           color?.text ?? "#374151",
+                          backgroundColor: isReserved ? "#fffbeb" : (color?.bg   ?? "#e5e7eb"),
+                          color:           isReserved ? "#92400e"  : (color?.text ?? "#374151"),
                           borderLeft:      `3px solid ${borderColor}`,
                         }}
                         title={`${appt.customerName ?? "Cliente"} · ${appt.serviceName} · ${appt.providerName} · ${startLabel}–${endLabel}`}
                       >
                         {/* Prioridad 1: cliente (siempre visible) */}
-                        <span className={`font-semibold truncate block leading-tight ${isCancelled ? "line-through" : ""}`}>
+                        <span className="font-semibold truncate block leading-tight flex items-center gap-0.5">
+                          {isReserved && (
+                            <span className={urgentReserve ? "text-red-500" : "text-amber-500"}>⏳</span>
+                          )}
                           {appt.customerName ?? "Cliente"}
                         </span>
 
                         {/* Prioridad 2: prestadora (si hay espacio mínimo) */}
                         {height >= 28 && (
                           <span className="truncate block leading-tight opacity-90">
-                            {appt.providerName ?? ""}
+                            {isReserved && minsLeft !== null
+                              ? `expira en ${minsLeft} min`
+                              : (appt.providerName ?? "")}
                           </span>
                         )}
 
                         {/* Prioridad 3: servicio */}
-                        {height >= 52 && (
+                        {height >= 52 && !isReserved && (
                           <span className="truncate block leading-tight opacity-75">
                             {appt.serviceName}
                           </span>
@@ -313,6 +349,12 @@ export function WeekViewPage() {
           </div>
         </div>
       </div>
+      <NewAppointmentModal
+        open={newApptOpen}
+        date={newApptDate}
+        prefill={newApptPrefill}
+        onClose={() => setNewApptOpen(false)}
+      />
     </div>
   );
 }
