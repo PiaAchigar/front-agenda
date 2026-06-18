@@ -49,6 +49,7 @@ export type Appointment = {
   customerId: string | null;
   customerName: string | null;
   customerPhone: string | null;
+  serviceId: string | null;
   serviceName: string | null;
   providerId: string | null;
   providerName: string | null;

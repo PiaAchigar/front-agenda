@@ -50,6 +50,15 @@ export function useProviders() {
   });
 }
 
+export function useProvidersByService(serviceId: string | null) {
+  return useQuery({
+    queryKey: ["providers", "by-service", serviceId],
+    queryFn: () => api<Provider[]>(`/api/agenda/providers?serviceId=${serviceId}`),
+    enabled: Boolean(serviceId),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useCompanyConfig() {
   return useQuery({
     queryKey: ["company-config"],
