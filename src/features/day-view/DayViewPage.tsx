@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   useAppointments,
@@ -61,22 +61,25 @@ export function DayViewPage() {
 
   const { data: appointments = [], isLoading, error } = useAppointments(date);
 
-  // Detecta reservas que expiraron mientras la página está abierta
+  // IDs de reservas expiradas ya notificadas — evita re-disparar el modal
+  // tras "Enterado" mientras el cron aún no canceló el turno.
+  const shownExpiredIds = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     const check = () => {
-      if (expiredAppt) return; // ya hay una mostrándose
       const found = appointments.find(
         (a) =>
           a.status === "reserved" &&
           a.reservationExpiresAt &&
-          new Date(a.reservationExpiresAt) <= new Date(),
+          new Date(a.reservationExpiresAt) <= new Date() &&
+          !shownExpiredIds.current.has(a.id),
       );
       if (found) setExpiredAppt(found);
     };
     check();
     const id = setInterval(check, 60_000);
     return () => clearInterval(id);
-  }, [appointments, expiredAppt]);
+  }, [appointments]); // expiredAppt NO va aquí — evita loop
   const { data: providersRaw = [] }                   = useProviders();
   const { data: config }                              = useCompanyConfig();
   const { data: providerSchedule }                    = useProviderSchedule(date);
@@ -280,6 +283,7 @@ export function DayViewPage() {
 
       {/* ── Modal de reagendado ── */}
       <ReschedulingModal
+        key={rescheduleAppt?.id ?? "none"}
         open={rescheduleOpen}
         appointment={rescheduleAppt}
         onClose={() => setRescheduleOpen(false)}
@@ -311,7 +315,13 @@ export function DayViewPage() {
               >
                 Reagendar
               </Button>
-              <Button variant="ghost" onClick={() => setExpiredAppt(null)}>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  if (expiredAppt) shownExpiredIds.current.add(expiredAppt.id);
+                  setExpiredAppt(null);
+                }}
+              >
                 Enterado
               </Button>
             </div>

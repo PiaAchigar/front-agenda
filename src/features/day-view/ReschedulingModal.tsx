@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRescheduleAppointment } from "../../api/agenda";
 import type { Appointment } from "../../api/types";
 import { Button, ErrorNote, Modal } from "../../components/ui";
-import { formatDate, formatTime } from "../../lib/format";
-import { addDays } from "../../lib/format";
+import { addDays, formatDate, formatTime } from "../../lib/format";
 
 function toArgentinaISO(dateStr: string, timeStr: string): string {
   return `${dateStr}T${timeStr}:00-03:00`;
@@ -32,17 +31,12 @@ type Props = {
 export function ReschedulingModal({ open, appointment, onClose }: Props) {
   const reschedule = useRescheduleAppointment();
 
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
-
-  useEffect(() => {
-    if (!open || !appointment) return;
-    const parsed = isoToDateAndTime(appointment.appointmentStart);
-    setDate(parsed.date);
-    setTime(parsed.time);
-    reschedule.reset();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  // Estado inicializado directo desde el appointment.
+  // El componente se remonta con `key={appointment.id}` en el padre,
+  // así que no hace falta un useEffect para resetear.
+  const initial  = appointment ? isoToDateAndTime(appointment.appointmentStart) : null;
+  const [date, setDate] = useState(initial?.date ?? "");
+  const [time, setTime] = useState(initial?.time ?? "");
 
   if (!appointment) return null;
 
