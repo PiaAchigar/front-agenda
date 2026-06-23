@@ -164,7 +164,7 @@ export function CalendarGrid({
      * El corner (top-left) usa sticky top-0 + left-0 para quedar fijo siempre.
      */
     <div
-      className={`overflow-y-auto overflow-x-auto rounded-xl border border-surface-high ${className}`}
+      className={`agenda-scroll overflow-y-auto overflow-x-auto rounded-xl border border-surface-high ${className}`}
     >
       <div style={{ minWidth: totalMinWidth }}>
 
