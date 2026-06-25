@@ -138,7 +138,7 @@ export function DayViewPage() {
               onChange={(e) => setDate(e.target.value)}
               className="sr-only"
             />
-          <span className="text-xl font-semibold min-w-36 text-center">
+          <span className="text-l font-semibold min-w-24 text-center">
           {["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"][
             new Date(`${date}T12:00:00Z`).getUTCDay()
           ]}
