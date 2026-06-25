@@ -14,13 +14,15 @@ export function AppShell({
     }`;
 
   // Embebida en el dashboard: sin header propio ni max-width, ocupa todo el iframe.
+  // Flex-col + altura dinámica (100dvh) para que el contenido llene la pantalla
+  // sin huecos en blanco, también en mobile (B4).
   if (embedded) {
-    return <main className="h-screen px-4 py-3">{children}</main>;
+    return <main className="flex h-[100dvh] flex-col px-4 py-3">{children}</main>;
   }
 
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-surface-high bg-surface-low/90 backdrop-blur">
+    <div className="flex h-[100dvh] flex-col">
+      <header className="shrink-0 border-b border-surface-high bg-surface-low/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div>
             <h1 className="text-3xl font-semibold leading-none text-primary">PiuBella</h1>
@@ -38,7 +40,7 @@ export function AppShell({
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+      <main className="mx-auto w-full max-w-6xl min-h-0 flex-1 px-4 py-6">{children}</main>
     </div>
   );
 }

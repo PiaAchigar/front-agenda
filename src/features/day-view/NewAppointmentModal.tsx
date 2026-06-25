@@ -199,28 +199,22 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
 
   const create = useCreateAppointment();
 
-  // Cuando cambia el prefill (nuevo slot clickeado), sincronizar
-  useEffect(() => {
-    if (!open) return;
-    setCustomer(null);
-    setServiceId(prefill?.serviceId ?? "");
-    setProviderId(prefill?.providerId ?? "");
-    setTimeStr(prefill?.minutes != null ? minToTimeStr(prefill.minutes) : "09:00");
-    setPriceMode("list");
-    setNotes("");
-    setApptStatus("scheduled");
-    setExpiryMinutes(60);
-    create.reset();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  // El reset del formulario al abrir lo da el MONTAJE: la modal se monta de cero
+  // cada vez que se abre (ver DayViewPage/WeekViewPage), así los useState de arriba
+  // toman el prefill directo. No hace falta un efecto que resetee el estado.
 
-  // Cuando cambia el servicio, limpiar la prestadora (a menos que el prefill ya la tenga y siga disponible)
-  useEffect(() => {
-    if (!serviceId) { setProviderId(""); return; }
-    if (providers.length > 0 && !providers.find((p) => p.id === providerId)) {
+  // Al cambiar el servicio y cargar su lista de prestadoras, mantener la prestadora
+  // del prefill (slot clickeado) si la ofrece; si no, caer en la primera. Se ajusta
+  // DURANTE el render (patrón recomendado de React) en vez de un efecto, para no
+  // disparar renders en cascada (B2).
+  const providersSig = providers.map((p) => p.id).join(",");
+  const [syncedProvidersSig, setSyncedProvidersSig] = useState(providersSig);
+  if (providersSig !== syncedProvidersSig) {
+    setSyncedProvidersSig(providersSig);
+    if (serviceId && providers.length > 0 && !providers.find((p) => p.id === providerId)) {
       setProviderId(providers[0]?.id ?? "");
     }
-  }, [serviceId, providers, providerId]);
+  }
 
   // Hora fin calculada automáticamente
   const selectedService  = services.find((s) => s.id === serviceId);

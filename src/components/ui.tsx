@@ -101,7 +101,7 @@ export function Modal({
         <div className="shrink-0 px-6 pt-6 pb-4 border-b border-surface-high">
           <h3 className="text-2xl font-semibold">{title}</h3>
         </div>
-        <div className="overflow-y-auto px-6 py-4">
+        <div className="modal-scroll overflow-y-auto px-6 py-4">
           {children}
         </div>
       </div>

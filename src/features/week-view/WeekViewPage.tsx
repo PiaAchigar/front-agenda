@@ -145,7 +145,7 @@ export function WeekViewPage() {
   }
 
   return (
-    <div className="flex flex-col gap-3" style={{ height: "calc(100vh - 100px)" }}>
+    <div className="flex flex-col gap-3 h-full min-h-0">
 
       {/* ── Header ── */}
       <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
@@ -175,7 +175,7 @@ export function WeekViewPage() {
       </div>
 
       {/* ── Grid semanal ── */}
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto rounded-xl border border-surface-high">
+      <div className="modal-scroll flex-1 min-h-0 overflow-y-auto overflow-x-auto rounded-xl border border-surface-high">
         <div style={{ minWidth: totalMinWidth }}>
 
           {/* Header de días — sticky top */}
@@ -349,12 +349,14 @@ export function WeekViewPage() {
           </div>
         </div>
       </div>
-      <NewAppointmentModal
-        open={newApptOpen}
-        date={newApptDate}
-        prefill={newApptPrefill}
-        onClose={() => setNewApptOpen(false)}
-      />
+      {newApptOpen && (
+        <NewAppointmentModal
+          open
+          date={newApptDate}
+          prefill={newApptPrefill}
+          onClose={() => setNewApptOpen(false)}
+        />
+      )}
     </div>
   );
 }

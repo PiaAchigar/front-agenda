@@ -16,6 +16,16 @@ import { NewAppointmentModal, type NewApptPrefill } from "./NewAppointmentModal"
 import { ReschedulingModal } from "./ReschedulingModal";
 import { ViewTabs, saveView } from "../../components/ViewTabs";
 
+/** Debounce simple para el buscador del nav (filtrado client-side). */
+function useDebounced<T>(value: T, ms = 200): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return debounced;
+}
+
 const STATUS_LABELS: Record<
   string,
   { label: string; tone: "primary" | "success" | "danger" | "warning" }
@@ -39,6 +49,8 @@ export function DayViewPage() {
   const [columnMode, setColumnMode] = useState<ColumnMode>(() => {
     return (localStorage.getItem("agenda-column-mode") as ColumnMode) ?? "provider";
   });
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounced(search, 200);
 
   function changeColumnMode(mode: ColumnMode) {
     setColumnMode(mode);
@@ -104,9 +116,9 @@ export function DayViewPage() {
   const statusInfo = STATUS_LABELS[selected?.status ?? "scheduled"] ?? STATUS_LABELS.scheduled!;
 
   return (
-    <div className="flex flex-col gap-3" style={{ height: "calc(100vh - 100px)" }}>
+    <div className="flex flex-col gap-3 h-full min-h-0">
       {/* ── Header ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-1">
           <button
             onClick={() => navigate(-1)}
@@ -146,21 +158,28 @@ export function DayViewPage() {
             <div className={`h-5 w-5 rounded-full border-2 border-primary-container border-t-primary ${isLoading ? "animate-spin" : "invisible"}`} />
           </div>
 
-          {/* Selector de vista Día / Semana / Mes */}
-          <ViewTabs current="dia" />
+
+          {/* Buscador en tiempo real (filtra columnas según el toggle activo) */}
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={columnMode === "provider" ? "Buscar prestadora…" : "Buscar servicio…"}
+            className="w-60 rounded-lg border border-surface-highest bg-white px-3 py-1.5 text-sm outline-none focus:border-primary"
+          />
 
           {/* Toggle prestadora / servicio */}
           <div className="flex rounded-lg border border-surface-highest overflow-hidden text-sm">
             {(["provider", "service"] as const).map((mode) => (
               <button
-                key={mode}
-                onClick={() => changeColumnMode(mode)}
-                className={[
-                  "px-3 py-1.5 transition-colors",
-                  columnMode === mode
-                    ? "bg-primary text-white font-medium"
-                    : "bg-white text-ink-soft hover:bg-surface-low",
-                ].join(" ")}
+              key={mode}
+              onClick={() => changeColumnMode(mode)}
+              className={[
+                "px-3 py-1.5 transition-colors",
+                columnMode === mode
+                ? "bg-primary text-white font-medium"
+                : "bg-white text-ink-soft hover:bg-surface-low",
+              ].join(" ")}
               >
                 {mode === "provider" ? "Por prestadora" : "Por servicio"}
               </button>
@@ -175,6 +194,8 @@ export function DayViewPage() {
           >
             + Nuevo turno
           </button>
+            {/* Selector de vista Día / Semana / Mes */}
+            <ViewTabs current="dia" />
         </div>
       </div>
 
@@ -188,6 +209,7 @@ export function DayViewPage() {
         date={date}
         openHours={openHours}
         columnMode={columnMode}
+        columnFilter={debouncedSearch}
         providerSchedule={providerSchedule}
         onAppointmentClick={setSelected}
         onSlotClick={(columnId, minutes) =>
@@ -197,13 +219,15 @@ export function DayViewPage() {
         }
       />
 
-      {/* ── Modal nuevo turno ── */}
-      <NewAppointmentModal
-        open={newApptOpen}
-        date={date}
-        prefill={newApptPrefill}
-        onClose={() => setNewApptOpen(false)}
-      />
+      {/* ── Modal nuevo turno (se monta de cero en cada apertura) ── */}
+      {newApptOpen && (
+        <NewAppointmentModal
+          open
+          date={date}
+          prefill={newApptPrefill}
+          onClose={() => setNewApptOpen(false)}
+        />
+      )}
 
       {/* ── Modal de detalle / cambio de estado ── */}
       <Modal

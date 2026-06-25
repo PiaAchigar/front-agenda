@@ -68,6 +68,8 @@ type Props = {
   providerSchedule?: ProviderSchedule[];
   /** Clase CSS extra para controlar la altura desde el padre (ej: "flex-1 min-h-0"). */
   className?: string;
+  /** Filtra las columnas por nombre (prestadora o servicio según columnMode). */
+  columnFilter?: string;
   onAppointmentClick: (appt: Appointment) => void;
   /** columnId = providerId en modo "provider", serviceId en modo "service". */
   onSlotClick: (columnId: string, minutes: number) => void;
@@ -82,6 +84,7 @@ export function CalendarGrid({
   columnMode,
   providerSchedule,
   className = "",
+  columnFilter = "",
   onAppointmentClick,
   onSlotClick,
 }: Props) {
@@ -106,15 +109,22 @@ export function CalendarGrid({
 
   // ── Columnas según modo ──────────────────────────────────────────────────
   const columns = useMemo(() => {
-    if (columnMode === "provider") return providers;
-    const seen = new Map<string, string>();
-    for (const appt of appointments) {
-      if (appt.serviceId && appt.serviceName && !seen.has(appt.serviceId)) {
-        seen.set(appt.serviceId, appt.serviceName);
+    let cols: ProviderCol[];
+    if (columnMode === "provider") {
+      cols = providers;
+    } else {
+      const seen = new Map<string, string>();
+      for (const appt of appointments) {
+        if (appt.serviceId && appt.serviceName && !seen.has(appt.serviceId)) {
+          seen.set(appt.serviceId, appt.serviceName);
+        }
       }
+      cols = [...seen.entries()].map(([id, name]) => ({ id, name }));
     }
-    return [...seen.entries()].map(([id, name]) => ({ id, name }));
-  }, [columnMode, providers, appointments]);
+    const q = columnFilter.trim().toLowerCase();
+    if (!q) return cols;
+    return cols.filter((c) => c.name.toLowerCase().includes(q));
+  }, [columnMode, providers, appointments, columnFilter]);
 
   // ── Turnos agrupados por columna (excluye cancelados y reservas expiradas) ─
   const byColumn = useMemo(() => {
@@ -164,7 +174,7 @@ export function CalendarGrid({
      * El corner (top-left) usa sticky top-0 + left-0 para quedar fijo siempre.
      */
     <div
-      className={`agenda-scroll overflow-y-auto overflow-x-auto rounded-xl border border-surface-high ${className}`}
+      className={`modal-scroll overflow-y-auto overflow-x-auto rounded-xl border border-surface-high ${className}`}
     >
       <div style={{ minWidth: totalMinWidth }}>
 
