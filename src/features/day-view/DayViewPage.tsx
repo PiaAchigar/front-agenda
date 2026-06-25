@@ -118,18 +118,18 @@ export function DayViewPage() {
   return (
     <div className="flex flex-col gap-3 h-full min-h-0">
       {/* ── Header ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center justify-between gap-3 shrink-1">
+        <div className="flex items-center gap-0.5">
           <button
             onClick={() => navigate(-1)}
-            className="group p-1.5 rounded hover:bg-surface-low transition-colors"
+            className="group p-1 rounded hover:bg-surface-low transition-colors"
             aria-label="Día anterior"
           >
             <ChevronLeft size={18} className="text-ink-soft group-hover:text-primary transition-colors" />
           </button>
          
              {/* Selector de fecha */}
-          <label className="flex items-center gap-1.5 rounded-lg border border-surface-highest bg-white px-3 py-1.5 text-sm transition-colors">
+          <label className="flex items-center gap-1 rounded-lg border border-surface-highest bg-white px-3 py-1.5 text-sm transition-colors">
             <span className="text-ink-soft text-xs">📅</span>
             <span className="text-ink">{formatDate(date)}</span>
             <input
@@ -138,15 +138,15 @@ export function DayViewPage() {
               onChange={(e) => setDate(e.target.value)}
               className="sr-only"
             />
-          <span className="text-l font-semibold min-w-24 text-center">
-          {["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"][
-            new Date(`${date}T12:00:00Z`).getUTCDay()
-          ]}
-        </span>
+              <span className="text-l font-semibold min-w-24 text-center">
+              {["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"][
+                new Date(`${date}T12:00:00Z`).getUTCDay()
+              ]}
+            </span> 
           </label>
           <button
             onClick={() => navigate(1)}
-            className="group p-1.5 rounded hover:bg-surface-low transition-colors"
+            className="group p-1 rounded hover:bg-surface-low transition-colors"
             aria-label="Día siguiente"
           >
             <ChevronRight size={18} className="text-ink-soft group-hover:text-primary transition-colors" />
@@ -154,8 +154,8 @@ export function DayViewPage() {
         </div>
      
         <div className="flex items-center gap-2">
-          <div className="h-5 w-5">
-            <div className={`h-5 w-5 rounded-full border-2 border-primary-container border-t-primary ${isLoading ? "animate-spin" : "invisible"}`} />
+          <div className="h-3 w-3">
+            <div className={`h-3 w-3 rounded-full border-2 border-primary-container border-t-primary ${isLoading ? "animate-spin" : "invisible"}`} />
           </div>
 
 
