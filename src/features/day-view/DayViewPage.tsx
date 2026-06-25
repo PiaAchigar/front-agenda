@@ -118,7 +118,7 @@ export function DayViewPage() {
   return (
     <div className="flex flex-col gap-3 h-full min-h-0">
       {/* ── Header ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 shrink-1">
+      <div className="flex flex-wrap items-center justify-between gap-0 shrink-1">
         <div className="flex items-center gap-0.5">
           <button
             onClick={() => navigate(-1)}
