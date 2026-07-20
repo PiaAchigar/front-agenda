@@ -11,12 +11,26 @@ export const isEmbedded =
   new URLSearchParams(window.location.search).get("embed") === "1";
 
 /** Origen del dashboard (host). Se valida en cada mensaje recibido. */
-const DASHBOARD_ORIGIN = import.meta.env.VITE_DASHBOARD_ORIGIN as
+export const DASHBOARD_ORIGIN = import.meta.env.VITE_DASHBOARD_ORIGIN as
   | string
   | undefined;
 
 const READY_MSG = "piubella:agenda:ready";
 const TOKEN_MSG = "piubella:agenda:token";
+const CHECKOUT_MSG = "piubella:agenda:checkout";
+
+/**
+ * Le pide al dashboard (host) que abra la Facturación con el cliente y el
+ * turno ya cargados, para cobrar los servicios que la profesional le hizo.
+ * Solo tiene efecto embebido: standalone no hay host que lo escuche.
+ */
+export function requestCheckoutHandoff(appointmentId: string, customerId: string): void {
+  if (!isEmbedded) return;
+  window.parent.postMessage(
+    { type: CHECKOUT_MSG, appointmentId, customerId },
+    DASHBOARD_ORIGIN ?? "*",
+  );
+}
 
 /**
  * Handshake de token con el host:

@@ -15,6 +15,7 @@ import { CalendarGrid, type ColumnMode } from "./CalendarGrid";
 import { NewAppointmentModal, type NewApptPrefill } from "./NewAppointmentModal";
 import { ReschedulingModal } from "./ReschedulingModal";
 import { ViewTabs, saveView } from "../../components/ViewTabs";
+import { isEmbedded, requestCheckoutHandoff } from "../../lib/embed";
 
 /** Debounce simple para el buscador del nav (filtrado client-side). */
 function useDebounced<T>(value: T, ms = 200): T {
@@ -251,8 +252,19 @@ export function DayViewPage() {
             )}
 
             <div className="flex flex-wrap gap-2 pt-1">
+              {isEmbedded && selected.status !== "cancelled" && selected.status !== "no_show" && selected.customerId && (
+                <Button
+                  onClick={() => requestCheckoutHandoff(selected.id, selected.customerId!)}
+                >
+                  Cobrar
+                </Button>
+              )}
               {selected.status !== "completed" && (
-                <Button onClick={() => changeStatus("completed")} disabled={update.isPending}>
+                <Button
+                  variant="secondary"
+                  onClick={() => changeStatus("completed")}
+                  disabled={update.isPending}
+                >
                   Completar
                 </Button>
               )}
