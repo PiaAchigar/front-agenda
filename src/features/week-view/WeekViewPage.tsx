@@ -119,6 +119,7 @@ export function WeekViewPage() {
       queryKey: ["appointments", d],
       queryFn:  () => api<Appointment[]>(`/api/agenda/appointments?date=${d}`),
       staleTime: 30_000,
+      refetchInterval: 30_000,
     })),
   });
 

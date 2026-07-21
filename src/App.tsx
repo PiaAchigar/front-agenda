@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
-import { BookingPage } from "./features/booking/BookingPage";
 import { DayViewPage } from "./features/day-view/DayViewPage";
 import { WeekViewPage } from "./features/week-view/WeekViewPage";
 import { MonthViewPage } from "./features/month-view/MonthViewPage";
@@ -40,7 +39,6 @@ export default function App() {
         <Route path="/dia"     element={<DayViewPage />} />
         <Route path="/semana"  element={<WeekViewPage />} />
         <Route path="/mes"     element={<MonthViewPage />} />
-        <Route path="/reservar" element={<BookingPage />} />
       </Routes>
     </AppShell>
   );

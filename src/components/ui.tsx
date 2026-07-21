@@ -50,8 +50,8 @@ export const Input = forwardRef<
 
 export function Spinner() {
   return (
-    <div className="flex justify-center p-8">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-container border-t-primary" />
+    <div className="flex justify-center p-1">
+      <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-container border-t-primary" />
     </div>
   );
 }

@@ -34,9 +34,6 @@ export function AppShell({
             <NavLink to="/" className={linkClass} end>
               Turnos del día
             </NavLink>
-            {/* <NavLink to="/reservar" className={linkClass}>
-              Reservar turno
-            </NavLink> */}
           </nav>
         </div>
       </header>

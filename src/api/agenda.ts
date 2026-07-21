@@ -50,6 +50,7 @@ export function useAppointments(date: string) {
   return useQuery({
     queryKey: ["appointments", date],
     queryFn: () => api<Appointment[]>(`/api/agenda/appointments?date=${date}`),
+    refetchInterval: 30_000,
   });
 }
 

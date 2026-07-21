@@ -155,8 +155,8 @@ export function DayViewPage() {
         </div>
      
         <div className="flex items-center gap-2">
-          <div className="h-3 w-3">
-            <div className={`h-3 w-3 rounded-full border-2 border-primary-container border-t-primary ${isLoading ? "animate-spin" : "invisible"}`} />
+          <div className="h-1 w-1">
+            <div className={`h-1 w-1 rounded-full border-2 border-primary-container border-t-primary ${isLoading ? "animate-spin" : "invisible"}`} />
           </div>
 
 
