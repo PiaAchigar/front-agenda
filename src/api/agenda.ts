@@ -107,6 +107,8 @@ export type CreateAppointmentInput = {
   notes?: string;
   status?: "scheduled" | "reserved";
   expiryMinutes?: number;
+  /** Seña cobrada al reservar: se factura a ARCA y queda a favor del cliente. */
+  deposit?: { amount: number; method: "cash" | "bank_transfer" | "mercadopago" };
 };
 
 export function useCreateAppointment() {

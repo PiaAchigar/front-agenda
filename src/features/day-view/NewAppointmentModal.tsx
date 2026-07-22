@@ -192,6 +192,8 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
   const [notes,         setNotes]        = useState("");
   const [apptStatus,    setApptStatus]   = useState<"scheduled" | "reserved">("scheduled");
   const [expiryMinutes, setExpiryMinutes] = useState(60);
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositMethod, setDepositMethod] = useState<"cash" | "bank_transfer" | "mercadopago">("cash");
 
   const { data: providers = [], isFetching: loadingProviders } = useProvidersByService(
     serviceId || null,
@@ -230,6 +232,7 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
 
   function handleSubmit() {
     if (!customer || !serviceId || !providerId) return;
+    const seniaNum = Number(depositAmount);
     create.mutate(
       {
         customerId: customer.id,
@@ -240,6 +243,8 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
         notes:         notes || undefined,
         status:        apptStatus,
         expiryMinutes: apptStatus === "reserved" ? expiryMinutes : undefined,
+        deposit:
+          seniaNum > 0 ? { amount: seniaNum, method: depositMethod } : undefined,
       },
       { onSuccess: onClose },
     );
@@ -364,6 +369,33 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
                 )}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Seña (opcional): se factura a ARCA y queda a favor del cliente */}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-ink-soft">
+            Seña <span className="font-normal text-ink-soft/70">(opcional — se factura a ARCA)</span>
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              min={0}
+              placeholder="$ 0"
+              value={depositAmount}
+              onChange={(e) => setDepositAmount(e.target.value)}
+              className={`${fieldClass} flex-1`}
+            />
+            <select
+              value={depositMethod}
+              onChange={(e) => setDepositMethod(e.target.value as typeof depositMethod)}
+              disabled={!(Number(depositAmount) > 0)}
+              className={`${fieldClass} flex-1`}
+            >
+              <option value="cash">Efectivo</option>
+              <option value="bank_transfer">Transferencia</option>
+              <option value="mercadopago">MercadoPago</option>
+            </select>
           </div>
         </div>
 
