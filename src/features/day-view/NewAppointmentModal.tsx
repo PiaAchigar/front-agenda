@@ -5,6 +5,7 @@ import {
   useCustomerSearch,
   useProvidersByService,
   useServices,
+  useServicesByProvider,
 } from "../../api/agenda";
 import type { Customer } from "../../api/types";
 import { Button, ErrorNote, Input, Modal } from "../../components/ui";
@@ -158,7 +159,14 @@ function CustomerPicker({
 // ── Modal principal ───────────────────────────────────────────────────────────
 
 export type NewApptPrefill = {
+  /**
+   * Viene de hacer click en un hueco de la COLUMNA de una prestadora: queda
+   * fija y el selector de servicio muestra solo los que ella ofrece. Desde el
+   * botón "Nuevo turno" no se manda, y ahí se elige cualquier servicio y
+   * después la prestadora que lo presta.
+   */
   providerId?: string;
+  providerName?: string;
   serviceId?: string;
   minutes?: number; // minutos desde medianoche ART
 };
@@ -195,6 +203,13 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
   const [depositAmount, setDepositAmount] = useState("");
   const [depositMethod, setDepositMethod] = useState<"cash" | "bank_transfer" | "mercadopago">("cash");
 
+  // Alta desde la columna de una prestadora: queda fija y solo se ofrecen SUS
+  // servicios. Desde "Nuevo turno" (sin prefill de prestadora) sigue el flujo
+  // inverso: se elige el servicio y después quién lo presta.
+  const lockedProviderId = prefill?.providerId ?? null;
+  const { data: providerServices = [], isFetching: loadingProviderServices } =
+    useServicesByProvider(lockedProviderId);
+
   const { data: providers = [], isFetching: loadingProviders } = useProvidersByService(
     serviceId || null,
   );
@@ -209,17 +224,22 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
   // del prefill (slot clickeado) si la ofrece; si no, caer en la primera. Se ajusta
   // DURANTE el render (patrón recomendado de React) en vez de un efecto, para no
   // disparar renders en cascada (B2).
+  // Con la prestadora fija no se reasigna nunca (la eligió el usuario al clickear
+  // su columna); los servicios que se ofrecen ya son los de ella.
   const providersSig = providers.map((p) => p.id).join(",");
   const [syncedProvidersSig, setSyncedProvidersSig] = useState(providersSig);
-  if (providersSig !== syncedProvidersSig) {
+  if (!lockedProviderId && providersSig !== syncedProvidersSig) {
     setSyncedProvidersSig(providersSig);
     if (serviceId && providers.length > 0 && !providers.find((p) => p.id === providerId)) {
       setProviderId(providers[0]?.id ?? "");
     }
   }
 
+  // Opciones del selector de servicio según de dónde se abrió la modal
+  const serviceOptions = lockedProviderId ? providerServices : services;
+
   // Hora fin calculada automáticamente
-  const selectedService  = services.find((s) => s.id === serviceId);
+  const selectedService  = serviceOptions.find((s) => s.id === serviceId);
   const durationMin      = selectedService?.estimatedDurationMinutes ?? 0;
   const endTimeStr       = durationMin > 0 ? addMinutesToTime(timeStr, durationMin) : "";
 
@@ -281,9 +301,16 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
             className={fieldClass}
             value={serviceId}
             onChange={(e) => setServiceId(e.target.value)}
+            disabled={Boolean(lockedProviderId) && loadingProviderServices}
           >
-            <option value="">Seleccioná un servicio…</option>
-            {services.map((s) => (
+            <option value="">
+              {lockedProviderId && loadingProviderServices
+                ? "Cargando servicios…"
+                : lockedProviderId && serviceOptions.length === 0
+                  ? "Esta prestadora no tiene servicios asignados"
+                  : "Seleccioná un servicio…"}
+            </option>
+            {serviceOptions.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
                 {s.estimatedDurationMinutes ? ` (${s.estimatedDurationMinutes} min)` : ""}
@@ -295,25 +322,32 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
         {/* Prestadora */}
         <div>
           <label className="mb-1 block text-xs font-medium text-ink-soft">Prestadora</label>
-          <select
-            className={fieldClass}
-            value={providerId}
-            onChange={(e) => setProviderId(e.target.value)}
-            disabled={!serviceId || loadingProviders}
-          >
-            <option value="">
-              {!serviceId
-                ? "Primero seleccioná un servicio"
-                : loadingProviders
-                  ? "Cargando…"
-                  : "Seleccioná una prestadora…"}
-            </option>
-            {providers.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.fullName}
+          {lockedProviderId ? (
+            // Fija: se llegó desde su columna en la grilla
+            <select className={fieldClass} value={lockedProviderId} disabled>
+              <option value={lockedProviderId}>{prefill?.providerName ?? "Prestadora"}</option>
+            </select>
+          ) : (
+            <select
+              className={fieldClass}
+              value={providerId}
+              onChange={(e) => setProviderId(e.target.value)}
+              disabled={!serviceId || loadingProviders}
+            >
+              <option value="">
+                {!serviceId
+                  ? "Primero seleccioná un servicio"
+                  : loadingProviders
+                    ? "Cargando…"
+                    : "Seleccioná una prestadora…"}
               </option>
-            ))}
-          </select>
+              {providers.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.fullName}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Hora inicio + Hora fin */}

@@ -215,7 +215,11 @@ export function DayViewPage() {
         onAppointmentClick={setSelected}
         onSlotClick={(columnId, minutes) =>
           columnMode === "provider"
-            ? openNewAppt({ providerId: columnId, minutes })
+            ? openNewAppt({
+                providerId: columnId,
+                providerName: providers.find((p) => p.id === columnId)?.name,
+                minutes,
+              })
             : openNewAppt({ serviceId: columnId, minutes })
         }
       />

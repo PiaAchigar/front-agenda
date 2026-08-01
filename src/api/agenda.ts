@@ -7,6 +7,7 @@ import type {
   CompanyConfig,
   Customer,
   Provider,
+  ProviderService,
   Service,
 } from "./types";
 
@@ -67,6 +68,16 @@ export function useProvidersByService(serviceId: string | null) {
     queryKey: ["providers", "by-service", serviceId],
     queryFn: () => api<Provider[]>(`/api/agenda/providers?serviceId=${serviceId}`),
     enabled: Boolean(serviceId),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** Servicios que ofrece una prestadora — para el alta de turno desde su columna. */
+export function useServicesByProvider(providerId: string | null) {
+  return useQuery({
+    queryKey: ["services", "by-provider", providerId],
+    queryFn: () => api<ProviderService[]>(`/api/agenda/providers/${providerId}/services`),
+    enabled: Boolean(providerId),
     staleTime: 5 * 60 * 1000,
   });
 }
