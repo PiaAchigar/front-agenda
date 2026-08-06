@@ -14,6 +14,7 @@ import { addDays, formatDate, formatTime, todayLocal } from "../../lib/format";
 import { CalendarGrid, type ColumnMode } from "./CalendarGrid";
 import { NewAppointmentModal, type NewApptPrefill } from "./NewAppointmentModal";
 import { ReschedulingModal } from "./ReschedulingModal";
+import { AttendanceModal } from "./AttendanceModal";
 import { ViewTabs, saveView } from "../../components/ViewTabs";
 import { isEmbedded, requestCheckoutHandoff } from "../../lib/embed";
 
@@ -42,6 +43,7 @@ export function DayViewPage() {
   const [searchParams] = useSearchParams();
   const [date, setDate] = useState(searchParams.get("date") ?? todayLocal);
   const [selected, setSelected]             = useState<Appointment | null>(null);
+  const [attendanceFor, setAttendanceFor]   = useState<Appointment | null>(null);
   const [newApptOpen, setNewApptOpen]       = useState(false);
   const [newApptPrefill, setNewApptPrefill] = useState<NewApptPrefill | null>(null);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
@@ -252,6 +254,18 @@ export function DayViewPage() {
             )}
 
             <div className="flex flex-wrap gap-2 pt-1">
+              {/* Turno de ACTIVIDAD: abre el registro de asistencias de la clase,
+                  con todos los clientes agendados a ese mismo horario. */}
+              {selected.activityId && (
+                <Button
+                  onClick={() => {
+                    setAttendanceFor(selected);
+                    setSelected(null);
+                  }}
+                >
+                  Asistencias
+                </Button>
+              )}
               {isEmbedded && selected.status !== "cancelled" && selected.status !== "no_show" && selected.customerId && (
                 <Button
                   onClick={() => requestCheckoutHandoff(selected.id, selected.customerId!)}
@@ -316,6 +330,12 @@ export function DayViewPage() {
           </div>
         )}
       </Modal>
+
+      {/* ── Modal de asistencias de una clase ── */}
+      <AttendanceModal
+        appointment={attendanceFor}
+        onClose={() => setAttendanceFor(null)}
+      />
 
       {/* ── Modal de reagendado ── */}
       <ReschedulingModal

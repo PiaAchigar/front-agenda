@@ -279,8 +279,10 @@ export function CalendarGrid({
                   const borderColor = STATUS_BORDER_COLOR[appt.status ?? "scheduled"]
                     ?? STATUS_BORDER_COLOR.scheduled;
                   const isCancelled = appt.status === "cancelled";
+                  // Los turnos de ACTIVIDAD no tienen serviceName: sin esto la
+                  // card queda con la línea de abajo vacía.
                   const cardSubtext = columnMode === "provider"
-                    ? appt.serviceName
+                    ? (appt.serviceName ?? appt.activityName)
                     : appt.providerName;
 
                   const isReserved = appt.status === "reserved";

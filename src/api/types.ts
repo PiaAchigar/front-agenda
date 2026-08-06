@@ -55,6 +55,25 @@ export type Appointment = {
   providerId: string | null;
   providerName: string | null;
   machineName: string | null;
+  /** No nulo cuando el turno es de una ACTIVIDAD (Pilates, Thermo Bike...) */
+  activityId: string | null;
+  activityName: string | null;
+  activityType: "class" | "machine" | null;
+};
+
+/**
+ * Un cliente en el roster de una clase. `canMark` en false = no tiene
+ * suscripción activa a la actividad, así que no se le puede registrar
+ * asistencia (activity_attendance cuelga de la suscripción).
+ */
+export type ClassRosterEntry = {
+  appointmentId: string;
+  customerId: string | null;
+  customerName: string;
+  subscriptionId: string | null;
+  attended: boolean;
+  canMark: boolean;
+  reason: string | null;
 };
 
 export type Customer = {

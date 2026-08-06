@@ -4,6 +4,7 @@ import type {
   Appointment,
   Availability,
   Category,
+  ClassRosterEntry,
   CompanyConfig,
   Customer,
   Provider,
@@ -51,6 +52,46 @@ export function useAppointments(date: string) {
     queryKey: ["appointments", date],
     queryFn: () => api<Appointment[]>(`/api/agenda/appointments?date=${date}`),
     refetchInterval: 30_000,
+  });
+}
+
+/**
+ * Roster de una clase (actividad + horario exacto).
+ *
+ * Una actividad grupal son N turnos distintos con el mismo activity_id y el
+ * mismo appointment_start, así que la clase se identifica por ese par y no por
+ * el id de un turno puntual.
+ */
+export function useClassRoster(activityId: string | null, startsAt: string | null) {
+  return useQuery({
+    queryKey: ["class-roster", activityId, startsAt],
+    queryFn: () =>
+      api<{ success: boolean; data: ClassRosterEntry[] }>(
+        `/api/class-attendance?activityId=${activityId}&startsAt=${encodeURIComponent(startsAt!)}`,
+      ).then((r) => r.data),
+    enabled: Boolean(activityId && startsAt),
+  });
+}
+
+export type MarkAttendanceInput = {
+  activityId: string;
+  startsAt: string;
+  entries: { subscriptionId: string; attended: boolean }[];
+};
+
+export function useMarkAttendance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: MarkAttendanceInput) =>
+      api<{ success: boolean; data: ClassRosterEntry[] }>("/api/class-attendance", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }).then((r) => r.data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["class-roster", variables.activityId, variables.startsAt],
+      });
+    },
   });
 }
 
