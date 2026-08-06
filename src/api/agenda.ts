@@ -9,6 +9,7 @@ import type {
   CompanyConfig,
   Customer,
   Provider,
+  ProviderService,
   Service,
 } from "./types";
 
@@ -130,6 +131,16 @@ export function useProvidersByService(serviceId: string | null) {
   });
 }
 
+/** Servicios que ofrece una prestadora — para el alta de turno desde su columna. */
+export function useServicesByProvider(providerId: string | null) {
+  return useQuery({
+    queryKey: ["services", "by-provider", providerId],
+    queryFn: () => api<ProviderService[]>(`/api/agenda/providers/${providerId}/services`),
+    enabled: Boolean(providerId),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useCompanyConfig() {
   return useQuery({
     queryKey: ["company-config"],
@@ -166,6 +177,8 @@ export type CreateAppointmentInput = {
   notes?: string;
   status?: "scheduled" | "reserved";
   expiryMinutes?: number;
+  /** Seña cobrada al reservar: se factura a ARCA y queda a favor del cliente. */
+  deposit?: { amount: number; method: "cash" | "bank_transfer" | "mercadopago" };
 };
 
 export function useCreateAppointment() {

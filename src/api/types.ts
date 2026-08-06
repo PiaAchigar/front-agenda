@@ -119,6 +119,12 @@ export type Customer = {
   email: string | null;
 };
 
+/** Servicio tal como lo devuelve `/providers/:id/services` (shape reducido). */
+export type ProviderService = Pick<
+  Service,
+  "id" | "name" | "estimatedDurationMinutes" | "unitPriceList" | "unitPriceCash"
+>;
+
 export type Provider = {
   id: string;
   fullName: string | null;
