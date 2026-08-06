@@ -14,7 +14,15 @@ import { addDays, formatDate, formatTime, todayLocal } from "../../lib/format";
 import { CalendarGrid, type ColumnMode } from "./CalendarGrid";
 import { NewAppointmentModal, type NewApptPrefill } from "./NewAppointmentModal";
 import { ReschedulingModal } from "./ReschedulingModal";
-import { AttendanceModal } from "./AttendanceModal";
+import { AttendanceModal, type AttendanceTarget } from "./AttendanceModal";
+import { ClassesView } from "./ClassesView";
+
+/**
+ * Dos formas de mirar el día:
+ * - "turnos": servicios 1 a 1 — una card por persona (grilla horaria)
+ * - "clases": actividades y capacitaciones — una card por clase, con su cupo
+ */
+type AgendaMode = "turnos" | "clases";
 import { ViewTabs, saveView } from "../../components/ViewTabs";
 import { isEmbedded, requestCheckoutHandoff } from "../../lib/embed";
 
@@ -43,7 +51,7 @@ export function DayViewPage() {
   const [searchParams] = useSearchParams();
   const [date, setDate] = useState(searchParams.get("date") ?? todayLocal);
   const [selected, setSelected]             = useState<Appointment | null>(null);
-  const [attendanceFor, setAttendanceFor]   = useState<Appointment | null>(null);
+  const [attendanceFor, setAttendanceFor]   = useState<AttendanceTarget | null>(null);
   const [newApptOpen, setNewApptOpen]       = useState(false);
   const [newApptPrefill, setNewApptPrefill] = useState<NewApptPrefill | null>(null);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
@@ -52,12 +60,24 @@ export function DayViewPage() {
   const [columnMode, setColumnMode] = useState<ColumnMode>(() => {
     return (localStorage.getItem("agenda-column-mode") as ColumnMode) ?? "provider";
   });
+  // Turnos simples (servicios 1 a 1) vs clases grupales. Son dos formas de
+  // agenda distintas: en turnos cada card es una persona, en clases cada card
+  // es una clase con N inscriptas adentro. Mezclarlas apilaba N cards en el
+  // mismo horario y escondía las clases sin nadie anotado.
+  const [agendaMode, setAgendaMode] = useState<AgendaMode>(() => {
+    return (localStorage.getItem("agenda-mode") as AgendaMode) ?? "turnos";
+  });
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounced(search, 200);
 
   function changeColumnMode(mode: ColumnMode) {
     setColumnMode(mode);
     localStorage.setItem("agenda-column-mode", mode);
+  }
+
+  function changeAgendaMode(mode: AgendaMode) {
+    setAgendaMode(mode);
+    localStorage.setItem("agenda-mode", mode);
   }
 
   function openReschedule(appt: Appointment) {
@@ -74,7 +94,14 @@ export function DayViewPage() {
     setNewApptOpen(true);
   }
 
-  const { data: appointments = [], isLoading, error } = useAppointments(date);
+  const { data: allAppointments = [], isLoading, error } = useAppointments(date);
+
+  // La grilla de turnos muestra sólo los turnos 1 a 1. Las inscripciones a
+  // clases y capacitaciones viven en la vista "Clases": si se dibujaran acá,
+  // 6 inscriptas al mismo Pilates serían 6 cards superpuestas en el mismo slot.
+  const appointments = allAppointments.filter(
+    (appt) => !appt.activityId && !appt.trainingSessionId,
+  );
 
   // IDs de reservas expiradas ya notificadas — evita re-disparar el modal
   // tras "Enterado" mientras el cron aún no canceló el turno.
@@ -82,7 +109,10 @@ export function DayViewPage() {
 
   useEffect(() => {
     const check = () => {
-      const found = appointments.find(
+      // Sobre allAppointments, no sobre la grilla filtrada: una reserva a una
+      // clase también expira y hay que avisar igual, se esté viendo la vista
+      // de turnos o la de clases.
+      const found = allAppointments.find(
         (a) =>
           a.status === "reserved" &&
           a.reservationExpiresAt &&
@@ -94,7 +124,7 @@ export function DayViewPage() {
     check();
     const id = setInterval(check, 60_000);
     return () => clearInterval(id);
-  }, [appointments]); // expiredAppt NO va aquí — evita loop
+  }, [allAppointments]); // expiredAppt NO va aquí — evita loop
   const { data: providersRaw = [] }                   = useProviders();
   const { data: config }                              = useCompanyConfig();
   const { data: providerSchedule }                    = useProviderSchedule(date);
@@ -161,42 +191,66 @@ export function DayViewPage() {
             <div className={`h-1 w-1 rounded-full border-2 border-primary-container border-t-primary ${isLoading ? "animate-spin" : "invisible"}`} />
           </div>
 
-
-          {/* Buscador en tiempo real (filtra columnas según el toggle activo) */}
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={columnMode === "provider" ? "Buscar prestadora…" : "Buscar servicio…"}
-            className="w-60 rounded-lg border border-surface-highest bg-white px-3 py-1.5 text-sm outline-none focus:border-primary"
-          />
-
-          {/* Toggle prestadora / servicio */}
+          {/* Toggle turnos simples / clases grupales */}
           <div className="flex rounded-lg border border-surface-highest overflow-hidden text-sm">
-            {(["provider", "service"] as const).map((mode) => (
+            {([
+              { key: "turnos", label: "Turnos simples" },
+              { key: "clases", label: "Clases y capacitaciones" },
+            ] as const).map((mode) => (
               <button
-              key={mode}
-              onClick={() => changeColumnMode(mode)}
-              className={[
-                "px-3 py-1.5 transition-colors",
-                columnMode === mode
-                ? "bg-primary text-white font-medium"
-                : "bg-white text-ink-soft hover:bg-surface-low",
-              ].join(" ")}
+                key={mode.key}
+                onClick={() => changeAgendaMode(mode.key)}
+                className={[
+                  "px-3 py-1.5 transition-colors",
+                  agendaMode === mode.key
+                    ? "bg-primary text-white font-medium"
+                    : "bg-white text-ink-soft hover:bg-surface-low",
+                ].join(" ")}
               >
-                {mode === "provider" ? "Por prestadora" : "Por servicio"}
+                {mode.label}
               </button>
             ))}
           </div>
 
-     
+          {/* Buscador y columnas sólo aplican a la grilla de turnos: la vista
+              de clases es una lista cronológica, no tiene columnas que filtrar. */}
+          {agendaMode === "turnos" && (
+            <>
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={columnMode === "provider" ? "Buscar prestadora…" : "Buscar servicio…"}
+                className="w-60 rounded-lg border border-surface-highest bg-white px-3 py-1.5 text-sm outline-none focus:border-primary"
+              />
 
-          <button
-            className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary/90 transition-colors"
-            onClick={() => openNewAppt()}
-          >
-            + Nuevo turno
-          </button>
+              {/* Toggle prestadora / servicio */}
+              <div className="flex rounded-lg border border-surface-highest overflow-hidden text-sm">
+                {(["provider", "service"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => changeColumnMode(mode)}
+                    className={[
+                      "px-3 py-1.5 transition-colors",
+                      columnMode === mode
+                        ? "bg-primary text-white font-medium"
+                        : "bg-white text-ink-soft hover:bg-surface-low",
+                    ].join(" ")}
+                  >
+                    {mode === "provider" ? "Por prestadora" : "Por servicio"}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary/90 transition-colors"
+                onClick={() => openNewAppt()}
+              >
+                + Nuevo turno
+              </button>
+            </>
+          )}
+
             {/* Selector de vista Día / Semana / Mes */}
             <ViewTabs current="dia" />
         </div>
@@ -204,23 +258,38 @@ export function DayViewPage() {
 
       {error && <ErrorNote message={(error as Error).message} />}
 
-      {/* ── Grid horario ── */}
-      <CalendarGrid
-        className="flex-1 min-h-0"
-        appointments={appointments}
-        providers={providers}
-        date={date}
-        openHours={openHours}
-        columnMode={columnMode}
-        columnFilter={debouncedSearch}
-        providerSchedule={providerSchedule}
-        onAppointmentClick={setSelected}
-        onSlotClick={(columnId, minutes) =>
-          columnMode === "provider"
-            ? openNewAppt({ providerId: columnId, minutes })
-            : openNewAppt({ serviceId: columnId, minutes })
-        }
-      />
+      {agendaMode === "turnos" ? (
+        /* ── Grid horario: una card por persona ── */
+        <CalendarGrid
+          className="flex-1 min-h-0"
+          appointments={appointments}
+          providers={providers}
+          date={date}
+          openHours={openHours}
+          columnMode={columnMode}
+          columnFilter={debouncedSearch}
+          providerSchedule={providerSchedule}
+          onAppointmentClick={setSelected}
+          onSlotClick={(columnId, minutes) =>
+            columnMode === "provider"
+              ? openNewAppt({ providerId: columnId, minutes })
+              : openNewAppt({ serviceId: columnId, minutes })
+          }
+        />
+      ) : (
+        /* ── Clases y capacitaciones: una card por clase, con su cupo ── */
+        <ClassesView
+          className="flex-1 min-h-0"
+          date={date}
+          onOpenAttendance={(occurrence) =>
+            setAttendanceFor({
+              activityId: occurrence.subjectId,
+              activityName: occurrence.name,
+              startsAt: occurrence.startsAt,
+            })
+          }
+        />
+      )}
 
       {/* ── Modal nuevo turno (se monta de cero en cada apertura) ── */}
       {newApptOpen && (
@@ -259,7 +328,11 @@ export function DayViewPage() {
               {selected.activityId && (
                 <Button
                   onClick={() => {
-                    setAttendanceFor(selected);
+                    setAttendanceFor({
+                      activityId: selected.activityId!,
+                      activityName: selected.activityName,
+                      startsAt: selected.appointmentStart,
+                    });
                     setSelected(null);
                   }}
                 >
@@ -333,7 +406,7 @@ export function DayViewPage() {
 
       {/* ── Modal de asistencias de una clase ── */}
       <AttendanceModal
-        appointment={attendanceFor}
+        target={attendanceFor}
         onClose={() => setAttendanceFor(null)}
       />
 

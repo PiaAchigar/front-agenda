@@ -4,6 +4,7 @@ import type {
   Appointment,
   Availability,
   Category,
+  ClassOccurrence,
   ClassRosterEntry,
   CompanyConfig,
   Customer,
@@ -51,6 +52,23 @@ export function useAppointments(date: string) {
   return useQuery({
     queryKey: ["appointments", date],
     queryFn: () => api<Appointment[]>(`/api/agenda/appointments?date=${date}`),
+    refetchInterval: 30_000,
+  });
+}
+
+/**
+ * Clases que se dictan en una fecha: actividades y capacitaciones juntas.
+ * Una fila por CLASE, no por inscripta — una clase sin nadie anotado también
+ * aparece, que es lo que no se podía ver cuando la grilla se armaba a partir
+ * de los turnos.
+ */
+export function useClasses(date: string) {
+  return useQuery({
+    queryKey: ["classes", date],
+    queryFn: () =>
+      api<{ success: boolean; data: ClassOccurrence[] }>(
+        `/api/agenda/classes?date=${date}`,
+      ).then((r) => r.data),
     refetchInterval: 30_000,
   });
 }

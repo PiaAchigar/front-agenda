@@ -59,6 +59,41 @@ export type Appointment = {
   activityId: string | null;
   activityName: string | null;
   activityType: "class" | "machine" | null;
+  /** No nulo cuando el turno es una inscripción a un encuentro de CAPACITACIÓN */
+  trainingSessionId: string | null;
+};
+
+/**
+ * Una clase que se dicta en una fecha: el EVENTO, no la inscripción de una
+ * clienta. Existe aunque no se haya anotado nadie.
+ *
+ * Une dos orígenes con el mismo shape: actividades (patrón semanal de
+ * activity_schedules) y capacitaciones (training_sessions, fechas concretas).
+ */
+export type ClassOccurrence = {
+  occurrenceId: string;
+  kind: "activity" | "training";
+  /** activity_id o training_id según kind */
+  subjectId: string;
+  sessionId: string | null;
+  name: string;
+  activityType: "class" | "machine" | null;
+  sessionNumber: number | null;
+  totalSessions: number | null;
+  providerId: string | null;
+  providerName: string | null;
+  machineId: string | null;
+  machineName: string | null;
+  location: string | null;
+  /** "HH:MM" en hora local del negocio */
+  startTime: string;
+  endTime: string;
+  /** Instante UTC de inicio (ISO) — clave para abrir las asistencias */
+  startsAt: string;
+  /** null = sin cupo declarado */
+  capacity: number | null;
+  enrolledCount: number;
+  attendedCount: number;
 };
 
 /**

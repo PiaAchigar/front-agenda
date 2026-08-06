@@ -1,7 +1,18 @@
 import { useEffect, useState } from "react";
 import { Button, ErrorNote, Modal } from "../../components/ui";
 import { useClassRoster, useMarkAttendance } from "../../api/agenda";
-import type { Appointment } from "../../api/types";
+
+/**
+ * Identifica la clase cuyas asistencias se están registrando. Deliberadamente
+ * NO es un Appointment: la clase se identifica por (actividad, horario), y
+ * tanto la card de un turno como la card de una clase pueden abrirla.
+ */
+export type AttendanceTarget = {
+  activityId: string;
+  activityName: string | null;
+  /** Instante UTC de inicio de la clase (ISO) */
+  startsAt: string;
+};
 
 /**
  * Registro de asistencias de una clase.
@@ -13,14 +24,14 @@ import type { Appointment } from "../../api/types";
  * cuenta la columna "Asistió" del panel de Suscripciones.
  */
 export function AttendanceModal({
-  appointment,
+  target,
   onClose,
 }: {
-  appointment: Appointment | null;
+  target: AttendanceTarget | null;
   onClose: () => void;
 }) {
-  const activityId = appointment?.activityId ?? null;
-  const startsAt = appointment?.appointmentStart ?? null;
+  const activityId = target?.activityId ?? null;
+  const startsAt = target?.startsAt ?? null;
 
   const roster = useClassRoster(activityId, startsAt);
   const markAttendance = useMarkAttendance();
@@ -59,12 +70,12 @@ export function AttendanceModal({
     onClose();
   };
 
-  const title = appointment?.activityName
-    ? `Asistencias · ${appointment.activityName}`
+  const title = target?.activityName
+    ? `Asistencias · ${target.activityName}`
     : "Asistencias";
 
   return (
-    <Modal open={Boolean(appointment)} onClose={onClose} title={title}>
+    <Modal open={Boolean(target)} onClose={onClose} title={title}>
       <div className="space-y-4">
         {roster.isLoading && <p className="text-sm text-ink-soft">Cargando clientes...</p>}
 
