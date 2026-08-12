@@ -54,9 +54,17 @@ function CustomerPicker({
   const inputRef                  = useRef<HTMLInputElement>(null);
 
   if (value) {
+    const credit = Number(value.creditBalance ?? 0);
     return (
       <div className="flex items-center justify-between rounded-xl border border-primary bg-primary-container/20 px-3 py-2 text-sm">
-        <span className="font-medium text-ink">{value.name}</span>
+        <span className="font-medium text-ink">
+          {value.name}
+          {credit > 0 && (
+            <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+              ${credit.toLocaleString("es-AR")} a favor
+            </span>
+          )}
+        </span>
         <button
           onClick={() => { onChange(null); setQuery(""); setShowCreate(false); }}
           className="text-ink-soft hover:text-ink ml-2"
@@ -201,7 +209,18 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
   const [apptStatus,    setApptStatus]   = useState<"scheduled" | "reserved">("scheduled");
   const [expiryMinutes, setExpiryMinutes] = useState(60);
   const [depositAmount, setDepositAmount] = useState("");
-  const [depositMethod, setDepositMethod] = useState<"cash" | "bank_transfer" | "mercadopago">("cash");
+  const [depositMethod, setDepositMethod] =
+    useState<"cash" | "bank_transfer" | "mercadopago" | "credit">("cash");
+
+  // Saldo a favor del cliente elegido (viene de una seña de un turno que se
+  // canceló antes de su horario). Se puede usar para pagar esta seña.
+  const creditBalance = Number(customer?.creditBalance ?? 0);
+  const seniaAmount = Number(depositAmount) || 0;
+  const creditIsShort = depositMethod === "credit" && seniaAmount > creditBalance;
+
+  // Si se cambia de cliente y el nuevo no tiene saldo, no dejar "Saldo a favor"
+  // seleccionado (se enviaría un método impagable).
+  if (depositMethod === "credit" && creditBalance <= 0) setDepositMethod("cash");
 
   // Alta desde la columna de una prestadora: queda fija y solo se ofrecen SUS
   // servicios. Desde "Nuevo turno" (sin prefill de prestadora) sigue el flujo
@@ -248,6 +267,8 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
     Boolean(serviceId) &&
     Boolean(providerId) &&
     timeStr.length === 5 &&
+    // Pagar con saldo insuficiente lo rechaza el backend: no dejar ni intentarlo
+    !creditIsShort &&
     !create.isPending;
 
   function handleSubmit() {
@@ -429,8 +450,34 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
               <option value="cash">Efectivo</option>
               <option value="bank_transfer">Transferencia</option>
               <option value="mercadopago">MercadoPago</option>
+              {creditBalance > 0 && (
+                <option value="credit">
+                  Saldo a favor (${creditBalance.toLocaleString("es-AR")})
+                </option>
+              )}
             </select>
           </div>
+          {creditBalance > 0 && depositMethod !== "credit" && (
+            <button
+              type="button"
+              onClick={() => {
+                setDepositMethod("credit");
+                if (!(Number(depositAmount) > 0)) setDepositAmount(String(creditBalance));
+              }}
+              className="mt-1 text-xs text-primary hover:underline"
+            >
+              Usar el saldo a favor de {customer?.name} (${creditBalance.toLocaleString("es-AR")})
+            </button>
+          )}
+          {depositMethod === "credit" && (
+            <p
+              className={`mt-1 text-xs ${creditIsShort ? "text-red-700" : "text-green-700"}`}
+            >
+              {creditIsShort
+                ? `El saldo a favor es de $${creditBalance.toLocaleString("es-AR")}: no alcanza para una seña de $${seniaAmount.toLocaleString("es-AR")}.`
+                : `Se descuentan $${seniaAmount.toLocaleString("es-AR")} del saldo a favor. No entra plata a caja ni se emite factura nueva (ya se facturó al cobrarse la seña original).`}
+            </p>
+          )}
         </div>
 
         {/* Estado: Turno confirmado vs Reserva temporal */}

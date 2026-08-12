@@ -117,6 +117,8 @@ export type Customer = {
   dni: string | null;
   phone: string | null;
   email: string | null;
+  /** Saldo a favor (viene como string decimal del backend, ej "12000.00"). */
+  creditBalance?: string | null;
 };
 
 /** Servicio tal como lo devuelve `/providers/:id/services` (shape reducido). */

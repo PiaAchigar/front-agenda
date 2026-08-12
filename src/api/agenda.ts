@@ -177,8 +177,12 @@ export type CreateAppointmentInput = {
   notes?: string;
   status?: "scheduled" | "reserved";
   expiryMinutes?: number;
-  /** Seña cobrada al reservar: se factura a ARCA y queda a favor del cliente. */
-  deposit?: { amount: number; method: "cash" | "bank_transfer" | "mercadopago" };
+  /** Seña cobrada al reservar: se factura a ARCA y queda a favor del cliente.
+   *  `credit` la paga con el saldo a favor (no entra plata ni se factura). */
+  deposit?: {
+    amount: number;
+    method: "cash" | "bank_transfer" | "mercadopago" | "credit";
+  };
 };
 
 export function useCreateAppointment() {
