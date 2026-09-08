@@ -3,24 +3,7 @@ import { useRescheduleAppointment, useReschedules } from "../../api/agenda";
 import type { Appointment } from "../../api/types";
 import { Button, ErrorNote, Modal } from "../../components/ui";
 import { addDays, formatDate, formatDateTime, formatTime } from "../../lib/format";
-
-function toArgentinaISO(dateStr: string, timeStr: string): string {
-  return `${dateStr}T${timeStr}:00-03:00`;
-}
-
-function isoToDateAndTime(iso: string): { date: string; time: string } {
-  const local = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Argentina/Buenos_Aires",
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", hour12: false,
-  }).formatToParts(new Date(iso));
-
-  const get = (t: string) => local.find((p) => p.type === t)?.value ?? "";
-  return {
-    date: `${get("year")}-${get("month")}-${get("day")}`,
-    time: `${get("hour")}:${get("minute")}`,
-  };
-}
+import { isoToDateAndTime, toArgentinaISO } from "../../lib/reagendar";
 
 type Props = {
   open: boolean;
