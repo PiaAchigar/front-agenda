@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useRescheduleAppointment } from "../../api/agenda";
+import { useRescheduleAppointment, useReschedules } from "../../api/agenda";
 import type { Appointment } from "../../api/types";
 import { Button, ErrorNote, Modal } from "../../components/ui";
-import { addDays, formatDate, formatTime } from "../../lib/format";
+import { addDays, formatDate, formatDateTime, formatTime } from "../../lib/format";
 
 function toArgentinaISO(dateStr: string, timeStr: string): string {
   return `${dateStr}T${timeStr}:00-03:00`;
@@ -30,6 +30,9 @@ type Props = {
 
 export function ReschedulingModal({ open, appointment, onClose }: Props) {
   const reschedule = useRescheduleAppointment();
+  // El historial se pide sólo con el modal abierto: es la única pantalla que lo
+  // muestra y no tiene sentido traerlo por cada turno del día.
+  const historial = useReschedules(open && appointment ? appointment.id : null);
 
   // Estado inicializado directo desde el appointment.
   // El componente se remonta con `key={appointment.id}` en el padre,
@@ -37,6 +40,7 @@ export function ReschedulingModal({ open, appointment, onClose }: Props) {
   const initial  = appointment ? isoToDateAndTime(appointment.appointmentStart) : null;
   const [date, setDate] = useState(initial?.date ?? "");
   const [time, setTime] = useState(initial?.time ?? "");
+  const [reason, setReason] = useState("");
 
   if (!appointment) return null;
 
@@ -46,7 +50,7 @@ export function ReschedulingModal({ open, appointment, onClose }: Props) {
   function handleSubmit() {
     if (!appointment || !date || !time) return;
     reschedule.mutate(
-      { id: appointment.id, newStart: toArgentinaISO(date, time) },
+      { id: appointment.id, newStart: toArgentinaISO(date, time), reason: reason.trim() || undefined },
       { onSuccess: onClose },
     );
   }
@@ -112,6 +116,47 @@ export function ReschedulingModal({ open, appointment, onClose }: Props) {
             La hora de fin se recalcula según la duración del servicio.
           </p>
         </div>
+
+        {/* Motivo */}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-ink-soft">
+            Motivo <span className="font-normal">(opcional)</span>
+          </label>
+          <input
+            type="text"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            maxLength={500}
+            placeholder="Ej: la clienta no podía a esa hora"
+            className={fieldClass}
+          />
+        </div>
+
+        {/* Historial. Se muestra acá, y no en otra pantalla, porque el momento
+            de decidir es justo antes de volver a mover el turno. */}
+        {historial.data && historial.data.length > 0 && (
+          <div className="rounded-xl border border-surface-high bg-surface-low px-3 py-2.5">
+            <p className="text-xs font-medium text-ink-soft">
+              Este turno ya se movió {historial.data.length}{" "}
+              {historial.data.length === 1 ? "vez" : "veces"}
+            </p>
+            <ul className="mt-1.5 space-y-1.5">
+              {historial.data.map((m) => (
+                <li key={m.id} className="text-xs text-ink-soft">
+                  <span className="text-ink">
+                    {m.previousStart ? formatDateTime(m.previousStart) : "—"} →{" "}
+                    {formatDateTime(m.newStart)}
+                  </span>
+                  {m.reason && <span> · {m.reason}</span>}
+                  <span className="block text-[11px] opacity-70">
+                    {formatDateTime(m.createdAt)}
+                    {m.rescheduledByName ? ` · ${m.rescheduledByName}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {reschedule.error && <ErrorNote message={(reschedule.error as Error).message} />}
 

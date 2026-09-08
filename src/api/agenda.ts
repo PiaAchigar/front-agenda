@@ -10,6 +10,7 @@ import type {
   Customer,
   Provider,
   ProviderService,
+  Reschedule,
   Service,
 } from "./types";
 
@@ -218,14 +219,26 @@ export function useUpdateAppointment() {
 export function useRescheduleAppointment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, newStart }: { id: string; newStart: string }) =>
+    mutationFn: ({ id, newStart, reason }: { id: string; newStart: string; reason?: string }) =>
       api<Appointment>(`/api/agenda/appointments/${id}/reschedule`, {
         method: "PATCH",
-        body: JSON.stringify({ newStart }),
+        body: JSON.stringify({ newStart, ...(reason ? { reason } : {}) }),
       }),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["availability"] });
+      // El historial del turno que se acaba de mover: sin esto, reagendar dos
+      // veces seguidas muestra el modal con el historial viejo.
+      queryClient.invalidateQueries({ queryKey: ["reschedules", variables.id] });
     },
+  });
+}
+
+/** Historial de movimientos de un turno, del más nuevo al más viejo. */
+export function useReschedules(appointmentId: string | null) {
+  return useQuery({
+    queryKey: ["reschedules", appointmentId],
+    queryFn: () => api<Reschedule[]>(`/api/agenda/appointments/${appointmentId}/reschedules`),
+    enabled: Boolean(appointmentId),
   });
 }

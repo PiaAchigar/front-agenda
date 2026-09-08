@@ -145,3 +145,21 @@ export type CompanyConfig = {
     isOpen: boolean | null;
   }[];
 };
+
+/**
+ * Un movimiento del historial de un turno (`GET /appointments/:id/reschedules`).
+ *
+ * `rescheduledByName` viene de un LEFT JOIN por `users.auth_id` y suele ser
+ * null: hoy casi ningún usuario tiene ese campo cargado. La fecha y el motivo
+ * están siempre — que es lo que antes se perdía.
+ */
+export type Reschedule = {
+  id: string;
+  previousStart: string | null;
+  previousEnd: string | null;
+  newStart: string;
+  newEnd: string;
+  reason: string | null;
+  createdAt: string;
+  rescheduledByName: string | null;
+};
