@@ -7,13 +7,15 @@ import {
   useProviders,
   useUpdateAppointment,
 } from "../../api/agenda";
-import type { Appointment } from "../../api/types";
+import type { Appointment, Consumo } from "../../api/types";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge, Button, ErrorNote, Modal } from "../../components/ui";
 import { addDays, formatDate, formatTime, todayLocal } from "../../lib/format";
 import { CalendarGrid, type ColumnMode } from "./CalendarGrid";
 import { NewAppointmentModal, type NewApptPrefill } from "./NewAppointmentModal";
 import { ReschedulingModal } from "./ReschedulingModal";
+import { AvisoInsumosModal } from "./AvisoInsumosModal";
+import { hayQueAvisar } from "../../lib/aviso-insumos";
 import { AttendanceModal, type AttendanceTarget } from "./AttendanceModal";
 import { ClassesView } from "./ClassesView";
 
@@ -51,6 +53,7 @@ export function DayViewPage() {
   const [searchParams] = useSearchParams();
   const [date, setDate] = useState(searchParams.get("date") ?? todayLocal);
   const [selected, setSelected]             = useState<Appointment | null>(null);
+  const [avisoInsumos, setAvisoInsumos]     = useState<Consumo | null>(null);
   const [attendanceFor, setAttendanceFor]   = useState<AttendanceTarget | null>(null);
   const [newApptOpen, setNewApptOpen]       = useState(false);
   const [newApptPrefill, setNewApptPrefill] = useState<NewApptPrefill | null>(null);
@@ -143,7 +146,17 @@ export function DayViewPage() {
 
   function changeStatus(status: string) {
     if (!selected) return;
-    update.mutate({ id: selected.id, status }, { onSettled: () => setSelected(null) });
+    update.mutate(
+      { id: selected.id, status },
+      {
+        // Al completar, el backend descuenta los insumos de la receta y
+        // devuelve `consumo`. Sólo se interrumpe si algo quedó en negativo.
+        onSuccess: (r) => {
+          if (hayQueAvisar(r.consumo)) setAvisoInsumos(r.consumo!);
+        },
+        onSettled: () => setSelected(null),
+      },
+    );
   }
 
   const statusInfo = STATUS_LABELS[selected?.status ?? "scheduled"] ?? STATUS_LABELS.scheduled!;
@@ -421,6 +434,9 @@ export function DayViewPage() {
         appointment={rescheduleAppt}
         onClose={() => setRescheduleOpen(false)}
       />
+
+      {/* Aparece solo si al completar un turno algún insumo quedó en negativo. */}
+      <AvisoInsumosModal consumo={avisoInsumos} onClose={() => setAvisoInsumos(null)} />
 
       {/* ── Modal de reserva expirada ── */}
       <Modal

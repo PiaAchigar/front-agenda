@@ -7,6 +7,7 @@ import type {
   ClassOccurrence,
   ClassRosterEntry,
   CompanyConfig,
+  Consumo,
   Customer,
   Provider,
   ProviderService,
@@ -204,8 +205,9 @@ export function useCreateAppointment() {
 export function useUpdateAppointment() {
   const queryClient = useQueryClient();
   return useMutation({
+    // `consumo` sólo viene al completar: es el descuento de insumos (1.44.0).
     mutationFn: ({ id, ...data }: { id: string; status?: string; notes?: string }) =>
-      api<Appointment>(`/api/agenda/appointments/${id}`, {
+      api<Appointment & { consumo?: Consumo }>(`/api/agenda/appointments/${id}`, {
         method: "PATCH",
         body: JSON.stringify(data),
       }),

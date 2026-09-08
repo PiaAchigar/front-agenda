@@ -163,3 +163,31 @@ export type Reschedule = {
   createdAt: string;
   rescheduledByName: string | null;
 };
+
+/** Un insumo que quedó en negativo al completar un turno. */
+export type InsumoFaltante = {
+  productId: string;
+  name: string | null;
+  quantity: number;
+  /** Lo que había antes. `null` = nadie lo había contado todavía. */
+  stockAntes: number | null;
+  stockDespues: number;
+};
+
+/** Un insumo de la receta que NO se descontó, y por qué. */
+export type InsumoOmitido = {
+  productId: string;
+  name: string | null;
+  motivo: "archivado" | "cantidad";
+};
+
+/**
+ * Lo que devuelve completar un turno (1.44.0). Sólo viene en la transición a
+ * 'completed': volver a completar un turno ya completado no descuenta nada y
+ * no trae este campo.
+ */
+export type Consumo = {
+  descontados: number;
+  faltantes: InsumoFaltante[];
+  omitidos: InsumoOmitido[];
+};
