@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  useConsumible,
   useCreateAppointment,
   useCreateCustomer,
   useCustomerSearch,
   useProvidersByService,
   useServices,
   useServicesByProvider,
+  type Consumible,
 } from "../../api/agenda";
 import type { Customer } from "../../api/types";
 import { Button, ErrorNote, Input, Modal } from "../../components/ui";
@@ -195,6 +197,136 @@ const EXPIRY_OPTIONS = [
   { value: 90,  label: "1 h 30 min" },
 ];
 
+/**
+ * El día de un vencimiento, en dd/mm/aaaa.
+ *
+ * Se leen las partes UTC y NO se pasa por `toLocaleDateString`: la fecha viaja
+ * como `2027-03-15T00:00:00Z`, y en Argentina —tres horas atrás— esa medianoche
+ * cae a las 21:00 del 14. Formateando en hora local, un pack que vence el 15
+ * se muestra venciendo el 14, y Laura le cobra a la clienta un día antes de lo
+ * que corresponde.
+ */
+const fechaCorta = (iso: string | null) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  return `${dd}/${mm}/${d.getUTCFullYear()}`;
+};
+
+/**
+ * Contra qué se descuenta este turno.
+ *
+ * Tres formas, y sólo una se ve por vez (reglas §3.8):
+ *
+ * - **Nada a favor** → no se muestra nada. Es el caso más común y un cartel
+ *   diciendo "no tiene packs" sería ruido en todos los turnos normales.
+ * - **Una sola compra** → se descuenta sola y se avisa cuál. No es un
+ *   selector: no hay nada que elegir, sólo hay que enterarse. El link para
+ *   soltarla existe por si Laura quiere cobrarlo aparte.
+ * - **Varias** → elige Laura. Ordenadas por lo que vence antes, que es lo que
+ *   está por perderse.
+ */
+function DescuentoDePack({
+  estado,
+  cargando,
+  elegida,
+  onElegir,
+}: {
+  estado: Consumible | undefined;
+  cargando: boolean;
+  elegida: string | null;
+  onElegir: (sessionId: string | null) => void;
+}) {
+  if (cargando) {
+    return <p className="text-xs text-ink-soft">Buscando qué tiene a favor…</p>;
+  }
+  if (!estado || estado.tipo === "ninguna") return null;
+
+  if (estado.tipo === "automatica") {
+    const { opcion } = estado;
+    const vence = fechaCorta(opcion.venceEl);
+    return (
+      <div className="rounded-xl border border-primary/30 bg-primary/8 px-3 py-2">
+        {elegida === estado.sessionId ? (
+          <>
+            <p className="text-sm text-ink">
+              Se descuenta de <strong>{opcion.descripcion}</strong>
+            </p>
+            <p className="mt-0.5 text-xs text-ink-soft">
+              Le quedan {opcion.disponibles}
+              {opcion.disponibles === 1 ? " sesión" : " sesiones"}
+              {vence ? ` · vence el ${vence}` : ""}
+            </p>
+            <button
+              type="button"
+              onClick={() => onElegir(null)}
+              className="mt-1 text-xs text-ink-soft underline underline-offset-2 hover:text-ink"
+            >
+              No descontar: cobrar este turno aparte
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-ink">Este turno se cobra aparte.</p>
+            <button
+              type="button"
+              onClick={() => onElegir(estado.sessionId)}
+              className="mt-1 text-xs text-primary underline underline-offset-2"
+            >
+              Descontarlo de {opcion.descripcion}
+            </button>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5 rounded-xl border border-surface-highest bg-white px-3 py-2">
+      <p className="text-xs font-medium text-ink-soft">
+        Tiene {estado.opciones.length} cosas a favor para este servicio. ¿De cuál se descuenta?
+      </p>
+      {estado.opciones.map((o) => {
+        const vence = fechaCorta(o.venceEl);
+        return (
+          <label
+            key={o.purchaseId}
+            className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-low"
+          >
+            <input
+              type="radio"
+              name="descuento-de-pack"
+              className="mt-1 accent-[var(--color-primary)]"
+              checked={elegida === o.sessionId}
+              onChange={() => onElegir(o.sessionId)}
+            />
+            <span className="text-sm text-ink">
+              {o.descripcion}
+              <span className="mt-0.5 block text-xs text-ink-soft">
+                Le quedan {o.disponibles}
+                {o.disponibles === 1 ? " sesión" : " sesiones"}
+                {vence ? ` · vence el ${vence}` : ""}
+              </span>
+            </span>
+          </label>
+        );
+      })}
+      <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-low">
+        <input
+          type="radio"
+          name="descuento-de-pack"
+          className="accent-[var(--color-primary)]"
+          checked={elegida === null}
+          onChange={() => onElegir(null)}
+        />
+        <span className="text-sm text-ink-soft">No descontar: cobrarlo aparte</span>
+      </label>
+    </div>
+  );
+}
+
 export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
   const { data: services = [] } = useServices();
 
@@ -234,6 +366,37 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
   );
 
   const create = useCreateAppointment();
+
+  // Qué tiene la clienta a favor para este servicio.
+  const { data: consumible, isFetching: buscandoConsumible } = useConsumible(
+    customer?.id ?? null,
+    serviceId || null,
+  );
+
+  // Cuál se descuenta. `null` = ninguna, y es un estado distinto de "todavía no
+  // decidí": por eso el sincronizado de abajo mira la firma de la respuesta y no
+  // el valor, que si no, soltar la sesión se pisaría solo en el render siguiente.
+  const [sesionElegida, setSesionElegida] = useState<string | null>(null);
+
+  // La única compra se elige sola (reglas §3.8). Se ajusta DURANTE el render,
+  // como el resto de este archivo, para no encadenar renders con un efecto.
+  const firmaConsumible =
+    consumible?.tipo === "automatica"
+      ? `auto:${consumible.sessionId}`
+      : consumible?.tipo === "elige_laura"
+        ? `varias:${consumible.opciones.map((o) => o.sessionId).join(",")}`
+        : "ninguna";
+  // Arranca en `null` —un valor que ninguna firma real puede tener— para que la
+  // primera pasada SIEMPRE sincronice. Inicializándolo con `firmaConsumible` se
+  // rompía cuando la respuesta ya estaba en caché al montar: las dos firmas
+  // nacían iguales, la selección automática no corría nunca y el turno se
+  // guardaba sin descontar la sesión, en silencio. Pasa de verdad al reabrir la
+  // modal para la misma clienta y servicio.
+  const [firmaSincronizada, setFirmaSincronizada] = useState<string | null>(null);
+  if (firmaConsumible !== firmaSincronizada) {
+    setFirmaSincronizada(firmaConsumible);
+    setSesionElegida(consumible?.tipo === "automatica" ? consumible.sessionId : null);
+  }
 
   // El reset del formulario al abrir lo da el MONTAJE: la modal se monta de cero
   // cada vez que se abre (ver DayViewPage/WeekViewPage), así los useState de arriba
@@ -286,6 +449,7 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
         expiryMinutes: apptStatus === "reserved" ? expiryMinutes : undefined,
         deposit:
           seniaNum > 0 ? { amount: seniaNum, method: depositMethod } : undefined,
+        customerPurchaseSessionId: sesionElegida ?? undefined,
       },
       { onSuccess: onClose },
     );
@@ -338,6 +502,18 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
               </option>
             ))}
           </select>
+
+          {/* Contra qué se descuenta. Sólo aparece si tiene algo a favor. */}
+          {customer && serviceId && (
+            <div className="mt-2">
+              <DescuentoDePack
+                estado={consumible}
+                cargando={buscandoConsumible}
+                elegida={sesionElegida}
+                onElegir={setSesionElegida}
+              />
+            </div>
+          )}
         </div>
 
         {/* Prestadora */}

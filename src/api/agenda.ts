@@ -169,6 +169,49 @@ export function useCreateCustomer() {
   });
 }
 
+/** Una compra de la clienta con sesiones libres para este servicio. */
+export type OpcionDeCompra = {
+  purchaseId: string;
+  descripcion: string;
+  /** Cuántas sesiones libres le quedan en esa compra. */
+  disponibles: number;
+  /** ISO, o null si no vence. */
+  venceEl: string | null;
+  /** La sesión que se descontaría si eligen esta compra. */
+  sessionId: string;
+};
+
+/**
+ * Qué se le descuenta a la clienta por este turno.
+ *
+ *   ninguna       no tiene nada a favor: el turno se cobra aparte
+ *   automatica    una sola compra con sesiones libres → se descuenta sola
+ *   elige_laura   varias → Laura elige, ordenadas por lo que vence antes
+ */
+export type Consumible =
+  | { tipo: "ninguna" }
+  | { tipo: "automatica"; sessionId: string; opcion: OpcionDeCompra }
+  | { tipo: "elige_laura"; opciones: OpcionDeCompra[] };
+
+/**
+ * Lo que la clienta tiene a favor para este servicio.
+ *
+ * `staleTime: 0` a propósito: entre que se abre la modal y se guarda, otra
+ * persona pudo haber agendado esa misma sesión. Mostrar una lista vieja haría
+ * elegir algo que ya no está, y el backend lo rechazaría recién al guardar.
+ */
+export function useConsumible(customerId: string | null, serviceId: string | null) {
+  return useQuery({
+    queryKey: ["consumible", customerId, serviceId],
+    queryFn: () =>
+      api<Consumible>(
+        `/api/agenda/appointments/consumible?customerId=${customerId}&serviceId=${serviceId}`,
+      ),
+    enabled: !!customerId && !!serviceId,
+    staleTime: 0,
+  });
+}
+
 export type CreateAppointmentInput = {
   customerId: string;
   serviceId: string;
@@ -185,6 +228,8 @@ export type CreateAppointmentInput = {
     amount: number;
     method: "cash" | "bank_transfer" | "mercadopago" | "credit";
   };
+  /** La sesión del pack que este turno descuenta. Sin esto no descuenta nada. */
+  customerPurchaseSessionId?: string;
 };
 
 export function useCreateAppointment() {
@@ -198,6 +243,9 @@ export function useCreateAppointment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["availability"] });
+      // El turno puede haber descontado una sesión: lo que la clienta tiene a
+      // favor quedó viejo.
+      queryClient.invalidateQueries({ queryKey: ["consumible"] });
     },
   });
 }
