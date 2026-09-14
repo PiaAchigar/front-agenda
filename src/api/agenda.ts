@@ -169,36 +169,37 @@ export function useCreateCustomer() {
   });
 }
 
-/** Una compra de la clienta con sesiones libres para este servicio. */
+/** Una compra de la clienta con servicios comprados libres para este servicio. */
 export type OpcionDeCompra = {
   purchaseId: string;
   descripcion: string;
-  /** Cuántas sesiones libres le quedan en esa compra. */
+  /** Cuántos servicios comprados libres le quedan en esa compra. */
   disponibles: number;
   /** ISO, o null si no vence. */
   venceEl: string | null;
-  /** La sesión que se descontaría si eligen esta compra. */
-  sessionId: string;
+  /** El servicio comprado que se descontaría si eligen esta compra. */
+  purchaseServiceId: string;
 };
 
 /**
  * Qué se le descuenta a la clienta por este turno.
  *
  *   ninguna       no tiene nada a favor: el turno se cobra aparte
- *   automatica    una sola compra con sesiones libres → se descuenta sola
+ *   automatica    una sola compra con servicios comprados libres → se descuenta sola
  *   elige_laura   varias → Laura elige, ordenadas por lo que vence antes
  */
 export type Consumible =
   | { tipo: "ninguna" }
-  | { tipo: "automatica"; sessionId: string; opcion: OpcionDeCompra }
+  | { tipo: "automatica"; purchaseServiceId: string; opcion: OpcionDeCompra }
   | { tipo: "elige_laura"; opciones: OpcionDeCompra[] };
 
 /**
  * Lo que la clienta tiene a favor para este servicio.
  *
  * `staleTime: 0` a propósito: entre que se abre la modal y se guarda, otra
- * persona pudo haber agendado esa misma sesión. Mostrar una lista vieja haría
- * elegir algo que ya no está, y el backend lo rechazaría recién al guardar.
+ * persona pudo haber agendado ese mismo servicio comprado. Mostrar una lista
+ * vieja haría elegir algo que ya no está, y el backend lo rechazaría recién
+ * al guardar.
  */
 export function useConsumible(customerId: string | null, serviceId: string | null) {
   return useQuery({
@@ -228,8 +229,8 @@ export type CreateAppointmentInput = {
     amount: number;
     method: "cash" | "bank_transfer" | "mercadopago" | "credit";
   };
-  /** La sesión del pack que este turno descuenta. Sin esto no descuenta nada. */
-  customerPurchaseSessionId?: string;
+  /** El servicio comprado del pack que este turno descuenta. Sin esto no descuenta nada. */
+  customerPurchaseServiceId?: string;
 };
 
 export function useCreateAppointment() {

@@ -237,7 +237,7 @@ function DescuentoDePack({
   estado: Consumible | undefined;
   cargando: boolean;
   elegida: string | null;
-  onElegir: (sessionId: string | null) => void;
+  onElegir: (purchaseServiceId: string | null) => void;
 }) {
   if (cargando) {
     return <p className="text-xs text-ink-soft">Buscando qué tiene a favor…</p>;
@@ -249,7 +249,7 @@ function DescuentoDePack({
     const vence = fechaCorta(opcion.venceEl);
     return (
       <div className="rounded-xl border border-primary/30 bg-primary/8 px-3 py-2">
-        {elegida === estado.sessionId ? (
+        {elegida === estado.purchaseServiceId ? (
           <>
             <p className="text-sm text-ink">
               Se descuenta de <strong>{opcion.descripcion}</strong>
@@ -272,7 +272,7 @@ function DescuentoDePack({
             <p className="text-sm text-ink">Este turno se cobra aparte.</p>
             <button
               type="button"
-              onClick={() => onElegir(estado.sessionId)}
+              onClick={() => onElegir(estado.purchaseServiceId)}
               className="mt-1 text-xs text-primary underline underline-offset-2"
             >
               Descontarlo de {opcion.descripcion}
@@ -299,8 +299,8 @@ function DescuentoDePack({
               type="radio"
               name="descuento-de-pack"
               className="mt-1 accent-[var(--color-primary)]"
-              checked={elegida === o.sessionId}
-              onChange={() => onElegir(o.sessionId)}
+              checked={elegida === o.purchaseServiceId}
+              onChange={() => onElegir(o.purchaseServiceId)}
             />
             <span className="text-sm text-ink">
               {o.descripcion}
@@ -375,27 +375,28 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
 
   // Cuál se descuenta. `null` = ninguna, y es un estado distinto de "todavía no
   // decidí": por eso el sincronizado de abajo mira la firma de la respuesta y no
-  // el valor, que si no, soltar la sesión se pisaría solo en el render siguiente.
-  const [sesionElegida, setSesionElegida] = useState<string | null>(null);
+  // el valor, que si no, soltar el servicio elegido se pisaría solo en el render
+  // siguiente.
+  const [servicioElegido, setServicioElegido] = useState<string | null>(null);
 
   // La única compra se elige sola (reglas §3.8). Se ajusta DURANTE el render,
   // como el resto de este archivo, para no encadenar renders con un efecto.
   const firmaConsumible =
     consumible?.tipo === "automatica"
-      ? `auto:${consumible.sessionId}`
+      ? `auto:${consumible.purchaseServiceId}`
       : consumible?.tipo === "elige_laura"
-        ? `varias:${consumible.opciones.map((o) => o.sessionId).join(",")}`
+        ? `varias:${consumible.opciones.map((o) => o.purchaseServiceId).join(",")}`
         : "ninguna";
   // Arranca en `null` —un valor que ninguna firma real puede tener— para que la
   // primera pasada SIEMPRE sincronice. Inicializándolo con `firmaConsumible` se
   // rompía cuando la respuesta ya estaba en caché al montar: las dos firmas
   // nacían iguales, la selección automática no corría nunca y el turno se
-  // guardaba sin descontar la sesión, en silencio. Pasa de verdad al reabrir la
-  // modal para la misma clienta y servicio.
+  // guardaba sin descontar el servicio comprado, en silencio. Pasa de verdad al
+  // reabrir la modal para la misma clienta y servicio.
   const [firmaSincronizada, setFirmaSincronizada] = useState<string | null>(null);
   if (firmaConsumible !== firmaSincronizada) {
     setFirmaSincronizada(firmaConsumible);
-    setSesionElegida(consumible?.tipo === "automatica" ? consumible.sessionId : null);
+    setServicioElegido(consumible?.tipo === "automatica" ? consumible.purchaseServiceId : null);
   }
 
   // El reset del formulario al abrir lo da el MONTAJE: la modal se monta de cero
@@ -449,7 +450,7 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
         expiryMinutes: apptStatus === "reserved" ? expiryMinutes : undefined,
         deposit:
           seniaNum > 0 ? { amount: seniaNum, method: depositMethod } : undefined,
-        customerPurchaseSessionId: sesionElegida ?? undefined,
+        customerPurchaseServiceId: servicioElegido ?? undefined,
       },
       { onSuccess: onClose },
     );
@@ -509,8 +510,8 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
               <DescuentoDePack
                 estado={consumible}
                 cargando={buscandoConsumible}
-                elegida={sesionElegida}
-                onElegir={setSesionElegida}
+                elegida={servicioElegido}
+                onElegir={setServicioElegido}
               />
             </div>
           )}

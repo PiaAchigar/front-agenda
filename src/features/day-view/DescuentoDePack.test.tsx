@@ -68,13 +68,13 @@ describe("DescuentoDePack — una sola compra", () => {
   beforeEach(() => {
     consumible.data = {
       tipo: "automatica",
-      sessionId: "ses1",
+      purchaseServiceId: "ses1",
       opcion: {
         purchaseId: "c1",
         descripcion: "Lifting de pestañas — pack de 3",
         disponibles: 2,
         venceEl: "2027-03-15T00:00:00.000Z",
-        sessionId: "ses1",
+        purchaseServiceId: "ses1",
       },
     };
   });
@@ -97,7 +97,7 @@ describe("DescuentoDePack — una sola compra", () => {
     await user.click(screen.getByRole("button", { name: /confirmar turno/i }));
 
     await waitFor(() => expect(crear).toHaveBeenCalled());
-    expect(crear.mock.calls[0]![0].customerPurchaseSessionId).toBe("ses1");
+    expect(crear.mock.calls[0]![0].customerPurchaseServiceId).toBe("ses1");
   });
 
   it("se puede soltar para cobrarlo aparte, y entonces no manda nada", async () => {
@@ -108,7 +108,7 @@ describe("DescuentoDePack — una sola compra", () => {
     expect(screen.getByText(/este turno se cobra aparte/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /confirmar turno/i }));
     await waitFor(() => expect(crear).toHaveBeenCalled());
-    expect(crear.mock.calls[0]![0].customerPurchaseSessionId).toBeUndefined();
+    expect(crear.mock.calls[0]![0].customerPurchaseServiceId).toBeUndefined();
   });
 });
 
@@ -122,14 +122,14 @@ describe("DescuentoDePack — varias compras", () => {
           descripcion: "Lifting — pack de 3",
           disponibles: 1,
           venceEl: "2027-02-01T00:00:00.000Z",
-          sessionId: "ses1",
+          purchaseServiceId: "ses1",
         },
         {
           purchaseId: "c2",
           descripcion: "Combo Facial",
           disponibles: 4,
           venceEl: null,
-          sessionId: "ses9",
+          purchaseServiceId: "ses9",
         },
       ],
     };
@@ -154,6 +154,6 @@ describe("DescuentoDePack — varias compras", () => {
     await user.click(screen.getByRole("button", { name: /confirmar turno/i }));
 
     await waitFor(() => expect(crear).toHaveBeenCalled());
-    expect(crear.mock.calls[0]![0].customerPurchaseSessionId).toBe("ses9");
+    expect(crear.mock.calls[0]![0].customerPurchaseServiceId).toBe("ses9");
   });
 });
