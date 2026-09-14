@@ -84,7 +84,7 @@ describe("DescuentoDePack — una sola compra", () => {
     await abrirConClientaYServicio(user);
     expect(await screen.findByText(frase(/se descuenta de/i))).toBeInTheDocument();
     expect(screen.getByText("Lifting de pestañas — pack de 3")).toBeInTheDocument();
-    expect(screen.getByText(frase(/le quedan 2 sesiones/i))).toBeInTheDocument();
+    expect(screen.getByText(frase(/le quedan 2 servicios a agendar/i))).toBeInTheDocument();
     expect(screen.getByText(frase(/vence el 15\/03\/2027/i))).toBeInTheDocument();
     // No hay nada que elegir: no se ofrece un selector.
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();

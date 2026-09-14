@@ -255,8 +255,9 @@ function DescuentoDePack({
               Se descuenta de <strong>{opcion.descripcion}</strong>
             </p>
             <p className="mt-0.5 text-xs text-ink-soft">
-              Le quedan {opcion.disponibles}
-              {opcion.disponibles === 1 ? " sesión" : " sesiones"}
+              {opcion.disponibles === 1
+                ? "Le queda 1 servicio a agendar"
+                : `Le quedan ${opcion.disponibles} servicios a agendar`}
               {vence ? ` · vence el ${vence}` : ""}
             </p>
             <button
@@ -305,8 +306,9 @@ function DescuentoDePack({
             <span className="text-sm text-ink">
               {o.descripcion}
               <span className="mt-0.5 block text-xs text-ink-soft">
-                Le quedan {o.disponibles}
-                {o.disponibles === 1 ? " sesión" : " sesiones"}
+                {o.disponibles === 1
+                  ? "Le queda 1 servicio a agendar"
+                  : `Le quedan ${o.disponibles} servicios a agendar`}
                 {vence ? ` · vence el ${vence}` : ""}
               </span>
             </span>
