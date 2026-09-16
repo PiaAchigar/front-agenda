@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   useAppointments,
@@ -51,8 +51,32 @@ const STATUS_LABELS: Record<
 };
 
 export function DayViewPage() {
-  const [searchParams] = useSearchParams();
-  const [date, setDate] = useState(searchParams.get("date") ?? todayLocal);
+  /**
+   * El día vive en la URL, no sólo en el estado.
+   *
+   * Es lo que hace que recargar devuelva el día que estabas mirando: la ruta
+   * que se anota es path + query, así que si el día no está en la query, no se
+   * recuerda (ver `lib/ruta-recordada.ts`). De paso, un día concreto pasa a
+   * tener su propia dirección.
+   *
+   * `replace` y no push: mover un día no es navegar, y con push el botón Atrás
+   * quedaba recorriendo días de a uno.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const date = searchParams.get("date") ?? todayLocal();
+  const setDate = useCallback(
+    (siguiente: string | ((actual: string) => string)) => {
+      setSearchParams(
+        (params) => {
+          const actual = params.get("date") ?? todayLocal();
+          params.set("date", typeof siguiente === "function" ? siguiente(actual) : siguiente);
+          return params;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
   const [selected, setSelected]             = useState<Appointment | null>(null);
   const [avisoInsumos, setAvisoInsumos]     = useState<Consumo | null>(null);
   const [attendanceFor, setAttendanceFor]   = useState<AttendanceTarget | null>(null);
