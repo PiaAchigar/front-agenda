@@ -16,6 +16,7 @@ import { NewAppointmentModal, type NewApptPrefill } from "./NewAppointmentModal"
 import { ReschedulingModal } from "./ReschedulingModal";
 import { AvisoInsumosModal } from "./AvisoInsumosModal";
 import { hayQueAvisar } from "../../lib/aviso-insumos";
+import { sePuedeCobrar } from "../../lib/acciones-del-turno";
 import { AttendanceModal, type AttendanceTarget } from "./AttendanceModal";
 import { ClassesView } from "./ClassesView";
 
@@ -356,7 +357,7 @@ export function DayViewPage() {
                   Asistencias
                 </Button>
               )}
-              {isEmbedded && selected.status !== "cancelled" && selected.status !== "no_show" && selected.customerId && (
+              {sePuedeCobrar(selected, isEmbedded) && (
                 <Button
                   onClick={() => requestCheckoutHandoff(selected.id, selected.customerId!)}
                 >
@@ -365,11 +366,11 @@ export function DayViewPage() {
               )}
               {selected.status !== "completed" && (
                 <Button
-                  variant="secondary"
+                  variant="success"
                   onClick={() => changeStatus("completed")}
                   disabled={update.isPending}
                 >
-                  Completar
+                  Realizado
                 </Button>
               )}
               {selected.status !== "no_show" && (

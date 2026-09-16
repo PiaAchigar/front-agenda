@@ -6,7 +6,7 @@ export function Button({
   className = "",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "secondary" | "ghost" | "danger";
+  variant?: "primary" | "secondary" | "ghost" | "danger" | "success";
 }) {
   const variants = {
     primary:
@@ -15,6 +15,9 @@ export function Button({
       "bg-surface-high text-ink hover:bg-surface-highest border border-surface-highest",
     ghost: "bg-transparent text-primary hover:bg-primary/10",
     danger: "bg-red-700 text-white hover:bg-red-800",
+    // El mismo verde con el que la ficha de la clienta pinta "Hecho": el
+    // turno realizado se lee igual en los dos lados.
+    success: "bg-emerald-600 text-white hover:bg-emerald-700",
   };
   return (
     <button

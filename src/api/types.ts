@@ -61,6 +61,14 @@ export type Appointment = {
   activityType: "class" | "machine" | null;
   /** No nulo cuando el turno es una inscripción a un encuentro de CAPACITACIÓN */
   trainingSessionId: string | null;
+  /**
+   * La fila de `customer_purchase_service` de la que sale el turno.
+   *
+   * No nula = la clienta ya compró esto (combo, pack o servicio suelto), y
+   * entonces el turno NO se cobra desde la agenda: sería cobrárselo dos veces.
+   * Ver `lib/acciones-del-turno.ts`.
+   */
+  customerPurchaseServiceId: string | null;
 };
 
 /**
