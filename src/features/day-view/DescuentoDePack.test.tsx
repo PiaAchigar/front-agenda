@@ -112,6 +112,45 @@ describe("DescuentoDePack — una sola compra", () => {
   });
 });
 
+describe("DescuentoDePack — un turno que ya está pago", () => {
+  beforeEach(() => {
+    consumible.data = {
+      tipo: "automatica",
+      purchaseServiceId: "ses1",
+      opcion: {
+        purchaseId: "c1",
+        descripcion: "Lifting de pestañas — pack de 3",
+        disponibles: 2,
+        venceEl: null,
+        purchaseServiceId: "ses1",
+      },
+    };
+  });
+
+  /**
+   * La clienta ya pagó al comprar el pack. Dejar Precio y Seña a la vista
+   * invita a cobrar dos veces lo mismo, que es el error caro (Pia,
+   * 2026-09-16).
+   */
+  it("esconde Precio y Seña: no hay nada que cobrar acá", async () => {
+    const user = userEvent.setup();
+    await abrirConClientaYServicio(user);
+    await screen.findByText(frase(/se descuenta de/i));
+
+    expect(screen.queryByText("Precio")).not.toBeInTheDocument();
+    expect(screen.queryByText(frase(/^Seña/))).not.toBeInTheDocument();
+  });
+
+  it("los devuelve si Laura decide cobrarlo aparte", async () => {
+    const user = userEvent.setup();
+    await abrirConClientaYServicio(user);
+    await user.click(await screen.findByRole("button", { name: /no descontar/i }));
+
+    expect(screen.getByText("Precio")).toBeInTheDocument();
+    expect(screen.getByText(frase(/^Seña/))).toBeInTheDocument();
+  });
+});
+
 describe("DescuentoDePack — varias compras", () => {
   beforeEach(() => {
     consumible.data = {

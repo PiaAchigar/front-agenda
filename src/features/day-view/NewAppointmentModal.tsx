@@ -350,7 +350,7 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
   // canceló antes de su horario). Se puede usar para pagar esta seña.
   const creditBalance = Number(customer?.creditBalance ?? 0);
   const seniaAmount = Number(depositAmount) || 0;
-  const creditIsShort = depositMethod === "credit" && seniaAmount > creditBalance;
+
 
   // Si se cambia de cliente y el nuevo no tiene saldo, no dejar "Saldo a favor"
   // seleccionado (se enviaría un método impagable).
@@ -400,6 +400,22 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
     setFirmaSincronizada(firmaConsumible);
     setServicioElegido(consumible?.tipo === "automatica" ? consumible.purchaseServiceId : null);
   }
+
+  /**
+   * El turno sale de algo que la clienta YA pagó.
+   *
+   * Con esto no se muestran Precio ni Seña: acá no hay nada que cobrar, y
+   * tenerlos a la vista invita a cobrar dos veces lo mismo. Vuelven solos si
+   * Laura suelta el descuento con "cobrar este turno aparte" (Pia,
+   * 2026-09-16).
+   */
+  const vieneDeCompra = servicioElegido !== null;
+
+  // El saldo a favor no alcanza para la seña. Con el turno saliendo de una
+  // compra no aplica: la seña ya no se manda, y dejarlo bloquearía el botón
+  // por un campo que Laura no ve.
+  const creditIsShort =
+    !vieneDeCompra && depositMethod === "credit" && seniaAmount > creditBalance;
 
   // El reset del formulario al abrir lo da el MONTAJE: la modal se monta de cero
   // cada vez que se abre (ver DayViewPage/WeekViewPage), así los useState de arriba
@@ -451,7 +467,9 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
         status:        apptStatus,
         expiryMinutes: apptStatus === "reserved" ? expiryMinutes : undefined,
         deposit:
-          seniaNum > 0 ? { amount: seniaNum, method: depositMethod } : undefined,
+          !vieneDeCompra && seniaNum > 0
+            ? { amount: seniaNum, method: depositMethod }
+            : undefined,
         customerPurchaseServiceId: servicioElegido ?? undefined,
       },
       { onSuccess: onClose },
@@ -576,88 +594,95 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
           </div>
         </div>
 
-        {/* Precio */}
-        <div>
-          <label className="mb-1 block text-xs font-medium text-ink-soft">Precio</label>
-          <div className="flex gap-2">
-            {(["list", "cash"] as const).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setPriceMode(mode)}
-                className={[
-                  "flex-1 rounded-xl border py-2 text-sm transition-colors",
-                  priceMode === mode
-                    ? "border-primary bg-primary/10 font-medium text-primary"
-                    : "border-surface-highest text-ink-soft hover:bg-surface-low",
-                ].join(" ")}
-              >
-                {mode === "list" ? "Lista" : "Efectivo"}
-                {selectedService && (
-                  <span className="ml-1 text-xs">
-                    $
-                    {(mode === "list"
-                      ? selectedService.unitPriceList
-                      : selectedService.unitPriceCash
-                    )?.toLocaleString("es-AR") ?? "—"}
-                  </span>
-                )}
-              </button>
-            ))}
+        {/* Precio y Seña, sólo cuando hay algo que cobrar. Si el turno sale
+            de una compra ya pagada, mostrarlos invita a cobrar dos veces lo
+            mismo — vuelven solos al soltar el descuento. */}
+        {!vieneDeCompra && (
+          <>
+          {/* Precio */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-ink-soft">Precio</label>
+            <div className="flex gap-2">
+              {(["list", "cash"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setPriceMode(mode)}
+                  className={[
+                    "flex-1 rounded-xl border py-2 text-sm transition-colors",
+                    priceMode === mode
+                      ? "border-primary bg-primary/10 font-medium text-primary"
+                      : "border-surface-highest text-ink-soft hover:bg-surface-low",
+                  ].join(" ")}
+                >
+                  {mode === "list" ? "Lista" : "Efectivo"}
+                  {selectedService && (
+                    <span className="ml-1 text-xs">
+                      $
+                      {(mode === "list"
+                        ? selectedService.unitPriceList
+                        : selectedService.unitPriceCash
+                      )?.toLocaleString("es-AR") ?? "—"}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Seña (opcional): se factura a ARCA y queda a favor del cliente */}
-        <div>
-          <label className="mb-1 block text-xs font-medium text-ink-soft">
-            Seña <span className="font-normal text-ink-soft/70">(opcional — se factura a ARCA)</span>
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="number"
-              min={0}
-              placeholder="$ 0"
-              value={depositAmount}
-              onChange={(e) => setDepositAmount(e.target.value)}
-              className={`${fieldClass} flex-1`}
-            />
-            <select
-              value={depositMethod}
-              onChange={(e) => setDepositMethod(e.target.value as typeof depositMethod)}
-              disabled={!(Number(depositAmount) > 0)}
-              className={`${fieldClass} flex-1`}
-            >
-              <option value="cash">Efectivo</option>
-              <option value="bank_transfer">Transferencia</option>
-              <option value="mercadopago">MercadoPago</option>
-              {creditBalance > 0 && (
-                <option value="credit">
-                  Saldo a favor (${creditBalance.toLocaleString("es-AR")})
-                </option>
-              )}
-            </select>
+          {/* Seña (opcional): se factura a ARCA y queda a favor del cliente */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-ink-soft">
+              Seña <span className="font-normal text-ink-soft/70">(opcional — se factura a ARCA)</span>
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min={0}
+                placeholder="$ 0"
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value)}
+                className={`${fieldClass} flex-1`}
+              />
+              <select
+                value={depositMethod}
+                onChange={(e) => setDepositMethod(e.target.value as typeof depositMethod)}
+                disabled={!(Number(depositAmount) > 0)}
+                className={`${fieldClass} flex-1`}
+              >
+                <option value="cash">Efectivo</option>
+                <option value="bank_transfer">Transferencia</option>
+                <option value="mercadopago">MercadoPago</option>
+                {creditBalance > 0 && (
+                  <option value="credit">
+                    Saldo a favor (${creditBalance.toLocaleString("es-AR")})
+                  </option>
+                )}
+              </select>
+            </div>
+            {creditBalance > 0 && depositMethod !== "credit" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDepositMethod("credit");
+                  if (!(Number(depositAmount) > 0)) setDepositAmount(String(creditBalance));
+                }}
+                className="mt-1 text-xs text-primary hover:underline"
+              >
+                Usar el saldo a favor de {customer?.name} (${creditBalance.toLocaleString("es-AR")})
+              </button>
+            )}
+            {depositMethod === "credit" && (
+              <p
+                className={`mt-1 text-xs ${creditIsShort ? "text-red-700" : "text-green-700"}`}
+              >
+                {creditIsShort
+                  ? `El saldo a favor es de $${creditBalance.toLocaleString("es-AR")}: no alcanza para una seña de $${seniaAmount.toLocaleString("es-AR")}.`
+                  : `Se descuentan $${seniaAmount.toLocaleString("es-AR")} del saldo a favor. No entra plata a caja ni se emite factura nueva (ya se facturó al cobrarse la seña original).`}
+              </p>
+            )}
           </div>
-          {creditBalance > 0 && depositMethod !== "credit" && (
-            <button
-              type="button"
-              onClick={() => {
-                setDepositMethod("credit");
-                if (!(Number(depositAmount) > 0)) setDepositAmount(String(creditBalance));
-              }}
-              className="mt-1 text-xs text-primary hover:underline"
-            >
-              Usar el saldo a favor de {customer?.name} (${creditBalance.toLocaleString("es-AR")})
-            </button>
-          )}
-          {depositMethod === "credit" && (
-            <p
-              className={`mt-1 text-xs ${creditIsShort ? "text-red-700" : "text-green-700"}`}
-            >
-              {creditIsShort
-                ? `El saldo a favor es de $${creditBalance.toLocaleString("es-AR")}: no alcanza para una seña de $${seniaAmount.toLocaleString("es-AR")}.`
-                : `Se descuentan $${seniaAmount.toLocaleString("es-AR")} del saldo a favor. No entra plata a caja ni se emite factura nueva (ya se facturó al cobrarse la seña original).`}
-            </p>
-          )}
-        </div>
+          </>
+        )}
 
         {/* Estado: Turno confirmado vs Reserva temporal */}
         <div>
