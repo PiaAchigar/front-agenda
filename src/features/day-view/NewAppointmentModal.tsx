@@ -374,10 +374,13 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
   const [zonasElegidas, setZonasElegidas] = useState<string[]>([]);
 
   // La modal sólo recibe `customerId` (no la clienta completa) desde el
-  // prefill de depilación: hay que pedirla.
-  const { data: clienteDePrefill } = useCustomer(esDepilacion ? (prefill?.customerId ?? null) : null);
+  // prefill de "A agendar" (ficha del CRM) — de depilación o de un servicio
+  // normal, los dos mandan la clienta y a los dos hay que precargársela. Sin
+  // esto, Laura tenía que volver a buscarla a mano: justo lo que la pastilla
+  // existe para ahorrarle (Task 16, ronda de arreglos 2).
+  const { data: clienteDePrefill } = useCustomer(prefill?.customerId ?? null);
   const [clientePrefillAplicado, setClientePrefillAplicado] = useState(false);
-  if (esDepilacion && !clientePrefillAplicado && clienteDePrefill) {
+  if (!clientePrefillAplicado && clienteDePrefill) {
     setClientePrefillAplicado(true);
     setCustomer(clienteDePrefill);
   }

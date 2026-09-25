@@ -35,14 +35,10 @@ export type AgendarPrefill =
  *
  * El CRM corre en OTRO iframe: no tiene forma de mandarle esto directo a
  * este. Se lo pide al dashboard por `postMessage` (`pedirAgendar`), y es el
- * dashboard el que, al abrir esta agenda, tiene que agregarlo como query
- * params en la URL de este iframe — `customerId` y `serviceId` o
- * `purchaseServiceId`, los mismos nombres que manda el CRM.
- *
- * **Hoy nada arma esa URL todavía**: el dashboard abre `?embed=1` fijo, sin
- * estos params (`AgendaFrame.tsx` y `agendar-handoff.ts`, en `front-dashboard`
- * — fuera de este repo). Esta función queda lista para cuando lo esté, así
- * conectarla es agregar el llamado, no inventar de nuevo cómo leerlo.
+ * dashboard (`AgendaFrame.tsx` + `agendar-handoff.ts`, en `front-dashboard`)
+ * el que arma la URL de este iframe con esos mismos nombres —`customerId` y
+ * `serviceId` o `purchaseServiceId`— cuando hay un pedido pendiente. `
+ * DayViewPage` la lee de acá al montar y abre el turno nuevo ya cargado.
  */
 export function prefillDesdeUrl(): AgendarPrefill | null {
   if (typeof window === "undefined") return null;

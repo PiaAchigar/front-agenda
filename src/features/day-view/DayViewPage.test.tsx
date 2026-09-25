@@ -112,6 +112,23 @@ describe("DayViewPage — el prefill de \"A agendar\" llega por la URL", () => {
     expect(screen.queryByText("Servicio")).not.toBeInTheDocument();
   });
 
+  it("con serviceId en la URL (servicio normal), abre el turno nuevo CON LA CLIENTA puesta", async () => {
+    // Gemelo del test de depilación de arriba, para el camino más común del
+    // salón. Encontró un bug real (Task 16, ronda de arreglos 2):
+    // `NewAppointmentModal` sólo precargaba la clienta del prefill cuando
+    // `esDepilacion` era true, así que un prefill de servicio normal traía
+    // el servicio elegido pero perdía la clienta en silencio — Laura tenía
+    // que volver a buscarla a mano, justo lo que "A agendar" existe para
+    // ahorrarle.
+    conUrl("?embed=1&customerId=cu1&serviceId=svc-full");
+    montar();
+
+    expect(await screen.findByText("Servicio")).toBeInTheDocument();
+    expect(await screen.findByText("Sofía Herrera")).toBeInTheDocument();
+    // Con la clienta ya puesta, el buscador de clientes no debería ofrecerse.
+    expect(screen.queryByPlaceholderText(/nombre, dni o teléfono/i)).not.toBeInTheDocument();
+  });
+
   it("lo saca de la URL apenas lo usa: un refresh no puede reabrirlo solo", async () => {
     conUrl("?embed=1&customerId=cu1&purchaseServiceId=cps-depi-1");
     montar();
