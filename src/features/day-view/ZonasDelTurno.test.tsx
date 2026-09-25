@@ -15,6 +15,7 @@ const DATOS: DatosParaAgendar = {
     { id: "z3", nombre: "Bozo", categoria: "chica", minutos: 3, esDeRegalo: false, disponible: false, motivo: "Esta zona ya no está en el catálogo" },
   ],
   puerta: { puedeAgendar: true, puedeReservar: true, motivo: null, faltaCobrar: 0 },
+  serviceId: "svc-ancla",
 };
 
 describe("ZonasDelTurno", () => {

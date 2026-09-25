@@ -443,10 +443,10 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
     setServicioElegido(consumible?.tipo === "automatica" ? consumible.purchaseServiceId : null);
   }
 
-  // El servicio ancla de depilación: hoy `datosParaAgendar` no lo manda (ver
-  // `DatosParaAgendar.serviceId` en `api/types.ts`), así que esto queda sin
-  // efecto hasta que el backend lo agregue — `serviceId` sigue vacío y el
-  // formulario no deja avanzar, en vez de mandar un turno con datos inventados.
+  // El servicio ancla de depilación: `datosParaAgendar` lo trae resuelto
+  // (Task 15, ronda de arreglos 1) porque no vive en ningún catálogo que el
+  // front pueda consultar por su cuenta. Se sincroniza durante el render, no
+  // en el `useState` inicial, porque llega recién con la respuesta async.
   const anclaServiceId = datosDepilacion?.serviceId ?? "";
   const [anclaSincronizada, setAnclaSincronizada] = useState(false);
   if (esDepilacion && !anclaSincronizada && anclaServiceId) {

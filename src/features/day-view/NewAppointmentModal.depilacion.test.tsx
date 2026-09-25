@@ -7,13 +7,6 @@ const crear = vi.fn();
 const CLIENTA = { id: "cu1", name: "Sofía Herrera", dni: "30111222", creditBalance: 0 };
 const PROVEEDORA = { id: "prov1", fullName: "Gabi", specialties: null };
 
-/**
- * `serviceId` es el ancla de depilación resuelto — hoy el backend real NO lo
- * manda (ver `DatosParaAgendar.serviceId` en `api/types.ts` y el reporte de
- * la Task 15): este mock simula el día en que lo agregue, para poder probar
- * el resto del cableado (selección de zonas, puerta de pago, los dos
- * botones) sin quedar bloqueado por ese hueco del backend.
- */
 const datosDepilacion: DatosParaAgendar = {
   nombreDelPack: "Cuerpo Full",
   sesion: 1,

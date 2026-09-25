@@ -249,15 +249,12 @@ export type DatosParaAgendar = {
    * `POST /appointments` y el que hace falta para pedir prestadoras
    * (`useProvidersByService`).
    *
-   * **Hoy el backend no lo manda.** `datosParaAgendar` en
-   * `api-sistema-central/src/repositories/turno-de-depilacion.repo.ts` no
-   * incluye este campo, y `GET /api/agenda/services` excluye al ancla a
-   * propósito (`services.repo.ts`: "el servicio ancla de depilación queda
-   * afuera... no es un servicio que Laura cargue"). Sin este dato no hay
-   * forma, desde ningún front, de saber qué UUID es el ancla — ver el
-   * reporte de la Task 15 (`task-15-report.md`). Queda opcional a propósito:
-   * el día que el backend lo agregue con este mismo nombre, `NewAppointmentModal`
-   * lo toma solo, sin tocar el tipo de nuevo.
+   * El ancla no vive en ningún catálogo que el front pueda consultar por su
+   * cuenta — `GET /api/agenda/services` la excluye a propósito
+   * (`services.repo.ts`: "el servicio ancla de depilación queda afuera... no
+   * es un servicio que Laura cargue"), porque no se vende, es plomería
+   * interna. Este endpoint es el único lugar donde la pantalla se entera de
+   * qué UUID es (Task 15, ronda de arreglos 1).
    */
-  serviceId?: string;
+  serviceId: string;
 };
