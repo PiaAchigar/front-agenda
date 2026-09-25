@@ -241,6 +241,12 @@ export type DatosParaAgendar = {
   sesion: number;
   sesionesTotales: number;
   presupuestoMinutos: number;
+  /**
+   * Cuántas zonas "a elección" trae el pack: **hasta** N, no "todas las
+   * chicas que entren en los minutos" (spec §7.2). El servidor lo valida
+   * igual; esto es para que el menú no ofrezca lo que va a rechazar.
+   */
+  zonasDeRegalo: number;
   sexo: Sexo;
   zonas: ZonaDelMenu[];
   puerta: EstadoDePuerta;

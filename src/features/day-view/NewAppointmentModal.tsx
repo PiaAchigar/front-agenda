@@ -367,11 +367,27 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
   // Laura, y el backend infiere el de la clienta (`sexoDeLaClienta`); un
   // valor explícito simula "¿y si fuera hombre?" sin volver a cargarla.
   const [sexoElegido, setSexoElegido] = useState<Sexo | null>(null);
-  const { data: datosDepilacion, isFetching: cargandoDepilacion } = useParaAgendar(
-    purchaseServiceId,
-    sexoElegido ?? undefined,
-  );
+  const {
+    data: datosDepilacion,
+    isFetching: cargandoDepilacion,
+    error: errorDepilacion,
+  } = useParaAgendar(purchaseServiceId, sexoElegido ?? undefined);
   const [zonasElegidas, setZonasElegidas] = useState<string[]>([]);
+
+  /**
+   * Cambiar de sexo cambia los minutos de CADA zona (un hombre gasta más),
+   * así que lo ya tildado deja de valer lo mismo: se limpia la selección.
+   *
+   * Sin esto, el presupuesto nuevo podía quedar por debajo de lo elegido y el
+   * menú mostraba "No entra en los -3 min que quedan" — un número negativo,
+   * con la clienta enfrente. Empezar de cero es lo que menos sorprende:
+   * cualquier otra cosa (recortar la selección sola, dejarla pasada) obliga a
+   * Laura a revisar qué quedó tildado.
+   */
+  function cambiarSexo(sexo: Sexo) {
+    setSexoElegido(sexo);
+    setZonasElegidas([]);
+  }
 
   // La modal sólo recibe `customerId` (no la clienta completa) desde el
   // prefill de "A agendar" (ficha del CRM) — de depilación o de un servicio
@@ -573,6 +589,11 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
         expiryMinutes: status === "reserved" ? 1440 : undefined,
         customerPurchaseServiceId: purchaseServiceId,
         zonas: zonasElegidas,
+        // Sólo si Laura lo pisó: sin esto, el servidor usa el de la ficha —
+        // que es lo correcto cuando nadie tocó el selector. Y tiene que
+        // viajar, porque el servidor recalcula la duración por su cuenta: sin
+        // el campo, la pantalla mostraba 15 min y la base guardaba 12.
+        sexo: sexoElegido ?? undefined,
       },
       { onSuccess: onClose },
     );
@@ -608,12 +629,19 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
             {cargandoDepilacion && (
               <p className="text-xs text-ink-soft">Cargando el menú de zonas…</p>
             )}
+            {/* Sin esta rama, un 404 —la última sesión libre se la llevó otra
+                pestaña entre que Laura abrió la ficha y tocó "A agendar"—
+                dejaba el modal EN BLANCO: sin menú, sin mensaje y con los dos
+                botones apagados, sin forma de saber qué pasó. */}
+            {!cargandoDepilacion && errorDepilacion && (
+              <ErrorNote message={(errorDepilacion as Error).message} />
+            )}
             {datosDepilacion && (
               <ZonasDelTurno
                 datos={datosDepilacion}
                 elegidas={zonasElegidas}
                 onCambio={setZonasElegidas}
-                onCambiarSexo={setSexoElegido}
+                onCambiarSexo={cambiarSexo}
               />
             )}
           </div>

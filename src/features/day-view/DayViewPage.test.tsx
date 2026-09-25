@@ -30,6 +30,7 @@ const datosDepilacion: DatosParaAgendar = {
   sesion: 1,
   sesionesTotales: 3,
   presupuestoMinutos: 60,
+  zonasDeRegalo: 0,
   sexo: "mujer",
   zonas: [
     { id: "z1", nombre: "Pierna entera", categoria: "grande", minutos: 9, esDeRegalo: false, disponible: true, motivo: null },

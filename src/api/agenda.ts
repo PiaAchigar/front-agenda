@@ -271,6 +271,13 @@ export type CreateAppointmentInput = {
    * de acá y no del `estimatedDurationMinutes` del servicio.
    */
   zonas?: string[];
+  /**
+   * Con qué sexo se presupuestó la sesión, cuando Laura pisó el selector
+   * (§3.3a). Tiene que viajar: el servidor recalcula la duración por su
+   * cuenta —no le cree a la pantalla— y sin este campo la recalculaba con el
+   * sexo de la ficha. La pantalla mostraba 15 min y la base guardaba 12.
+   */
+  sexo?: Sexo;
 };
 
 export function useCreateAppointment() {

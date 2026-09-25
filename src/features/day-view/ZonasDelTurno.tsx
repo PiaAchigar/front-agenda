@@ -21,13 +21,36 @@ export function ZonasDelTurno({
 }) {
   const porId = new Map(datos.zonas.map((z) => [z.id, z]));
   const usados = elegidas.reduce((t, id) => t + (porId.get(id)?.minutos ?? 0), 0);
-  const quedan = datos.presupuestoMinutos - usados;
+  // Piso en 0: si el presupuesto cambia debajo de lo ya tildado —pasa al
+  // cambiar el selector de sexo, porque un hombre gasta más minutos por
+  // zona— la resta da negativo y el motivo decía "No entra en los -3 min que
+  // quedan", con la clienta enfrente. El modal además limpia la selección al
+  // cambiar de sexo, pero este componente no puede depender de eso.
+  const quedan = Math.max(0, datos.presupuestoMinutos - usados);
 
-  // Una zona se puede tildar si está disponible Y entra en lo que queda. La ya
-  // tildada nunca se bloquea: si no, se destilda y no se puede volver atrás.
+  // Cuántas de las tildadas salen del cupo "a elección" del pack. El tope es
+  // "hasta N" (spec §7.2) y NO lo contiene el presupuesto de minutos: con
+  // "Combo de Esenciales" (1 a elección, 30') entraban 4 zonas de regalo
+  // porque los minutos daban. El servidor lo rechaza; el menú deja de
+  // ofrecerlo para que Laura no se entere recién al apretar Agendar.
+  const regalosElegidos = elegidas.filter((id) => porId.get(id)?.esDeRegalo).length;
+  const cupoLleno = regalosElegidos >= datos.zonasDeRegalo;
+
+  // Una zona se puede tildar si está disponible, entra en lo que queda y —si
+  // es de regalo— queda cupo. La ya tildada nunca se bloquea: si no, se
+  // destilda y no se puede volver atrás.
   function estado(z: ZonaDelMenu): { puede: boolean; motivo: string | null } {
     if (elegidas.includes(z.id)) return { puede: true, motivo: null };
     if (!z.disponible) return { puede: false, motivo: z.motivo };
+    if (z.esDeRegalo && cupoLleno) {
+      return {
+        puede: false,
+        motivo:
+          datos.zonasDeRegalo === 0
+            ? "Este pack no incluye zonas a elección"
+            : `Este pack incluye hasta ${datos.zonasDeRegalo} zona${datos.zonasDeRegalo === 1 ? "" : "s"} a elección`,
+      };
+    }
     if (z.minutos > quedan) {
       return {
         puede: false,
