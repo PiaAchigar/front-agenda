@@ -20,6 +20,43 @@ const TOKEN_MSG = "piubella:agenda:token";
 const CHECKOUT_MSG = "piubella:agenda:checkout";
 
 /**
+ * El prefill de "A agendar" que pide la ficha del CRM (`pedirAgendar`, en su
+ * propio `embed.ts`): la clienta y, según la línea, el servicio o la sesión
+ * de depilación concreta (`purchaseServiceId`) de la que tiene que salir el
+ * turno — mismos nombres que manda el CRM, para que los dos lados se
+ * entiendan sin traducir nada en el medio.
+ */
+export type AgendarPrefill =
+  | { customerId: string; serviceId: string }
+  | { customerId: string; purchaseServiceId: string };
+
+/**
+ * Lee el prefill de "A agendar" de la URL de este iframe.
+ *
+ * El CRM corre en OTRO iframe: no tiene forma de mandarle esto directo a
+ * este. Se lo pide al dashboard por `postMessage` (`pedirAgendar`), y es el
+ * dashboard el que, al abrir esta agenda, tiene que agregarlo como query
+ * params en la URL de este iframe — `customerId` y `serviceId` o
+ * `purchaseServiceId`, los mismos nombres que manda el CRM.
+ *
+ * **Hoy nada arma esa URL todavía**: el dashboard abre `?embed=1` fijo, sin
+ * estos params (`AgendaFrame.tsx` y `agendar-handoff.ts`, en `front-dashboard`
+ * — fuera de este repo). Esta función queda lista para cuando lo esté, así
+ * conectarla es agregar el llamado, no inventar de nuevo cómo leerlo.
+ */
+export function prefillDesdeUrl(): AgendarPrefill | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const customerId = params.get("customerId");
+  if (!customerId) return null;
+  const purchaseServiceId = params.get("purchaseServiceId");
+  if (purchaseServiceId) return { customerId, purchaseServiceId };
+  const serviceId = params.get("serviceId");
+  if (serviceId) return { customerId, serviceId };
+  return null;
+}
+
+/**
  * Le pide al dashboard (host) que abra la Facturación con el cliente y el
  * turno ya cargados, para cobrar los servicios que la profesional le hizo.
  * Solo tiene efecto embebido: standalone no hay host que lo escuche.
