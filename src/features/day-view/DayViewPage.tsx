@@ -27,7 +27,7 @@ import { ClassesView } from "./ClassesView";
  */
 type AgendaMode = "turnos" | "clases";
 import { ViewTabs, saveView } from "../../components/ViewTabs";
-import { isEmbedded, requestCheckoutHandoff } from "../../lib/embed";
+import { isEmbedded, prefillDesdeUrl, requestCheckoutHandoff } from "../../lib/embed";
 
 /** Debounce simple para el buscador del nav (filtrado client-side). */
 function useDebounced<T>(value: T, ms = 200): T {
@@ -80,8 +80,13 @@ export function DayViewPage() {
   const [selected, setSelected]             = useState<Appointment | null>(null);
   const [avisoInsumos, setAvisoInsumos]     = useState<Consumo | null>(null);
   const [attendanceFor, setAttendanceFor]   = useState<AttendanceTarget | null>(null);
-  const [newApptOpen, setNewApptOpen]       = useState(false);
-  const [newApptPrefill, setNewApptPrefill] = useState<NewApptPrefill | null>(null);
+  // El prefill de "A agendar" que pide la ficha del CRM viaja CRM → dashboard
+  // → la URL de este iframe (`lib/embed.ts`, `prefillDesdeUrl`). Se lee acá,
+  // en el estado inicial y no en un efecto: así el modal ya nace abierto en
+  // el primer render, sin un segundo render disparado por un `setState`
+  // dentro de un efecto.
+  const [newApptOpen, setNewApptOpen]       = useState(() => prefillDesdeUrl() !== null);
+  const [newApptPrefill, setNewApptPrefill] = useState<NewApptPrefill | null>(() => prefillDesdeUrl());
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [rescheduleAppt, setRescheduleAppt] = useState<Appointment | null>(null);
   const [expiredAppt,    setExpiredAppt]    = useState<Appointment | null>(null);
@@ -121,6 +126,27 @@ export function DayViewPage() {
     setNewApptPrefill(prefill);
     setNewApptOpen(true);
   }
+
+  // Sacar el prefill de la URL apenas se usó para abrir el modal de arriba:
+  // si quedara, un refresh (o cerrar este modal y volver a entrar a "/dia")
+  // lo reabriría solo, sin que Laura lo haya vuelto a pedir. No hace falta
+  // proteger un turno normal de esto: tocar un slot o "+ Nuevo turno" llaman
+  // a `openNewAppt` con su propio prefill y siempre reemplazan el estado.
+  useEffect(() => {
+    if (!newApptPrefill) return;
+    setSearchParams(
+      (params) => {
+        params.delete("customerId");
+        params.delete("serviceId");
+        params.delete("purchaseServiceId");
+        return params;
+      },
+      { replace: true },
+    );
+    // Sólo al montar: es la limpieza única del prefill inicial que leyó el
+    // `useState`, no algo que deba repetirse en cada cambio de `newApptPrefill`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { data: allAppointments = [], isLoading, error } = useAppointments(date);
 
