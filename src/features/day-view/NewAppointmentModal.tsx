@@ -3,14 +3,17 @@ import {
   useConsumible,
   useCreateAppointment,
   useCreateCustomer,
+  useCustomer,
   useCustomerSearch,
+  useParaAgendar,
   useProvidersByService,
   useServices,
   useServicesByProvider,
   type Consumible,
 } from "../../api/agenda";
-import type { Customer } from "../../api/types";
+import type { Customer, Sexo } from "../../api/types";
 import { Button, ErrorNote, Input, Modal } from "../../components/ui";
+import { ZonasDelTurno } from "./ZonasDelTurno";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -179,6 +182,14 @@ export type NewApptPrefill = {
   providerName?: string;
   serviceId?: string;
   minutes?: number; // minutos desde medianoche ART
+  /**
+   * Turno de depilación (Task 15): viene de "A agendar" en la ficha de la
+   * clienta (una línea de un pack comprado, `customer_purchase_service`).
+   * Con esto la modal fija la clienta, pide el menú de zonas en vez del
+   * selector de servicio, y cambia el pie por "Reservar 24 h" / "Agendar".
+   */
+  customerId?: string;
+  purchaseServiceId?: string;
 };
 
 type Props = {
@@ -332,6 +343,12 @@ function DescuentoDePack({
 export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
   const { data: services = [] } = useServices();
 
+  // Turno de depilación (Task 15): la línea del pack ya viene elegida desde
+  // "A agendar" en la ficha, así que acá no hay selector de servicio — hay
+  // un menú de zonas.
+  const purchaseServiceId = prefill?.purchaseServiceId ?? null;
+  const esDepilacion = Boolean(purchaseServiceId);
+
   const [customer,      setCustomer]     = useState<Customer | null>(null);
   const [serviceId,     setServiceId]    = useState(prefill?.serviceId ?? "");
   const [providerId,    setProviderId]   = useState(prefill?.providerId ?? "");
@@ -345,6 +362,25 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
   const [depositAmount, setDepositAmount] = useState("");
   const [depositMethod, setDepositMethod] =
     useState<"cash" | "bank_transfer" | "mercadopago" | "credit">("cash");
+
+  // Sexo con el que se presupuesta la sesión. `null` = todavía no lo tocó
+  // Laura, y el backend infiere el de la clienta (`sexoDeLaClienta`); un
+  // valor explícito simula "¿y si fuera hombre?" sin volver a cargarla.
+  const [sexoElegido, setSexoElegido] = useState<Sexo | null>(null);
+  const { data: datosDepilacion, isFetching: cargandoDepilacion } = useParaAgendar(
+    purchaseServiceId,
+    sexoElegido ?? undefined,
+  );
+  const [zonasElegidas, setZonasElegidas] = useState<string[]>([]);
+
+  // La modal sólo recibe `customerId` (no la clienta completa) desde el
+  // prefill de depilación: hay que pedirla.
+  const { data: clienteDePrefill } = useCustomer(esDepilacion ? (prefill?.customerId ?? null) : null);
+  const [clientePrefillAplicado, setClientePrefillAplicado] = useState(false);
+  if (esDepilacion && !clientePrefillAplicado && clienteDePrefill) {
+    setClientePrefillAplicado(true);
+    setCustomer(clienteDePrefill);
+  }
 
   // Saldo a favor del cliente elegido (viene de una seña de un turno que se
   // canceló antes de su horario). Se puede usar para pagar esta seña.
@@ -369,20 +405,26 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
 
   const create = useCreateAppointment();
 
-  // Qué tiene la clienta a favor para este servicio.
+  // Qué tiene la clienta a favor para este servicio. En depilación no
+  // corresponde: la línea que se descuenta ya viene fija del prefill
+  // (`purchaseServiceId`), así que se apaga pasándole `null`.
   const { data: consumible, isFetching: buscandoConsumible } = useConsumible(
     customer?.id ?? null,
-    serviceId || null,
+    esDepilacion ? null : serviceId || null,
   );
 
   // Cuál se descuenta. `null` = ninguna, y es un estado distinto de "todavía no
   // decidí": por eso el sincronizado de abajo mira la firma de la respuesta y no
   // el valor, que si no, soltar el servicio elegido se pisaría solo en el render
   // siguiente.
-  const [servicioElegido, setServicioElegido] = useState<string | null>(null);
+  const [servicioElegido, setServicioElegido] = useState<string | null>(
+    purchaseServiceId,
+  );
 
   // La única compra se elige sola (reglas §3.8). Se ajusta DURANTE el render,
   // como el resto de este archivo, para no encadenar renders con un efecto.
+  // En depilación no aplica: `servicioElegido` queda fijo en `purchaseServiceId`
+  // (ver más abajo) y este sincronizado ni se ejecuta.
   const firmaConsumible =
     consumible?.tipo === "automatica"
       ? `auto:${consumible.purchaseServiceId}`
@@ -396,9 +438,20 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
   // guardaba sin descontar el servicio comprado, en silencio. Pasa de verdad al
   // reabrir la modal para la misma clienta y servicio.
   const [firmaSincronizada, setFirmaSincronizada] = useState<string | null>(null);
-  if (firmaConsumible !== firmaSincronizada) {
+  if (!esDepilacion && firmaConsumible !== firmaSincronizada) {
     setFirmaSincronizada(firmaConsumible);
     setServicioElegido(consumible?.tipo === "automatica" ? consumible.purchaseServiceId : null);
+  }
+
+  // El servicio ancla de depilación: hoy `datosParaAgendar` no lo manda (ver
+  // `DatosParaAgendar.serviceId` en `api/types.ts`), así que esto queda sin
+  // efecto hasta que el backend lo agregue — `serviceId` sigue vacío y el
+  // formulario no deja avanzar, en vez de mandar un turno con datos inventados.
+  const anclaServiceId = datosDepilacion?.serviceId ?? "";
+  const [anclaSincronizada, setAnclaSincronizada] = useState(false);
+  if (esDepilacion && !anclaSincronizada && anclaServiceId) {
+    setAnclaSincronizada(true);
+    setServiceId(anclaServiceId);
   }
 
   /**
@@ -439,10 +492,22 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
   // Opciones del selector de servicio según de dónde se abrió la modal
   const serviceOptions = lockedProviderId ? providerServices : services;
 
-  // Hora fin calculada automáticamente
-  const selectedService  = serviceOptions.find((s) => s.id === serviceId);
-  const durationMin      = selectedService?.estimatedDurationMinutes ?? 0;
-  const endTimeStr       = durationMin > 0 ? addMinutesToTime(timeStr, durationMin) : "";
+  // Hora fin calculada automáticamente. En depilación NO sale del servicio
+  // (el ancla no tiene una duración fija que sirva) sino de la suma de los
+  // minutos de las zonas elegidas — el turno se arma con lo que de verdad
+  // se usa, no con el presupuesto completo del pack.
+  const selectedService = serviceOptions.find((s) => s.id === serviceId);
+  const minutosPorZona = new Map(
+    (datosDepilacion?.zonas ?? []).map((z) => [z.id, z.minutos]),
+  );
+  const minutosDepilacionElegidos = zonasElegidas.reduce(
+    (t, id) => t + (minutosPorZona.get(id) ?? 0),
+    0,
+  );
+  const durationMin = esDepilacion
+    ? minutosDepilacionElegidos
+    : (selectedService?.estimatedDurationMinutes ?? 0);
+  const endTimeStr = durationMin > 0 ? addMinutesToTime(timeStr, durationMin) : "";
 
   const canSubmit =
     Boolean(customer) &&
@@ -476,6 +541,40 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
     );
   }
 
+  // Depilación: los mismos datos mínimos de siempre (clienta, servicio,
+  // prestadora, hora) más al menos una zona elegida. Ninguno de los dos
+  // botones depende de la puerta de pago acá — "Reservar 24 h" tiene que
+  // quedar SIEMPRE disponible; es la única herramienta que tiene Laura para
+  // la clienta que todavía no pagó.
+  const canSubmitDepilacion =
+    Boolean(customer) &&
+    Boolean(serviceId) &&
+    Boolean(providerId) &&
+    timeStr.length === 5 &&
+    zonasElegidas.length > 0 &&
+    !create.isPending;
+
+  function crearDepilacion(status: "scheduled" | "reserved") {
+    if (!customer || !serviceId || !providerId || !purchaseServiceId) return;
+    create.mutate(
+      {
+        customerId: customer.id,
+        serviceId,
+        providerId,
+        start: toArgentinaISO(date, timeStr),
+        notes: notes || undefined,
+        status,
+        // 1440 = 24 h: el máximo que acepta el backend, y lo que Laura
+        // necesita para "guardar el lugar" mientras la clienta consigue la
+        // plata (no un vencimiento corto pensado para otro tipo de turno).
+        expiryMinutes: status === "reserved" ? 1440 : undefined,
+        customerPurchaseServiceId: purchaseServiceId,
+        zonas: zonasElegidas,
+      },
+      { onSuccess: onClose },
+    );
+  }
+
   const fieldClass =
     "w-full rounded-xl border border-surface-highest bg-white px-3 py-2 text-sm outline-none focus:border-primary disabled:bg-surface-low disabled:text-ink-soft";
 
@@ -500,42 +599,58 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
           <CustomerPicker value={customer} onChange={setCustomer} />
         </div>
 
-        {/* Servicio */}
-        <div>
-          <label className="mb-1 block text-xs font-medium text-ink-soft">Servicio</label>
-          <select
-            className={fieldClass}
-            value={serviceId}
-            onChange={(e) => setServiceId(e.target.value)}
-            disabled={Boolean(lockedProviderId) && loadingProviderServices}
-          >
-            <option value="">
-              {lockedProviderId && loadingProviderServices
-                ? "Cargando servicios…"
-                : lockedProviderId && serviceOptions.length === 0
-                  ? "Esta prestadora no tiene servicios asignados"
-                  : "Seleccioná un servicio…"}
-            </option>
-            {serviceOptions.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-                {s.estimatedDurationMinutes ? ` (${s.estimatedDurationMinutes} min)` : ""}
-              </option>
-            ))}
-          </select>
-
-          {/* Contra qué se descuenta. Sólo aparece si tiene algo a favor. */}
-          {customer && serviceId && (
-            <div className="mt-2">
-              <DescuentoDePack
-                estado={consumible}
-                cargando={buscandoConsumible}
-                elegida={servicioElegido}
-                onElegir={setServicioElegido}
+        {/* Servicio — en depilación, el menú de zonas ocupa este lugar */}
+        {esDepilacion ? (
+          <div>
+            {cargandoDepilacion && (
+              <p className="text-xs text-ink-soft">Cargando el menú de zonas…</p>
+            )}
+            {datosDepilacion && (
+              <ZonasDelTurno
+                datos={datosDepilacion}
+                elegidas={zonasElegidas}
+                onCambio={setZonasElegidas}
+                onCambiarSexo={setSexoElegido}
               />
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-ink-soft">Servicio</label>
+            <select
+              className={fieldClass}
+              value={serviceId}
+              onChange={(e) => setServiceId(e.target.value)}
+              disabled={Boolean(lockedProviderId) && loadingProviderServices}
+            >
+              <option value="">
+                {lockedProviderId && loadingProviderServices
+                  ? "Cargando servicios…"
+                  : lockedProviderId && serviceOptions.length === 0
+                    ? "Esta prestadora no tiene servicios asignados"
+                    : "Seleccioná un servicio…"}
+              </option>
+              {serviceOptions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                  {s.estimatedDurationMinutes ? ` (${s.estimatedDurationMinutes} min)` : ""}
+                </option>
+              ))}
+            </select>
+
+            {/* Contra qué se descuenta. Sólo aparece si tiene algo a favor. */}
+            {customer && serviceId && (
+              <div className="mt-2">
+                <DescuentoDePack
+                  estado={consumible}
+                  cargando={buscandoConsumible}
+                  elegida={servicioElegido}
+                  onElegir={setServicioElegido}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Prestadora */}
         <div>
@@ -684,57 +799,61 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
           </>
         )}
 
-        {/* Estado: Turno confirmado vs Reserva temporal */}
-        <div>
-          <label className="mb-1.5 block text-xs font-medium text-ink-soft">Estado</label>
-          <div className="flex gap-2">
-            {(["scheduled", "reserved"] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setApptStatus(s)}
-                className={[
-                  "flex-1 rounded-xl border py-2.5 text-sm font-medium transition-colors",
-                  apptStatus === s
-                    ? s === "reserved"
-                      ? "border-amber-400 bg-amber-50 text-amber-700"
-                      : "border-primary bg-primary/10 text-primary"
-                    : "border-surface-highest text-ink-soft hover:bg-surface-low",
-                ].join(" ")}
-              >
-                {s === "scheduled" ? "✓ Turno confirmado" : "⏳ Reserva temporal"}
-              </button>
-            ))}
-          </div>
-
-          {apptStatus === "reserved" && (
-            <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
-              <label className="mb-1.5 block text-xs font-medium text-amber-700">
-                La reserva expira en…
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {EXPIRY_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setExpiryMinutes(opt.value)}
-                    className={[
-                      "rounded-lg border px-3 py-1.5 text-sm transition-colors",
-                      expiryMinutes === opt.value
-                        ? "border-amber-500 bg-amber-500 text-white font-medium"
-                        : "border-amber-200 bg-white text-amber-700 hover:border-amber-400",
-                    ].join(" ")}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-2 text-[11px] text-amber-600">
-                Si no se confirma en ese tiempo, el turno se cancela automáticamente.
-              </p>
+        {/* Estado: Turno confirmado vs Reserva temporal — en depilación esto
+            lo reemplazan los dos botones del pie ("Reservar 24 h" / "Agendar"),
+            que traen su propio vencimiento y su propia puerta de pago. */}
+        {!esDepilacion && (
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-ink-soft">Estado</label>
+            <div className="flex gap-2">
+              {(["scheduled", "reserved"] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setApptStatus(s)}
+                  className={[
+                    "flex-1 rounded-xl border py-2.5 text-sm font-medium transition-colors",
+                    apptStatus === s
+                      ? s === "reserved"
+                        ? "border-amber-400 bg-amber-50 text-amber-700"
+                        : "border-primary bg-primary/10 text-primary"
+                      : "border-surface-highest text-ink-soft hover:bg-surface-low",
+                  ].join(" ")}
+                >
+                  {s === "scheduled" ? "✓ Turno confirmado" : "⏳ Reserva temporal"}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
+
+            {apptStatus === "reserved" && (
+              <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                <label className="mb-1.5 block text-xs font-medium text-amber-700">
+                  La reserva expira en…
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {EXPIRY_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setExpiryMinutes(opt.value)}
+                      className={[
+                        "rounded-lg border px-3 py-1.5 text-sm transition-colors",
+                        expiryMinutes === opt.value
+                          ? "border-amber-500 bg-amber-500 text-white font-medium"
+                          : "border-amber-200 bg-white text-amber-700 hover:border-amber-400",
+                      ].join(" ")}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] text-amber-600">
+                  Si no se confirma en ese tiempo, el turno se cancela automáticamente.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Notas */}
         <div>
@@ -754,14 +873,46 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
         {create.error && <ErrorNote message={(create.error as Error).message} />}
 
         {/* Acciones */}
-        <div className="flex justify-end gap-2 pt-1">
-          <Button variant="secondary" onClick={onClose} disabled={create.isPending}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSubmit} disabled={!canSubmit}>
-            {create.isPending ? "Guardando…" : "Confirmar turno"}
-          </Button>
-        </div>
+        {esDepilacion ? (
+          <div className="space-y-2">
+            {/* Por qué "Agendar" está apagado, y cuánto falta cobrar: una
+                casilla gris sin explicación obliga a Laura a adivinar con la
+                clienta enfrente. */}
+            {datosDepilacion && !datosDepilacion.puerta.puedeAgendar && (
+              <p className="text-xs text-amber-700">
+                {datosDepilacion.puerta.motivo} (falta $
+                {datosDepilacion.puerta.faltaCobrar.toLocaleString("es-AR")}).
+              </p>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="secondary" onClick={onClose} disabled={create.isPending}>
+                Cancelar
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => crearDepilacion("reserved")}
+                disabled={!canSubmitDepilacion}
+              >
+                {create.isPending ? "Guardando…" : "Reservar 24 h"}
+              </Button>
+              <Button
+                onClick={() => crearDepilacion("scheduled")}
+                disabled={!canSubmitDepilacion || !datosDepilacion?.puerta.puedeAgendar}
+              >
+                {create.isPending ? "Guardando…" : "Agendar"}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="secondary" onClick={onClose} disabled={create.isPending}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSubmit} disabled={!canSubmit}>
+              {create.isPending ? "Guardando…" : "Confirmar turno"}
+            </Button>
+          </div>
+        )}
       </div>
     </Modal>
   );

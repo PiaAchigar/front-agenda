@@ -17,6 +17,11 @@ vi.mock("../../api/agenda", () => ({
   useConsumible: () => consumible,
   useCreateAppointment: () => ({ mutate: crear, isPending: false, error: null }),
   useCreateCustomer: () => ({ mutate: vi.fn(), isPending: false }),
+  // Ninguno de estos tests abre la modal con prefill de depilación: los dos
+  // hooks igual se llaman siempre (son hooks de React), así que necesitan un
+  // mock aunque no aporten nada acá.
+  useCustomer: () => ({ data: undefined }),
+  useParaAgendar: () => ({ data: undefined, isFetching: false }),
   useCustomerSearch: () => ({ data: [CLIENTA], isFetching: false }),
   // Fiel al hook real: sin servicio elegido no hay prestadoras. Devolver
   // siempre la lista rompe el sincronizado del formulario, que sólo reasigna

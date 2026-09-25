@@ -199,3 +199,65 @@ export type Consumo = {
   faltantes: InsumoFaltante[];
   omitidos: InsumoOmitido[];
 };
+
+// ── Depilación definitiva (1.56.0) ──────────────────────────────────────────
+
+export type Categoria = "grande" | "mediana" | "chica";
+export type Sexo = "mujer" | "hombre";
+
+/** Una zona del menú que Laura puede tildar para la sesión (`para-agendar`). */
+export type ZonaDelMenu = {
+  id: string;
+  nombre: string;
+  categoria: Categoria;
+  minutos: number;
+  /** Viene del cupo "a elección" del pack, no de sus zonas cargadas. */
+  esDeRegalo: boolean;
+  disponible: boolean;
+  /** Por qué no se puede elegir. `null` cuando sí se puede. */
+  motivo: string | null;
+};
+
+/** Si esta sesión se puede AGENDAR (turno real, con pago) o sólo RESERVAR
+ *  (guarda el lugar 24 h, sin cobrar nada). */
+export type EstadoDePuerta = {
+  puedeAgendar: boolean;
+  /** Siempre `true`: reservar es guardar el lugar, no cobrar. */
+  puedeReservar: true;
+  /** Por qué no se puede agendar. `null` cuando sí se puede. */
+  motivo: string | null;
+  /** Cuánto falta cobrar para que se pueda. `0` si ya se puede. */
+  faltaCobrar: number;
+};
+
+/**
+ * Lo que la pantalla de turno nuevo necesita para agendar una sesión de
+ * depilación: el pack, en qué sesión va, el menú de zonas y el presupuesto.
+ *
+ * `GET /api/agenda/depilacion/para-agendar/:purchaseServiceId`.
+ */
+export type DatosParaAgendar = {
+  nombreDelPack: string;
+  sesion: number;
+  sesionesTotales: number;
+  presupuestoMinutos: number;
+  sexo: Sexo;
+  zonas: ZonaDelMenu[];
+  puerta: EstadoDePuerta;
+  /**
+   * El servicio "ancla" de depilación: el `serviceId` que hay que mandar en
+   * `POST /appointments` y el que hace falta para pedir prestadoras
+   * (`useProvidersByService`).
+   *
+   * **Hoy el backend no lo manda.** `datosParaAgendar` en
+   * `api-sistema-central/src/repositories/turno-de-depilacion.repo.ts` no
+   * incluye este campo, y `GET /api/agenda/services` excluye al ancla a
+   * propósito (`services.repo.ts`: "el servicio ancla de depilación queda
+   * afuera... no es un servicio que Laura cargue"). Sin este dato no hay
+   * forma, desde ningún front, de saber qué UUID es el ancla — ver el
+   * reporte de la Task 15 (`task-15-report.md`). Queda opcional a propósito:
+   * el día que el backend lo agregue con este mismo nombre, `NewAppointmentModal`
+   * lo toma solo, sin tocar el tipo de nuevo.
+   */
+  serviceId?: string;
+};

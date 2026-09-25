@@ -9,10 +9,12 @@ import type {
   CompanyConfig,
   Consumo,
   Customer,
+  DatosParaAgendar,
   Provider,
   ProviderService,
   Reschedule,
   Service,
+  Sexo,
 } from "./types";
 
 export function useCategories() {
@@ -159,6 +161,17 @@ export function useCustomerSearch(q: string) {
   });
 }
 
+/** Una clienta puntual, para cuando la modal se abre con `customerId` ya
+ *  resuelto (prefill de depilación, Task 15) y no hay que buscarla. */
+export function useCustomer(customerId: string | null) {
+  return useQuery({
+    queryKey: ["customer", customerId],
+    queryFn: () => api<Customer>(`/api/billing/customers/${customerId}`),
+    enabled: Boolean(customerId),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useCreateCustomer() {
   return useMutation({
     mutationFn: (data: { name: string; dni: string; phone?: string; email?: string }) =>
@@ -213,6 +226,27 @@ export function useConsumible(customerId: string | null, serviceId: string | nul
   });
 }
 
+/**
+ * El menú de zonas y el presupuesto de minutos para agendar una sesión de
+ * depilación puntual (Task 15).
+ *
+ * `staleTime: 0` por la misma razón que `useConsumible`: entre que se abre
+ * la modal y se guarda, otra pestaña pudo haber cobrado o tomado la última
+ * sesión libre — mostrar un presupuesto o una puerta de pago viejos haría
+ * elegir zonas que después el backend rechaza al guardar.
+ */
+export function useParaAgendar(purchaseServiceId: string | null, sexo?: Sexo) {
+  return useQuery({
+    queryKey: ["para-agendar", purchaseServiceId, sexo ?? "auto"],
+    queryFn: () =>
+      api<DatosParaAgendar>(
+        `/api/agenda/depilacion/para-agendar/${purchaseServiceId}${sexo ? `?sexo=${sexo}` : ""}`,
+      ),
+    enabled: Boolean(purchaseServiceId),
+    staleTime: 0,
+  });
+}
+
 export type CreateAppointmentInput = {
   customerId: string;
   serviceId: string;
@@ -231,6 +265,12 @@ export type CreateAppointmentInput = {
   };
   /** El servicio comprado del pack que este turno descuenta. Sin esto no descuenta nada. */
   customerPurchaseServiceId?: string;
+  /**
+   * Las zonas elegidas para un turno de depilación (1.56.0). Sólo tiene
+   * sentido con `serviceId` = el servicio ancla: la duración del turno sale
+   * de acá y no del `estimatedDurationMinutes` del servicio.
+   */
+  zonas?: string[];
 };
 
 export function useCreateAppointment() {
