@@ -16,7 +16,11 @@ import { NewAppointmentModal, type NewApptPrefill } from "./NewAppointmentModal"
 import { ReschedulingModal } from "./ReschedulingModal";
 import { AvisoInsumosModal } from "./AvisoInsumosModal";
 import { hayQueAvisar } from "../../lib/aviso-insumos";
-import { sePuedeCambiarEstado, sePuedeCobrar } from "../../lib/acciones-del-turno";
+import {
+  cancelarPuedeDevolverSenia,
+  sePuedeCambiarEstado,
+  sePuedeCobrar,
+} from "../../lib/acciones-del-turno";
 import { AttendanceModal, type AttendanceTarget } from "./AttendanceModal";
 import { ClassesView } from "./ClassesView";
 
@@ -390,6 +394,20 @@ export function DayViewPage() {
               <ErrorNote message={(update.error as Error).message} />
             )}
 
+            {/* Un ausente NO es terminal: el backend deja las cuatro
+                transiciones. El cartel no está para justificar botones
+                escondidos sino para decir qué hace cada uno — sobre todo
+                Cancelar, cuya devolución de seña depende de la hora. */}
+            {selected.status === "no_show" && (
+              <p className="rounded-lg bg-surface-high px-3 py-2 text-sm text-ink-soft">
+                Marcado como ausente. Si fue un error, <strong>Restaurar</strong> lo vuelve a
+                agendar y <strong>Reagendar</strong> lo mueve a otro horario.{" "}
+                {cancelarPuedeDevolverSenia(selected, new Date())
+                  ? "Cancelar libera el turno y, si había seña, se la devuelve a la clienta como saldo a favor."
+                  : "Cancelar libera el turno, pero la seña ya no se devuelve: pasada la hora, ausente y cancelado pagan igual."}
+              </p>
+            )}
+
             {!sePuedeCambiarEstado(selected) && (
               <p className="rounded-lg bg-surface-high px-3 py-2 text-sm text-ink-soft">
                 Este turno ya está cerrado: quedó marcado como realizado, así que no se le
@@ -423,7 +441,7 @@ export function DayViewPage() {
               )}
               {selected.status !== "completed" && (
                 <Button
-                  variant="success"
+                  variant={selected.status === "no_show" ? "secondary" : "success"}
                   onClick={() => changeStatus("completed")}
                   disabled={update.isPending}
                 >

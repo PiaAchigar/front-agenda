@@ -108,6 +108,32 @@ vi.mock("./CalendarGrid", () => ({
       <button onClick={() => onAppointmentClick({ ...TURNO_COMPLETADO, status: "scheduled" })}>
         abrir un turno agendado
       </button>
+      {/* Fechas deliberadamente lejanas: así el cartel de la seña no depende
+          del reloj de la máquina que corre la suite. */}
+      <button
+        onClick={() =>
+          onAppointmentClick({
+            ...TURNO_COMPLETADO,
+            status: "no_show",
+            appointmentStart: "2020-01-01T10:00:00.000Z",
+            appointmentEnd: "2020-01-01T11:00:00.000Z",
+          })
+        }
+      >
+        abrir un ausente que ya pasó
+      </button>
+      <button
+        onClick={() =>
+          onAppointmentClick({
+            ...TURNO_COMPLETADO,
+            status: "no_show",
+            appointmentStart: "2099-01-01T10:00:00.000Z",
+            appointmentEnd: "2099-01-01T11:00:00.000Z",
+          })
+        }
+      >
+        abrir un ausente que todavía no empezó
+      </button>
     </>
   ),
 }));
@@ -219,5 +245,43 @@ describe("DayViewPage — un turno completado está cerrado", () => {
     expect(await screen.findByRole("button", { name: "Cancelar turno" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ausente" })).toBeInTheDocument();
     expect(screen.queryByText(/ya está cerrado/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("DayViewPage — un turno ausente explica qué hace cada acción", () => {
+  // Un ausente NO es terminal: el backend permite las cuatro transiciones, y
+  // Cancelar es la ÚNICA que nunca se bloquea por falta de pago — la única
+  // salida cuando Restaurar rebota contra la puerta de depilación.
+  it("conserva las cuatro acciones", async () => {
+    montar();
+    await userEvent.click(screen.getByText("abrir un ausente que ya pasó"));
+
+    for (const boton of ["Restaurar", "Cancelar turno", "Realizado", "Reagendar"]) {
+      expect(await screen.findByRole("button", { name: boton })).toBeInTheDocument();
+    }
+  });
+
+  it("pasada la hora, avisa que la seña YA NO se devuelve", async () => {
+    montar();
+    await userEvent.click(screen.getByText("abrir un ausente que ya pasó"));
+
+    expect(await screen.findByText(/la seña ya no se devuelve/i)).toBeInTheDocument();
+    expect(screen.queryByText(/se la devuelve a la clienta/i)).not.toBeInTheDocument();
+  });
+
+  it("antes de la hora, avisa que todavía se devuelve como saldo a favor", async () => {
+    montar();
+    await userEvent.click(screen.getByText("abrir un ausente que todavía no empezó"));
+
+    expect(await screen.findByText(/se la devuelve a la clienta/i)).toBeInTheDocument();
+    expect(screen.queryByText(/ya no se devuelve/i)).not.toBeInTheDocument();
+  });
+
+  it("un turno agendado no muestra el cartel de ausente", async () => {
+    montar();
+    await userEvent.click(screen.getByText("abrir un turno agendado"));
+
+    await screen.findByRole("button", { name: "Cancelar turno" });
+    expect(screen.queryByText(/Marcado como ausente/i)).not.toBeInTheDocument();
   });
 });

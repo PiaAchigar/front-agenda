@@ -10,6 +10,8 @@ export type TurnoParaAcciones = {
   /** La fila de `customer_purchase_service` de la que sale el turno, si sale
    *  de una. No nula = la clienta ya compró esto. */
   customerPurchaseServiceId: string | null;
+  /** ISO. Decide si cancelar todavía devuelve la seña. */
+  appointmentStart: string | null;
 };
 
 /**
@@ -48,4 +50,22 @@ export function sePuedeCobrar(turno: TurnoParaAcciones, embebido: boolean): bool
  */
 export function sePuedeCambiarEstado(turno: TurnoParaAcciones): boolean {
   return turno.status !== "completed";
+}
+
+/**
+ * Si cancelar AHORA todavía puede devolverle la seña a la clienta.
+ *
+ * El backend sólo acredita el saldo a favor si se cancela **antes** de la hora
+ * del turno: "avisar con tiempo devuelve la seña, no presentarse la pierde"
+ * (`appointments.service.ts`). Pasada la hora, cancelar es equivalente a un
+ * Ausente y no acredita nada.
+ *
+ * Es `puede` y no `devuelve` a propósito: desde la agenda no se sabe si hubo
+ * seña paga, sólo si la ventana sigue abierta. Prometerle a Laura una
+ * devolución que depende de un dato que esta pantalla no tiene sería el mismo
+ * error que el cartel que decía que los turnos quedaban sin proveedora.
+ */
+export function cancelarPuedeDevolverSenia(turno: TurnoParaAcciones, ahora: Date): boolean {
+  if (!turno.appointmentStart) return true;
+  return new Date(turno.appointmentStart) > ahora;
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  cancelarPuedeDevolverSenia,
   sePuedeCambiarEstado,
   sePuedeCobrar,
   type TurnoParaAcciones,
@@ -9,6 +10,7 @@ const turno = (extra: Partial<TurnoParaAcciones> = {}): TurnoParaAcciones => ({
   status: "scheduled",
   customerId: "cli1",
   customerPurchaseServiceId: null,
+  appointmentStart: "2026-09-29T16:00:00.000Z",
   ...extra,
 });
 
@@ -52,5 +54,19 @@ describe("sePuedeCambiarEstado", () => {
   // se factura, así que cerrarlo para estados no puede cerrarlo para cobrar.
   it("un turno completado se sigue pudiendo cobrar", () => {
     expect(sePuedeCobrar(turno({ status: "completed" }), true)).toBe(true);
+  });
+});
+
+describe("cancelarPuedeDevolverSenia", () => {
+  const AHORA = new Date("2026-09-29T17:00:00.000Z");
+
+  it("pasada la hora del turno ya no devuelve nada", () => {
+    // El caso REAL de un ausente: se marca después de que la clienta no vino.
+    expect(cancelarPuedeDevolverSenia(turno(), AHORA)).toBe(false);
+  });
+
+  it("antes de la hora todavía está a tiempo", () => {
+    const antes = turno({ appointmentStart: "2026-09-29T18:00:00.000Z" });
+    expect(cancelarPuedeDevolverSenia(antes, AHORA)).toBe(true);
   });
 });
