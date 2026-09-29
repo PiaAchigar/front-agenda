@@ -33,3 +33,19 @@ export function sePuedeCobrar(turno: TurnoParaAcciones, embebido: boolean): bool
   if (turno.status === "cancelled" || turno.status === "no_show") return false;
   return turno.customerPurchaseServiceId == null;
 }
+
+/**
+ * Si al turno todavía se le puede cambiar el estado.
+ *
+ * Un turno completado está cerrado: el backend rechaza cualquier transición
+ * que salga de ahí (`appointments.service.ts`, "Un turno completado no puede
+ * cambiar de estado"). Antes el modal igual ofrecía Ausente, Cancelar turno y
+ * Restaurar, y recién al apretarlos aparecía el error en rojo — o sea, tres
+ * botones que sólo servían para fallar (Pia, 2026-09-29).
+ *
+ * No incluye "Cobrar": un turno realizado es justamente el que se factura, y
+ * eso no es un cambio de estado.
+ */
+export function sePuedeCambiarEstado(turno: TurnoParaAcciones): boolean {
+  return turno.status !== "completed";
+}

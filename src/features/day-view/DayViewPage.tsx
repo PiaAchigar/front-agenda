@@ -16,7 +16,7 @@ import { NewAppointmentModal, type NewApptPrefill } from "./NewAppointmentModal"
 import { ReschedulingModal } from "./ReschedulingModal";
 import { AvisoInsumosModal } from "./AvisoInsumosModal";
 import { hayQueAvisar } from "../../lib/aviso-insumos";
-import { sePuedeCobrar } from "../../lib/acciones-del-turno";
+import { sePuedeCambiarEstado, sePuedeCobrar } from "../../lib/acciones-del-turno";
 import { AttendanceModal, type AttendanceTarget } from "./AttendanceModal";
 import { ClassesView } from "./ClassesView";
 
@@ -390,6 +390,13 @@ export function DayViewPage() {
               <ErrorNote message={(update.error as Error).message} />
             )}
 
+            {!sePuedeCambiarEstado(selected) && (
+              <p className="rounded-lg bg-surface-high px-3 py-2 text-sm text-ink-soft">
+                Este turno ya está cerrado: quedó marcado como realizado, así que no se le
+                puede cambiar el estado ni reagendar.
+              </p>
+            )}
+
             <div className="flex flex-wrap gap-2 pt-1">
               {/* Turno de ACTIVIDAD: abre el registro de asistencias de la clase,
                   con todos los clientes agendados a ese mismo horario. */}
@@ -423,7 +430,7 @@ export function DayViewPage() {
                   Realizado
                 </Button>
               )}
-              {selected.status !== "no_show" && (
+              {sePuedeCambiarEstado(selected) && selected.status !== "no_show" && (
                 <Button
                   variant="secondary"
                   onClick={() => changeStatus("no_show")}
@@ -432,7 +439,7 @@ export function DayViewPage() {
                   Ausente
                 </Button>
               )}
-              {selected.status !== "cancelled" && (
+              {sePuedeCambiarEstado(selected) && selected.status !== "cancelled" && (
                 <Button
                   variant="danger"
                   onClick={() => changeStatus("cancelled")}
@@ -441,7 +448,9 @@ export function DayViewPage() {
                   Cancelar turno
                 </Button>
               )}
-              {selected.status !== "scheduled" && selected.status !== "reserved" && (
+              {sePuedeCambiarEstado(selected) &&
+                selected.status !== "scheduled" &&
+                selected.status !== "reserved" && (
                 <Button
                   variant="secondary"
                   onClick={() => changeStatus("scheduled")}

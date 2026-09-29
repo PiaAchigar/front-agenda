@@ -46,6 +46,21 @@ const datosDepilacion: DatosParaAgendar = {
 
 const CONFIG_VACIA = { openHours: SIN_DATOS };
 
+const TURNO_COMPLETADO = {
+  id: "ap1",
+  status: "completed",
+  customerId: "cu1",
+  customerName: "Pía Achigar",
+  serviceName: "Depilación Definitiva",
+  providerName: "Tamara Belén Galuppo",
+  appointmentStart: "2026-09-29T11:00:00.000Z",
+  appointmentEnd: "2026-09-29T11:42:00.000Z",
+  activityId: null,
+  activityName: null,
+  customerPurchaseServiceId: "cps1",
+  notes: null,
+};
+
 vi.mock("../../api/agenda", () => ({
   useAppointments: () => ({ data: SIN_DATOS, isLoading: false, error: null }),
   useCompanyConfig: () => ({ data: CONFIG_VACIA }),
@@ -77,8 +92,23 @@ vi.mock("../../api/agenda", () => ({
 // simular el click en un hueco— y arrastra mucha lógica de columnas/horarios
 // que no viene al caso acá.
 vi.mock("./CalendarGrid", () => ({
-  CalendarGrid: ({ onSlotClick }: { onSlotClick: (columnId: string, minutes: number) => void }) => (
-    <button onClick={() => onSlotClick("prov1", 600)}>abrir un slot cualquiera</button>
+  CalendarGrid: ({
+    onSlotClick,
+    onAppointmentClick,
+  }: {
+    onSlotClick: (columnId: string, minutes: number) => void;
+    onAppointmentClick: (appt: unknown) => void;
+  }) => (
+    <>
+      <button onClick={() => onSlotClick("prov1", 600)}>abrir un slot cualquiera</button>
+      {/* Un turno YA COMPLETADO: es el caso que abre el modal cerrado. */}
+      <button onClick={() => onAppointmentClick(TURNO_COMPLETADO)}>
+        abrir un turno completado
+      </button>
+      <button onClick={() => onAppointmentClick({ ...TURNO_COMPLETADO, status: "scheduled" })}>
+        abrir un turno agendado
+      </button>
+    </>
   ),
 }));
 
@@ -163,5 +193,31 @@ describe("DayViewPage — el prefill de \"A agendar\" llega por la URL", () => {
     await user.click(screen.getByRole("button", { name: /abrir un slot cualquiera/i }));
     expect(await screen.findByText("Servicio")).toBeInTheDocument();
     expect(screen.queryByText(/sesión \d+ de \d+/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("DayViewPage — un turno completado está cerrado", () => {
+  // El backend rechaza cualquier transición que salga de `completed`
+  // ("Un turno completado no puede cambiar de estado"), así que ofrecer los
+  // botones era ofrecer tres formas de ver un error en rojo.
+  it("no ofrece Ausente, Cancelar turno ni Restaurar, y explica por qué", async () => {
+    montar();
+    await userEvent.click(screen.getByText("abrir un turno completado"));
+
+    expect(await screen.findByText(/ya está cerrado/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ausente" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancelar turno" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Restaurar" })).not.toBeInTheDocument();
+  });
+
+  // La contracara: sin esto, esconder los botones SIEMPRE pasaría el test de
+  // arriba y dejaría la agenda sin poder cancelar nada.
+  it("un turno agendado sí los sigue ofreciendo, y sin el cartel", async () => {
+    montar();
+    await userEvent.click(screen.getByText("abrir un turno agendado"));
+
+    expect(await screen.findByRole("button", { name: "Cancelar turno" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ausente" })).toBeInTheDocument();
+    expect(screen.queryByText(/ya está cerrado/i)).not.toBeInTheDocument();
   });
 });
