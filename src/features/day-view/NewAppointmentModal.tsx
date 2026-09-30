@@ -440,12 +440,19 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
   // efecto y no un cierre durante el render: `onClose` es del padre
   // (`DayViewPage`), y actualizar el estado de OTRO componente mientras
   // éste se está renderizando es exactamente lo que React pide evitar.
+  //
+  // `comboPendientes.isError` cierra igual: el turno que Laura acaba de
+  // confirmar YA se creó — si esta consulta de más falla (red, 500), no
+  // hay ninguna razón para dejar el modal colgado con "Confirmar turno"
+  // habilitado. Sin esto, un reintento crearía un turno duplicado.
   useEffect(() => {
-    if (comboTrigger && comboPendientes.isSuccess && pendientes.length === 0) {
+    if (!comboTrigger) return;
+    const sinPendientes = comboPendientes.isSuccess && pendientes.length === 0;
+    if (sinPendientes || comboPendientes.isError) {
       onClose();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [comboTrigger, comboPendientes.isSuccess, pendientes.length]);
+  }, [comboTrigger, comboPendientes.isSuccess, comboPendientes.isError, pendientes.length]);
 
   // Qué tiene la clienta a favor para este servicio. En depilación no
   // corresponde: la línea que se descuenta ya viene fija del prefill

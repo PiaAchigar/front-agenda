@@ -18,14 +18,17 @@ let consumibleState: Consumible = {
   purchaseServiceId: "ps-a",
   opcion: { purchaseId: "pu-1", descripcion: "Combo Facial", disponibles: 1, venceEl: null, purchaseServiceId: "ps-a" },
 };
-let respuestaComboPendientes: { data?: { pendientes: { purchaseServiceId: string; serviceId: string; serviceName: string }[] }; isSuccess: boolean } =
-  { data: { pendientes: [] }, isSuccess: true };
+let respuestaComboPendientes: {
+  data?: { pendientes: { purchaseServiceId: string; serviceId: string; serviceName: string }[] };
+  isSuccess: boolean;
+  isError: boolean;
+} = { data: { pendientes: [] }, isSuccess: true, isError: false };
 const disponibilidadHermano: { data?: Availability; isLoading: boolean } = { data: undefined, isLoading: true };
 
 vi.mock("../../api/agenda", () => ({
   useAvailability: () => disponibilidadHermano,
   useComboPendientes: (purchaseServiceId: string | null) =>
-    purchaseServiceId ? respuestaComboPendientes : { data: undefined, isSuccess: false },
+    purchaseServiceId ? respuestaComboPendientes : { data: undefined, isSuccess: false, isError: false },
   useConsumible: () => ({ data: consumibleState, isFetching: false }),
   useCreateAppointment: () => ({ mutate: crear, mutateAsync: crearAsync, isPending: false, error: null }),
   useCreateCustomer: () => ({ mutate: vi.fn(), isPending: false }),
@@ -49,7 +52,7 @@ beforeEach(() => {
     purchaseServiceId: "ps-a",
     opcion: { purchaseId: "pu-1", descripcion: "Combo Facial", disponibles: 1, venceEl: null, purchaseServiceId: "ps-a" },
   };
-  respuestaComboPendientes = { data: { pendientes: [] }, isSuccess: true };
+  respuestaComboPendientes = { data: { pendientes: [] }, isSuccess: true, isError: false };
   disponibilidadHermano.data = undefined;
   disponibilidadHermano.isLoading = true;
 });
@@ -68,6 +71,7 @@ describe("NewAppointmentModal — V3c, combos que se hacen juntos", () => {
     respuestaComboPendientes = {
       data: { pendientes: [{ purchaseServiceId: "ps-b", serviceId: "svc-b", serviceName: "Peeling" }] },
       isSuccess: true,
+      isError: false,
     };
     const onClose = vi.fn();
     render(<NewAppointmentModal open date="2027-01-20" prefill={null} onClose={onClose} />);
@@ -79,7 +83,7 @@ describe("NewAppointmentModal — V3c, combos que se hacen juntos", () => {
 
   it("sin hermanos pendientes, el modal se cierra solo — como hoy", async () => {
     const user = userEvent.setup();
-    respuestaComboPendientes = { data: { pendientes: [] }, isSuccess: true };
+    respuestaComboPendientes = { data: { pendientes: [] }, isSuccess: true, isError: false };
     const onClose = vi.fn();
     render(<NewAppointmentModal open date="2027-01-20" prefill={null} onClose={onClose} />);
     await confirmarPrimerTurno(user);
@@ -95,6 +99,7 @@ describe("NewAppointmentModal — V3c, combos que se hacen juntos", () => {
     respuestaComboPendientes = {
       data: { pendientes: [{ purchaseServiceId: "x", serviceId: "svc-b", serviceName: "Peeling" }] },
       isSuccess: true,
+      isError: false,
     };
     const onClose = vi.fn();
     render(<NewAppointmentModal open date="2027-01-20" prefill={null} onClose={onClose} />);
@@ -102,5 +107,19 @@ describe("NewAppointmentModal — V3c, combos que se hacen juntos", () => {
 
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     expect(screen.queryByText(/servicio más/i)).not.toBeInTheDocument();
+  });
+
+  // Hallazgo del reviewer de Task 4: el turno ya se creó bien cuando esta
+  // consulta se dispara. Si falla (red caída, 500), el modal no puede
+  // quedar colgado con "Confirmar turno" habilitado — el turno ya existe,
+  // apretarlo de nuevo lo duplicaría.
+  it("si la consulta de pendientes falla, el modal se cierra igual — el turno ya se creó", async () => {
+    const user = userEvent.setup();
+    respuestaComboPendientes = { data: undefined, isSuccess: false, isError: true };
+    const onClose = vi.fn();
+    render(<NewAppointmentModal open date="2027-01-20" prefill={null} onClose={onClose} />);
+    await confirmarPrimerTurno(user);
+
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
 });
