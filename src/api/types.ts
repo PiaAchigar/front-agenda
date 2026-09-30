@@ -264,3 +264,10 @@ export type DatosParaAgendar = {
    */
   serviceId: string;
 };
+
+/** Un servicio de la misma compra "se hacen juntos" que todavía no tiene turno (V3c). */
+export type PendienteDeCombo = {
+  purchaseServiceId: string;
+  serviceId: string;
+  serviceName: string;
+};
