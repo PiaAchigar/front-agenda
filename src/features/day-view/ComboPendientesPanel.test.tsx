@@ -190,4 +190,49 @@ describe("ComboPendientesPanel", () => {
     expect(boton).toBeDisabled();
     resolver({ id: "appt-1" });
   });
+
+  // Hallazgo del revisor de Task 3: tras una falla parcial, la fila que SÍ
+  // se agendó seguía contando en "aConfirmar" — un segundo click la volvía
+  // a mandar, y aunque el backend la rechaza (ya está tomada, no duplica el
+  // turno), la pantalla le pisaba el "✓ Agendado" con un error falso.
+  it("después de una falla parcial, reintentar no vuelve a mandar la fila que ya se agendó", async () => {
+    const user = userEvent.setup();
+    disponibilidadPorServicio["svc-a"] = {
+      data: { date: "2027-01-20", serviceId: "svc-a", durationMinutes: 30, slots: [SLOT_TEMPRANO] },
+      isLoading: false,
+    };
+    disponibilidadPorServicio["svc-b"] = {
+      data: { date: "2027-01-20", serviceId: "svc-b", durationMinutes: 30, slots: [SLOT_TEMPRANO] },
+      isLoading: false,
+    };
+    crearAsync
+      .mockResolvedValueOnce({ id: "appt-1" })
+      .mockRejectedValueOnce(new Error("La prestadora no está disponible para este servicio en esa fecha"))
+      .mockResolvedValueOnce({ id: "appt-3" });
+    render(
+      <ComboPendientesPanel
+        date="2027-01-20"
+        customerId="cu1"
+        pendientes={[PENDIENTE_A, PENDIENTE_B]}
+        onDone={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    await screen.findAllByDisplayValue("10:00");
+    await user.click(screen.getByRole("button", { name: /agendar los 2 que quedan/i }));
+    await waitFor(() => expect(screen.getByText(/✓ agendado/i)).toBeInTheDocument());
+
+    // Reintento: sólo debería mandar la que falló.
+    await user.click(screen.getByRole("button", { name: /agendar el que queda/i }));
+    await waitFor(() => expect(crearAsync).toHaveBeenCalledTimes(3));
+
+    expect(crearAsync).not.toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ customerPurchaseServiceId: "ps-a" }),
+    );
+    // Las dos filas terminan agendadas — la primera nunca perdió su "✓
+    // Agendado", la segunda lo ganó en el reintento.
+    expect(screen.getAllByText(/✓ agendado/i)).toHaveLength(2);
+    expect(screen.queryByText(/no está disponible/i)).not.toBeInTheDocument();
+  });
 });

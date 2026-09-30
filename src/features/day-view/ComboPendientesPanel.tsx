@@ -142,7 +142,15 @@ export function ComboPendientesPanel({ date, customerId, pendientes, onDone, onC
   const [estados, setEstados] = useState<Record<string, EstadoDeFila>>({});
   const [enviando, setEnviando] = useState(false);
 
-  const aConfirmar = pendientes.filter((p) => selecciones[p.purchaseServiceId]);
+  // `estados[...] !== "hecho"`, no sólo `selecciones[...]`: sin esto, un
+  // reintento después de una falla parcial volvía a mandar la fila que YA
+  // se había agendado bien. El backend la rechaza (la fila comprada ya
+  // está tomada) así que no duplicaba el turno, pero el catch le pisaba el
+  // "✓ Agendado" con un error falso — Laura veía un turno bien agendado
+  // como si hubiera fallado.
+  const aConfirmar = pendientes.filter(
+    (p) => selecciones[p.purchaseServiceId] && estados[p.purchaseServiceId] !== "hecho",
+  );
 
   async function confirmarTodo() {
     setEnviando(true);
@@ -187,7 +195,7 @@ export function ComboPendientesPanel({ date, customerId, pendientes, onDone, onC
           date={date}
           seleccion={selecciones[p.purchaseServiceId] ?? null}
           estado={estados[p.purchaseServiceId] ?? null}
-          disabled={enviando}
+          disabled={enviando || estados[p.purchaseServiceId] === "hecho"}
           onChange={(sel) => setSelecciones((s) => ({ ...s, [p.purchaseServiceId]: sel }))}
         />
       ))}
