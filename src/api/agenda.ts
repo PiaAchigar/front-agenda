@@ -10,6 +10,7 @@ import type {
   Consumo,
   Customer,
   DatosParaAgendar,
+  PendienteDeCombo,
   Provider,
   ProviderService,
   Reschedule,
@@ -222,6 +223,26 @@ export function useConsumible(customerId: string | null, serviceId: string | nul
         `/api/agenda/appointments/consumible?customerId=${customerId}&serviceId=${serviceId}`,
       ),
     enabled: !!customerId && !!serviceId,
+    staleTime: 0,
+  });
+}
+
+export type ComboPendientesResponse = { pendientes: PendienteDeCombo[] };
+
+/**
+ * Lo que falta agendar del mismo combo "se hacen juntos" (V3c), dado el
+ * `purchaseServiceId` que se acaba de consumir. `purchaseServiceId: null`
+ * significa "todavía no se confirmó ningún turno en este modal": el hook no
+ * dispara hasta entonces.
+ */
+export function useComboPendientes(purchaseServiceId: string | null) {
+  return useQuery({
+    queryKey: ["combo-pendientes", purchaseServiceId],
+    queryFn: () =>
+      api<ComboPendientesResponse>(
+        `/api/agenda/appointments/combo-pendientes?purchaseServiceId=${purchaseServiceId}`,
+      ),
+    enabled: Boolean(purchaseServiceId),
     staleTime: 0,
   });
 }

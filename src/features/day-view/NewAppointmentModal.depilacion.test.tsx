@@ -42,6 +42,7 @@ let respuestaParaAgendar: {
 let sexoPedido: string | undefined;
 
 vi.mock("../../api/agenda", () => ({
+  useComboPendientes: () => ({ data: undefined, isSuccess: false }),
   useConsumible: () => ({ data: { tipo: "ninguna" }, isFetching: false }),
   useCreateAppointment: () => ({ mutate: crear, isPending: false, error: null }),
   useCreateCustomer: () => ({ mutate: vi.fn(), isPending: false }),

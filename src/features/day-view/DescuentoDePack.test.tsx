@@ -14,6 +14,7 @@ const CLIENTA = { id: "cli1", name: "Sofía Herrera", dni: "30111222", creditBal
 const PROVEEDORA = { id: "prov1", name: "Gabi" };
 
 vi.mock("../../api/agenda", () => ({
+  useComboPendientes: () => ({ data: undefined, isSuccess: false }),
   useConsumible: () => consumible,
   useCreateAppointment: () => ({ mutate: crear, isPending: false, error: null }),
   useCreateCustomer: () => ({ mutate: vi.fn(), isPending: false }),

@@ -63,6 +63,7 @@ const TURNO_COMPLETADO = {
 
 vi.mock("../../api/agenda", () => ({
   useAppointments: () => ({ data: SIN_DATOS, isLoading: false, error: null }),
+  useComboPendientes: () => ({ data: undefined, isSuccess: false }),
   useCompanyConfig: () => ({ data: CONFIG_VACIA }),
   useProviderSchedule: () => ({ data: SIN_DATOS }),
   useProviders: () => ({ data: SIN_DATOS }),

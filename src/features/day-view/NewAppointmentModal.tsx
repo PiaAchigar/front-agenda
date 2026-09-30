@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  useComboPendientes,
   useConsumible,
   useCreateAppointment,
   useCreateCustomer,
@@ -13,6 +14,7 @@ import {
 } from "../../api/agenda";
 import type { Customer, Sexo } from "../../api/types";
 import { Button, ErrorNote, Input, Modal } from "../../components/ui";
+import { ComboPendientesPanel } from "./ComboPendientesPanel";
 import { ZonasDelTurno } from "./ZonasDelTurno";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -424,6 +426,27 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
 
   const create = useCreateAppointment();
 
+  // V3c: si el turno recién confirmado salía de un combo "se hacen
+  // juntos", pide lo que falta agendar de esa misma compra. `null` =
+  // todavía no se confirmó ningún turno en este modal — el hook no dispara
+  // hasta entonces (`enabled` adentro de `useComboPendientes`).
+  const [comboTrigger, setComboTrigger] = useState<string | null>(null);
+  const comboPendientes = useComboPendientes(comboTrigger);
+  const pendientes = comboPendientes.data?.pendientes ?? [];
+  const mostrarPendientes = !esDepilacion && pendientes.length > 0;
+
+  // Si no era un combo "juntos" (o ya no le queda nada por agendar de esta
+  // vuelta), el modal se cierra solo — mismo comportamiento que hoy. Un
+  // efecto y no un cierre durante el render: `onClose` es del padre
+  // (`DayViewPage`), y actualizar el estado de OTRO componente mientras
+  // éste se está renderizando es exactamente lo que React pide evitar.
+  useEffect(() => {
+    if (comboTrigger && comboPendientes.isSuccess && pendientes.length === 0) {
+      onClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comboTrigger, comboPendientes.isSuccess, pendientes.length]);
+
   // Qué tiene la clienta a favor para este servicio. En depilación no
   // corresponde: la línea que se descuenta ya viene fija del prefill
   // (`purchaseServiceId`), así que se apaga pasándole `null`.
@@ -556,7 +579,15 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
             : undefined,
         customerPurchaseServiceId: servicioElegido ?? undefined,
       },
-      { onSuccess: onClose },
+      {
+        onSuccess: () => {
+          if (servicioElegido) {
+            setComboTrigger(servicioElegido);
+          } else {
+            onClose();
+          }
+        },
+      },
     );
   }
 
@@ -623,8 +654,18 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
           <CustomerPicker value={customer} onChange={setCustomer} />
         </div>
 
-        {/* Servicio — en depilación, el menú de zonas ocupa este lugar */}
-        {esDepilacion ? (
+        {mostrarPendientes ? (
+          <ComboPendientesPanel
+            date={date}
+            customerId={customer?.id ?? ""}
+            pendientes={pendientes}
+            onDone={onClose}
+            onCancel={onClose}
+          />
+        ) : (
+          <>
+            {/* Servicio — en depilación, el menú de zonas ocupa este lugar */}
+            {esDepilacion ? (
           <div>
             {cargandoDepilacion && (
               <p className="text-xs text-ink-soft">Cargando el menú de zonas…</p>
@@ -943,6 +984,8 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
               {create.isPending ? "Guardando…" : "Confirmar turno"}
             </Button>
           </div>
+        )}
+          </>
         )}
       </div>
     </Modal>
