@@ -565,7 +565,12 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
     timeStr.length === 5 &&
     // Pagar con saldo insuficiente lo rechaza el backend: no dejar ni intentarlo
     !creditIsShort &&
-    !create.isPending;
+    !create.isPending &&
+    // El turno ya se confirmó (comboTrigger dejó de ser null) y todavía no
+    // se sabe si hay más para agendar. Sin esto, mientras esa consulta
+    // viaja el formulario viejo sigue en pantalla con el botón habilitado
+    // — un segundo click crearía un turno duplicado del que ya se creó.
+    !comboTrigger;
 
   function handleSubmit() {
     if (!customer || !serviceId || !providerId) return;

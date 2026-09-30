@@ -235,4 +235,55 @@ describe("ComboPendientesPanel", () => {
     expect(screen.getAllByText(/✓ agendado/i)).toHaveLength(2);
     expect(screen.queryByText(/no está disponible/i)).not.toBeInTheDocument();
   });
+
+  // Hallazgo de la revisión final: cada `create.mutateAsync` que se resuelve
+  // invalida ["availability"], así que las filas TODAVÍA en pantalla
+  // (incluida la que ya se agendó) refetchean. Sin esto, una fila agendada
+  // podía convertirse en "No queda horario" para el servicio que acaba de
+  // conseguir turno, o mostrar un horario distinto del que de verdad quedó
+  // guardado.
+  it("una fila ya agendada no vuelve a sugerir, aunque la disponibilidad cambie después", async () => {
+    const user = userEvent.setup();
+    disponibilidadPorServicio["svc-a"] = {
+      data: { date: "2027-01-20", serviceId: "svc-a", durationMinutes: 30, slots: [SLOT_TEMPRANO] },
+      isLoading: false,
+    };
+    crearAsync.mockResolvedValue({ id: "appt-1" });
+    const { rerender } = render(
+      <ComboPendientesPanel
+        date="2027-01-20"
+        customerId="cu1"
+        pendientes={[PENDIENTE_A]}
+        onDone={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    await screen.findByDisplayValue("10:00");
+    await user.click(screen.getByRole("button", { name: /agendar/i }));
+    await waitFor(() => expect(screen.getByText(/✓ agendado/i)).toBeInTheDocument());
+
+    // La disponibilidad se refetchea y ahora no queda ningún hueco — no
+    // tiene que pisar el "✓ Agendado" con "No queda horario".
+    disponibilidadPorServicio["svc-a"] = {
+      data: { date: "2027-01-20", serviceId: "svc-a", durationMinutes: 30, slots: [] },
+      isLoading: false,
+    };
+    rerender(
+      <ComboPendientesPanel
+        date="2027-01-20"
+        customerId="cu1"
+        pendientes={[PENDIENTE_A]}
+        onDone={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    // El horario que quedó guardado (10:00) sigue ahí — si el efecto no
+    // frenara al llegar a "hecho", `onChange(null)` (sin más huecos) le
+    // borraría el horario a la selección ya confirmada.
+    expect(screen.getByText(/✓ agendado · 10:00 con gabi/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no queda horario/i)).not.toBeInTheDocument();
+    // No hay selects: la fila ya agendada es de sólo lectura.
+    expect(screen.queryAllByRole("combobox")).toHaveLength(0);
+  });
 });

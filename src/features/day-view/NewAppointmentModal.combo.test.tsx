@@ -109,6 +109,19 @@ describe("NewAppointmentModal — V3c, combos que se hacen juntos", () => {
     expect(screen.queryByText(/servicio más/i)).not.toBeInTheDocument();
   });
 
+  // Hallazgo de la revisión final: mientras la consulta de pendientes todavía
+  // no resolvió (ni éxito ni error), el formulario viejo seguía en pantalla
+  // con "Confirmar turno" habilitado — un segundo click creaba un turno
+  // duplicado del que ya se había creado.
+  it("mientras se consulta el combo, el botón de confirmar queda apagado", async () => {
+    const user = userEvent.setup();
+    respuestaComboPendientes = { data: undefined, isSuccess: false, isError: false };
+    render(<NewAppointmentModal open date="2027-01-20" prefill={null} onClose={vi.fn()} />);
+    await confirmarPrimerTurno(user);
+
+    expect(screen.getByRole("button", { name: /confirmar turno/i })).toBeDisabled();
+  });
+
   // Hallazgo del reviewer de Task 4: el turno ya se creó bien cuando esta
   // consulta se dispara. Si falla (red caída, 500), el modal no puede
   // quedar colgado con "Confirmar turno" habilitado — el turno ya existe,

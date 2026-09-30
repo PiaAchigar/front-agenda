@@ -15,7 +15,12 @@ function fechaCorta(dateStr: string): string {
   return `${dd}/${mm}`;
 }
 
-export type Seleccion = { providerId: string; machineId: string | null; time: string };
+export type Seleccion = {
+  providerId: string;
+  providerName: string;
+  machineId: string | null;
+  time: string;
+};
 
 type EstadoDeFila = "enviando" | "hecho" | { error: string } | null;
 
@@ -48,7 +53,12 @@ function FilaPendiente({
   const firma =
     slots.length > 0 ? `${slots[0]!.start}|${slots[0]!.options[0]!.providerId}` : "sin-horario";
   useEffect(() => {
-    if (tocado) return;
+    // Una fila ya agendada no se vuelve a tocar: cada `create.mutateAsync`
+    // exitoso invalida ["availability"], así que las filas que siguen en
+    // pantalla refetchean. Sin este freno, una fila ya agendada podía
+    // terminar mostrando "No queda horario" para el servicio que acaba de
+    // conseguir turno.
+    if (tocado || estado === "hecho") return;
     const primerSlot = slots[0];
     if (!primerSlot) {
       onChange(null);
@@ -57,11 +67,23 @@ function FilaPendiente({
     const primeraOpcion = primerSlot.options[0]!;
     onChange({
       providerId: primeraOpcion.providerId,
+      providerName: primeraOpcion.providerName,
       machineId: primeraOpcion.machineId,
       time: primerSlot.start,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firma, tocado]);
+  }, [firma, tocado, estado]);
+
+  if (estado === "hecho") {
+    return (
+      <div className="rounded-xl border border-surface-highest bg-white px-3 py-2">
+        <p className="text-sm font-medium text-ink">{pendiente.serviceName}</p>
+        <p className="mt-1 text-xs font-medium text-emerald-700">
+          ✓ Agendado{seleccion ? ` · ${seleccion.time} con ${seleccion.providerName}` : ""}
+        </p>
+      </div>
+    );
+  }
 
   if (availability.isLoading) {
     return <p className="text-xs text-ink-soft">Buscando horario para {pendiente.serviceName}…</p>;
@@ -90,7 +112,12 @@ function FilaPendiente({
             setTocado(true);
             const nuevoSlot = slots.find((s) => s.start === e.target.value)!;
             const opcion = nuevoSlot.options[0]!;
-            onChange({ providerId: opcion.providerId, machineId: opcion.machineId, time: nuevoSlot.start });
+            onChange({
+              providerId: opcion.providerId,
+              providerName: opcion.providerName,
+              machineId: opcion.machineId,
+              time: nuevoSlot.start,
+            });
           }}
         >
           {slots.map((s) => (
@@ -106,7 +133,12 @@ function FilaPendiente({
           onChange={(e) => {
             setTocado(true);
             const opcion = opciones.find((o) => o.providerId === e.target.value)!;
-            onChange({ providerId: opcion.providerId, machineId: opcion.machineId, time: slotElegido.start });
+            onChange({
+              providerId: opcion.providerId,
+              providerName: opcion.providerName,
+              machineId: opcion.machineId,
+              time: slotElegido.start,
+            });
           }}
         >
           {opciones.map((o) => (
@@ -116,7 +148,7 @@ function FilaPendiente({
           ))}
         </select>
       </div>
-      {estado === "hecho" && <p className="text-xs font-medium text-emerald-700">✓ Agendado</p>}
+      {/* "hecho" no llega acá: ese estado corta antes, arriba. */}
       {estado && typeof estado === "object" && <ErrorNote message={estado.error} />}
     </div>
   );
