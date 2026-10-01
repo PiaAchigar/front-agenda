@@ -13,6 +13,7 @@ import type { DatosParaAgendar } from "../../api/types";
  */
 
 const crear = vi.fn();
+const pedirMes = vi.fn(() => ({ data: undefined, isFetching: false }));
 const CLIENTA = { id: "cu1", name: "Sofía Herrera", dni: "30111222", creditBalance: 0 };
 const PROVEEDORA = { id: "prov1", fullName: "Gabi", specialties: null };
 
@@ -88,7 +89,7 @@ vi.mock("../../api/agenda", () => ({
   useRescheduleAppointment: () => SIN_MUTAR_CON_ERROR,
   useReschedules: () => ({ data: SIN_DATOS }),
   useAvailability: () => ({ data: undefined, isFetching: false, isLoading: false }),
-  useMonthAvailability: () => ({ data: undefined, isFetching: false }),
+  useMonthAvailability: pedirMes,
 }));
 
 // La grilla horaria no aporta nada a esta prueba —sólo hace falta poder
@@ -200,6 +201,17 @@ describe("DayViewPage — el prefill de \"A agendar\" llega por la URL", () => {
     });
     // El resto de la URL (embed=1) no se pierde en la limpieza.
     expect(window.location.search).toContain("embed=1");
+  });
+
+  it("con Reagendar cerrado no se pide el calendario de nadie", async () => {
+    // El modal de reagendar se monta sólo abierto: montado siempre, sus
+    // consultas de disponibilidad seguían vivas (y desactualizadas) con el
+    // modal cerrado, y al reabrir el mismo turno no se volvían a pedir.
+    pedirMes.mockClear();
+    conUrl("?embed=1");
+    montar();
+    await screen.findByRole("button", { name: /\+ nuevo turno/i });
+    expect(pedirMes).not.toHaveBeenCalled();
   });
 
   it("sin prefill en la URL, no abre ningún modal solo", async () => {

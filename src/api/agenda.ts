@@ -333,6 +333,7 @@ export function useCreateAppointment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["availability"] });
+      queryClient.invalidateQueries({ queryKey: ["availability-month"] });
       // El turno puede haber descontado una sesión: lo que la clienta tiene a
       // favor quedó viejo.
       queryClient.invalidateQueries({ queryKey: ["consumible"] });
@@ -352,6 +353,7 @@ export function useUpdateAppointment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["availability"] });
+      queryClient.invalidateQueries({ queryKey: ["availability-month"] });
     },
   });
 }

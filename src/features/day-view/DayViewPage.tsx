@@ -505,13 +505,18 @@ export function DayViewPage() {
         onClose={() => setAttendanceFor(null)}
       />
 
-      {/* ── Modal de reagendado ── */}
-      <ReagendarTurnoModal
-        key={rescheduleAppt?.id ?? "none"}
-        open={rescheduleOpen}
-        appointment={rescheduleAppt}
-        onClose={() => setRescheduleOpen(false)}
-      />
+      {/* ── Modal de reagendado ── Se monta sólo abierto: así cada apertura
+          arranca del turno tal como está (y no de lo que se tocó y se abandonó
+          la vez anterior) y sus consultas de disponibilidad no quedan vivas
+          con el modal cerrado. */}
+      {rescheduleOpen && (
+        <ReagendarTurnoModal
+          key={rescheduleAppt?.id ?? "none"}
+          open
+          appointment={rescheduleAppt}
+          onClose={() => setRescheduleOpen(false)}
+        />
+      )}
 
       {/* Aparece solo si al completar un turno algún insumo quedó en negativo. */}
       <AvisoInsumosModal consumo={avisoInsumos} onClose={() => setAvisoInsumos(null)} />
