@@ -170,6 +170,8 @@ export type Reschedule = {
   reason: string | null;
   createdAt: string;
   rescheduledByName: string | null;
+  previousProviderName: string | null;
+  newProviderName: string | null;
 };
 
 /** Un insumo que quedó en negativo al completar un turno. */
@@ -270,4 +272,10 @@ export type PendienteDeCombo = {
   purchaseServiceId: string;
   serviceId: string;
   serviceName: string;
+};
+
+/** Los días de un mes con al menos un hueco libre para una proveedora y un servicio. */
+export type MonthAvailability = {
+  month: string; // YYYY-MM
+  availableDays: string[]; // YYYY-MM-DD
 };

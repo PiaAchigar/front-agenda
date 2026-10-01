@@ -10,6 +10,7 @@ import type {
   Consumo,
   Customer,
   DatosParaAgendar,
+  MonthAvailability,
   PendienteDeCombo,
   Provider,
   ProviderService,
@@ -17,6 +18,7 @@ import type {
   Service,
   Sexo,
 } from "./types";
+import { disponibilidadDelMesUrl, disponibilidadUrl, type OpcionesDeDisponibilidad } from "../lib/disponibilidad";
 
 export function useCategories() {
   return useQuery({
@@ -35,11 +37,30 @@ export function useServices(categoryId?: string) {
   });
 }
 
-export function useAvailability(serviceId: string | null, date: string | null) {
+export function useAvailability(
+  serviceId: string | null,
+  date: string | null,
+  opts: OpcionesDeDisponibilidad = {},
+) {
   return useQuery({
-    queryKey: ["availability", serviceId, date],
-    queryFn: () => api<Availability>(`/api/agenda/availability/${serviceId}?date=${date}`),
+    queryKey: ["availability", serviceId, date, opts.providerId ?? null, opts.excludeAppointmentId ?? null],
+    queryFn: () => api<Availability>(disponibilidadUrl(serviceId!, date!, opts)),
     enabled: Boolean(serviceId && date),
+  });
+}
+
+/** Qué días del mes tiene hueco libre una proveedora para un servicio (pinta el calendario de Reagendar). */
+export function useMonthAvailability(
+  serviceId: string | null,
+  providerId: string | null,
+  month: string | null,
+  excludeAppointmentId?: string,
+) {
+  return useQuery({
+    queryKey: ["availability-month", serviceId, providerId, month, excludeAppointmentId ?? null],
+    queryFn: () =>
+      api<MonthAvailability>(disponibilidadDelMesUrl(serviceId!, providerId!, month!, excludeAppointmentId)),
+    enabled: Boolean(serviceId && providerId && month),
   });
 }
 
@@ -338,14 +359,29 @@ export function useUpdateAppointment() {
 export function useRescheduleAppointment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, newStart, reason }: { id: string; newStart: string; reason?: string }) =>
+    mutationFn: ({
+      id,
+      newStart,
+      providerId,
+      reason,
+    }: {
+      id: string;
+      newStart: string;
+      providerId?: string;
+      reason?: string;
+    }) =>
       api<Appointment>(`/api/agenda/appointments/${id}/reschedule`, {
         method: "PATCH",
-        body: JSON.stringify({ newStart, ...(reason ? { reason } : {}) }),
+        body: JSON.stringify({
+          newStart,
+          ...(providerId ? { providerId } : {}),
+          ...(reason ? { reason } : {}),
+        }),
       }),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["availability"] });
+      queryClient.invalidateQueries({ queryKey: ["availability-month"] });
       // El historial del turno que se acaba de mover: sin esto, reagendar dos
       // veces seguidas muestra el modal con el historial viejo.
       queryClient.invalidateQueries({ queryKey: ["reschedules", variables.id] });
