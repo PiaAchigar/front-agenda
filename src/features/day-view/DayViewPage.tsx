@@ -13,7 +13,7 @@ import { Badge, Button, ErrorNote, Modal } from "../../components/ui";
 import { addDays, formatDate, formatTime, todayLocal } from "../../lib/format";
 import { CalendarGrid, type ColumnMode } from "./CalendarGrid";
 import { NewAppointmentModal, type NewApptPrefill } from "./NewAppointmentModal";
-import { ReschedulingModal } from "./ReschedulingModal";
+import { ReagendarTurnoModal } from "./ReagendarTurnoModal";
 import { AvisoInsumosModal } from "./AvisoInsumosModal";
 import { hayQueAvisar } from "../../lib/aviso-insumos";
 import {
@@ -506,7 +506,7 @@ export function DayViewPage() {
       />
 
       {/* ── Modal de reagendado ── */}
-      <ReschedulingModal
+      <ReagendarTurnoModal
         key={rescheduleAppt?.id ?? "none"}
         open={rescheduleOpen}
         appointment={rescheduleAppt}

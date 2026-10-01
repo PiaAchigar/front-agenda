@@ -80,13 +80,15 @@ vi.mock("../../api/agenda", () => ({
   }),
   useServices: () => ({ data: SIN_DATOS }),
   useServicesByProvider: () => ({ data: SIN_DATOS, isFetching: false }),
-  // `AttendanceModal`, `ReschedulingModal` y `AvisoInsumosModal` se montan
+  // `AttendanceModal`, `ReagendarTurnoModal` y `AvisoInsumosModal` se montan
   // SIEMPRE (se apagan por prop, no por `&&`), así que sus hooks corren en
   // cada render aunque el modal esté cerrado.
   useClassRoster: () => ({ data: SIN_DATOS, isLoading: false }),
   useMarkAttendance: () => SIN_MUTAR,
   useRescheduleAppointment: () => SIN_MUTAR_CON_ERROR,
   useReschedules: () => ({ data: SIN_DATOS }),
+  useAvailability: () => ({ data: undefined, isFetching: false, isLoading: false }),
+  useMonthAvailability: () => ({ data: undefined, isFetching: false }),
 }));
 
 // La grilla horaria no aporta nada a esta prueba —sólo hace falta poder
