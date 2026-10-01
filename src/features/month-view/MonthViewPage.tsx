@@ -5,7 +5,8 @@ import { useCompanyConfig, useProviders } from "../../api/agenda";
 import { api } from "../../api/client";
 import type { Appointment } from "../../api/types";
 import { buildProviderColorMap } from "../../lib/colors";
-import { addDays, todayLocal } from "../../lib/format";
+import { todayLocal } from "../../lib/format";
+import { diasDeLaGrilla, etiquetaDelMes, utcDate, ymd } from "../../lib/grillaDelMes";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ViewTabs, saveView } from "../../components/ViewTabs";
 import { Spinner } from "../../components/ui";
@@ -21,14 +22,6 @@ function isVisible(appt: { status: string | null; reservationExpiresAt: string |
 
 const WEEKDAY_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const MAX_DOTS = 4;
-
-function ymd(year: number, month0: number, day: number): string {
-  return `${year}-${String(month0 + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-function utcDate(dateStr: string): Date {
-  return new Date(`${dateStr}T12:00:00Z`);
-}
 
 export function MonthViewPage() {
   const navigate = useNavigate();
@@ -47,28 +40,9 @@ export function MonthViewPage() {
   );
 
   // ── Geometría del mes (grilla Lun → Dom, semanas completas) ────────────────
-  const { year, month0, days } = useMemo(() => {
-    const base   = utcDate(anchorDate);
-    const year   = base.getUTCFullYear();
-    const month0 = base.getUTCMonth();
-    const firstOfMonth = ymd(year, month0, 1);
-    const firstDow     = utcDate(firstOfMonth).getUTCDay();        // 0=Dom … 6=Sáb
-    const leading      = firstDow === 0 ? 6 : firstDow - 1;        // offset hacia el lunes
-    const daysInMonth  = new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
-    const weeks        = Math.ceil((leading + daysInMonth) / 7);
-    const gridStart    = addDays(firstOfMonth, -leading);
-    const days = Array.from({ length: weeks * 7 }, (_, i) => addDays(gridStart, i));
-    return { year, month0, days };
-  }, [anchorDate]);
+  const { year, month0, days } = useMemo(() => diasDeLaGrilla(anchorDate), [anchorDate]);
 
-  const monthLabel = useMemo(() => {
-    const raw = utcDate(ymd(year, month0, 1)).toLocaleDateString("es-AR", {
-      month: "long",
-      year: "numeric",
-      timeZone: "UTC",
-    });
-    return raw.charAt(0).toUpperCase() + raw.slice(1);
-  }, [year, month0]);
+  const monthLabel = useMemo(() => etiquetaDelMes(year, month0), [year, month0]);
 
   // ── Carga de turnos por día (cache compartida con Día/Semana) ──────────────
   const dayQueries = useQueries({
