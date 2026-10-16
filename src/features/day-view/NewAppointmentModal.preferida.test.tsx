@@ -13,7 +13,18 @@ const consumible: Consumible = {
 const SIN_MUTAR = { mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false, error: null };
 
 vi.mock("../../api/agenda", () => ({
-  useAvailability: () => ({ data: undefined, isLoading: true }),
+  useAvailability: (serviceId: string | null, date: string | null) => ({
+    data: date
+      ? { date, serviceId, durationMinutes: 30, slots: ["09:00", "10:00"].map((start) => ({ start, end: start, options: [] })) }
+      : undefined,
+    isFetching: false,
+    isLoading: false,
+  }),
+  // Días y horarios libres para el selector de día/hora de "Agendar".
+  useMonthAvailability: (_s: unknown, _p: unknown, month: string) => ({
+    data: { month, availableDays: ["2027-01-20"] },
+    isFetching: false,
+  }),
   useComboPendientes: () => ({ data: undefined, isSuccess: false, isError: false }),
   useConsumible: () => ({ data: consumible, isFetching: false }),
   useCreateAppointment: () => SIN_MUTAR,

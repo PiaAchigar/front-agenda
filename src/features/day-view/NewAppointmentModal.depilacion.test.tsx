@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DatosParaAgendar } from "../../api/types";
@@ -42,6 +42,18 @@ let respuestaParaAgendar: {
 let sexoPedido: string | undefined;
 
 vi.mock("../../api/agenda", () => ({
+  useAvailability: (serviceId: string | null, date: string | null) => ({
+    data: date
+      ? { date, serviceId, durationMinutes: 30, slots: ["09:00", "10:00"].map((start) => ({ start, end: start, options: [] })) }
+      : undefined,
+    isFetching: false,
+    isLoading: false,
+  }),
+  // Días y horarios libres para el selector de día/hora de "Agendar".
+  useMonthAvailability: (_s: unknown, _p: unknown, month: string) => ({
+    data: { month, availableDays: ["2027-01-20"] },
+    isFetching: false,
+  }),
   useComboPendientes: () => ({ data: undefined, isSuccess: false }),
   useConsumible: () => ({ data: { tipo: "ninguna" }, isFetching: false }),
   useCreateAppointment: () => ({ mutate: crear, isPending: false, error: null }),
@@ -67,6 +79,11 @@ beforeEach(() => {
   respuestaParaAgendar = { data: datosDepilacion, isFetching: false, error: null };
   sexoPedido = undefined;
 });
+
+/** La hora de la depilación se escribe en un campo libre: hay que cargarla para poder confirmar. */
+function elegirHora() {
+  fireEvent.change(screen.getByLabelText("Hora inicio"), { target: { value: "10:00" } });
+}
 
 function abrir() {
   render(
@@ -97,6 +114,7 @@ describe("NewAppointmentModal — turno de depilación", () => {
     const user = userEvent.setup();
     abrir();
     await user.click(await screen.findByRole("checkbox", { name: /pierna entera/i }));
+    elegirHora();
 
     expect(await screen.findByRole("button", { name: /reservar 24 h/i })).toBeEnabled();
     expect(screen.getByRole("button", { name: /^agendar$/i })).toBeDisabled();
@@ -108,6 +126,7 @@ describe("NewAppointmentModal — turno de depilación", () => {
     const user = userEvent.setup();
     abrir();
     await user.click(await screen.findByRole("checkbox", { name: /pierna entera/i }));
+    elegirHora();
     await user.click(screen.getByRole("button", { name: /reservar 24 h/i }));
 
     await waitFor(() => expect(crear).toHaveBeenCalled());
@@ -158,6 +177,7 @@ describe("NewAppointmentModal — depilación, ronda de arreglos 3", () => {
     expect(sexoPedido).toBe("hombre");
 
     await user.click(await screen.findByRole("checkbox", { name: /pierna entera/i }));
+    elegirHora();
     await user.click(screen.getByRole("button", { name: /^agendar$/i }));
 
     await waitFor(() => expect(crear).toHaveBeenCalled());
@@ -175,6 +195,7 @@ describe("NewAppointmentModal — depilación, ronda de arreglos 3", () => {
     };
     abrir();
     await user.click(await screen.findByRole("checkbox", { name: /pierna entera/i }));
+    elegirHora();
     await user.click(screen.getByRole("button", { name: /^agendar$/i }));
 
     await waitFor(() => expect(crear).toHaveBeenCalled());

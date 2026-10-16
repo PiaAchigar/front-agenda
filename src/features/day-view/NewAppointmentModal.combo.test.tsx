@@ -26,7 +26,20 @@ let respuestaComboPendientes: {
 const disponibilidadHermano: { data?: Availability; isLoading: boolean } = { data: undefined, isLoading: true };
 
 vi.mock("../../api/agenda", () => ({
-  useAvailability: () => disponibilidadHermano,
+  // El panel de hermanos llama sin prestadora; el selector de hora de "Agendar", con ella.
+  useAvailability: (serviceId: string | null, date: string | null, opts?: { providerId?: string }) =>
+    opts?.providerId && date
+      ? {
+          data: { date, serviceId, durationMinutes: 30, slots: ["09:00", "10:00"].map((start) => ({ start, end: start, options: [] })) },
+          isFetching: false,
+          isLoading: false,
+        }
+      : disponibilidadHermano,
+  // Días y horarios libres para el selector de día/hora de "Agendar".
+  useMonthAvailability: (_s: unknown, _p: unknown, month: string) => ({
+    data: { month, availableDays: ["2027-01-20"] },
+    isFetching: false,
+  }),
   useComboPendientes: (purchaseServiceId: string | null) =>
     purchaseServiceId ? respuestaComboPendientes : { data: undefined, isSuccess: false, isError: false },
   useConsumible: () => ({ data: consumibleState, isFetching: false }),
@@ -62,6 +75,7 @@ async function confirmarPrimerTurno(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByText(/Sofía Herrera/));
   const selects = screen.getAllByRole("combobox");
   await user.selectOptions(selects[0]!, "svc-a");
+  await user.selectOptions(screen.getByRole("combobox", { name: "Hora inicio" }), "10:00");
   await user.click(screen.getByRole("button", { name: /confirmar turno/i }));
 }
 

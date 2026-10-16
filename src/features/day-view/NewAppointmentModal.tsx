@@ -15,6 +15,9 @@ import {
 import type { Customer, Sexo } from "../../api/types";
 import { Button, ErrorNote, Input, Modal } from "../../components/ui";
 import { compraInicial } from "../../lib/compra-preferida";
+import { yaPaso } from "../../lib/horario";
+import { minutosDe } from "../../lib/vender";
+import { DiaYHoraDelTurno } from "./DiaYHoraDelTurno";
 import { ComboPendientesPanel } from "./ComboPendientesPanel";
 import { ZonasDelTurno } from "./ZonasDelTurno";
 
@@ -363,8 +366,13 @@ export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: P
   const [customer,      setCustomer]     = useState<Customer | null>(null);
   const [serviceId,     setServiceId]    = useState(prefill?.serviceId ?? "");
   const [providerId,    setProviderId]   = useState(prefill?.providerId ?? "");
+  // El día se elige acá adentro (calendario de días libres). Desde "A agendar"
+  // sin hueco arranca vacío y se completa con el primer día libre.
+  const [fecha,         setFecha]        = useState(
+    prefill?.customerId && prefill.minutes == null ? "" : date,
+  );
   const [timeStr,       setTimeStr]      = useState(
-    prefill?.minutes != null ? minToTimeStr(prefill.minutes) : "09:00",
+    prefill?.minutes != null ? minToTimeStr(prefill.minutes) : "",
   );
   const [priceMode,     setPriceMode]    = useState<"list" | "cash">("list");
   const [notes,         setNotes]        = useState("");
@@ -567,11 +575,15 @@ export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: P
     : (selectedService?.estimatedDurationMinutes ?? 0);
   const endTimeStr = durationMin > 0 ? addMinutesToTime(timeStr, durationMin) : "";
 
+  // La hora tiene que existir y no haber pasado (regla 1.9, hora argentina).
+  const horaValida =
+    Boolean(fecha) && timeStr.length === 5 && !yaPaso(fecha, minutosDe(timeStr));
+
   const canSubmit =
     Boolean(customer) &&
     Boolean(serviceId) &&
     Boolean(providerId) &&
-    timeStr.length === 5 &&
+    horaValida &&
     // Pagar con saldo insuficiente lo rechaza el backend: no dejar ni intentarlo
     !creditIsShort &&
     !create.isPending &&
@@ -589,7 +601,7 @@ export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: P
         customerId: customer.id,
         serviceId,
         providerId,
-        start:         toArgentinaISO(date, timeStr),
+        start:         toArgentinaISO(fecha, timeStr),
         priceMode,
         notes:         notes || undefined,
         status:        apptStatus,
@@ -621,7 +633,7 @@ export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: P
     Boolean(customer) &&
     Boolean(serviceId) &&
     Boolean(providerId) &&
-    timeStr.length === 5 &&
+    horaValida &&
     zonasElegidas.length > 0 &&
     !create.isPending;
 
@@ -632,7 +644,7 @@ export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: P
         customerId: customer.id,
         serviceId,
         providerId,
-        start: toArgentinaISO(date, timeStr),
+        start: toArgentinaISO(fecha, timeStr),
         notes: notes || undefined,
         status,
         // 1440 = 24 h: el máximo que acepta el backend, y lo que Laura
@@ -655,10 +667,10 @@ export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: P
     "w-full rounded-xl border border-surface-highest bg-white px-3 py-2 text-sm outline-none focus:border-primary disabled:bg-surface-low disabled:text-ink-soft";
 
   const DAY_NAMES = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
-  const dow = date ? new Date(`${date}T12:00:00Z`).getUTCDay() : null;
+  const dow = fecha ? new Date(`${fecha}T12:00:00Z`).getUTCDay() : null;
   const dateLabel = dow !== null
-    ? `${DAY_NAMES[dow]} ${date.split("-").reverse().join("/")}`
-    : date;
+    ? `${DAY_NAMES[dow]} ${fecha.split("-").reverse().join("/")}`
+    : "Elegí un día";
 
   return (
     <Modal open={open} onClose={onClose} title="Nuevo turno">
@@ -777,17 +789,18 @@ export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: P
           )}
         </div>
 
-        {/* Hora inicio + Hora fin */}
+        {/* Día + Hora inicio (a todo el ancho) y Hora fin debajo */}
+        <DiaYHoraDelTurno
+          serviceId={serviceId || null}
+          providerId={providerId || null}
+          fecha={fecha}
+          hora={timeStr}
+          horaLibre={esDepilacion}
+          elegirPrimerDiaLibre={!fecha}
+          onCambiarFecha={setFecha}
+          onCambiarHora={setTimeStr}
+        />
         <div className="flex gap-3">
-          <div className="flex-1">
-            <label className="mb-1 block text-xs font-medium text-ink-soft">Hora inicio</label>
-            <input
-              type="time"
-              className={fieldClass}
-              value={timeStr}
-              onChange={(e) => setTimeStr(e.target.value)}
-            />
-          </div>
           <div className="flex-1">
             <label className="mb-1 block text-xs font-medium text-ink-soft">
               Hora fin{" "}

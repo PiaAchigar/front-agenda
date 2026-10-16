@@ -14,6 +14,18 @@ const CLIENTA = { id: "cli1", name: "Sofía Herrera", dni: "30111222", creditBal
 const PROVEEDORA = { id: "prov1", name: "Gabi" };
 
 vi.mock("../../api/agenda", () => ({
+  useAvailability: (serviceId: string | null, date: string | null) => ({
+    data: date
+      ? { date, serviceId, durationMinutes: 30, slots: ["09:00", "10:00"].map((start) => ({ start, end: start, options: [] })) }
+      : undefined,
+    isFetching: false,
+    isLoading: false,
+  }),
+  // Días y horarios libres para el selector de día/hora de "Agendar".
+  useMonthAvailability: (_s: unknown, _p: unknown, month: string) => ({
+    data: { month, availableDays: ["2027-01-20"] },
+    isFetching: false,
+  }),
   useComboPendientes: () => ({ data: undefined, isSuccess: false }),
   useConsumible: () => consumible,
   useCreateAppointment: () => ({ mutate: crear, isPending: false, error: null }),
@@ -53,6 +65,7 @@ async function abrirConClientaYServicio(user: ReturnType<typeof userEvent.setup>
   await user.click(await screen.findByText(/Sofía Herrera/));
   const selects = screen.getAllByRole("combobox");
   await user.selectOptions(selects[0]!, "srv1");
+  await user.selectOptions(screen.getByRole("combobox", { name: "Hora inicio" }), "10:00");
 }
 
 beforeEach(() => {
