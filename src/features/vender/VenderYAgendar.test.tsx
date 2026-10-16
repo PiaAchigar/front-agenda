@@ -181,16 +181,19 @@ describe("VenderYAgendar — hasta vender", () => {
   it("con un horario que ya pasó avisa y no deja vender", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.setSystemTime(new Date("2027-01-20T18:00:00Z")); // 15:00 ART
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    montar(); // hueco a las 15:30 del 2027-01-20
-    await elegirClienta(user);
-    await user.selectOptions(screen.getByLabelText("Área"), "a-est");
-    await user.selectOptions(screen.getByLabelText("Qué"), "servicio:s1");
-    expect(screen.getByRole("button", { name: /^vender/i })).toBeEnabled();
-    fireEvent.change(screen.getByLabelText("Hora"), { target: { value: "14:00" } });
-    expect(screen.getByText("Ese horario ya pasó. Elegí uno a partir de ahora.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^vender/i })).toBeDisabled();
-    vi.useRealTimers();
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      montar(); // hueco a las 15:30 del 2027-01-20
+      await elegirClienta(user);
+      await user.selectOptions(screen.getByLabelText("Área"), "a-est");
+      await user.selectOptions(screen.getByLabelText("Qué"), "servicio:s1");
+      expect(screen.getByRole("button", { name: /^vender/i })).toBeEnabled();
+      fireEvent.change(screen.getByLabelText("Hora"), { target: { value: "14:00" } });
+      expect(screen.getByText("Ese horario ya pasó. Elegí uno a partir de ahora.")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^vender/i })).toBeDisabled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
