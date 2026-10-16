@@ -160,4 +160,19 @@ describe("VenderYAgendar — hasta vender", () => {
     expect(screen.getByText("La promo ya no tiene cupo")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^vender/i })).toBeDisabled();
   });
+
+  it("cerrar después de vender muestra el aviso, no cierra en silencio", async () => {
+    const user = userEvent.setup();
+    const { onClose } = montar();
+    await elegirClienta(user);
+    await user.selectOptions(screen.getByLabelText("Área"), "a-est");
+    await user.selectOptions(screen.getByLabelText("Qué"), "servicio:s1");
+    await user.click(screen.getByRole("button", { name: /^vender/i }));
+    // Clic en el fondo del modal = onClose del <Modal>.
+    await user.click(screen.getByText("DESPUES DE VENDER").closest(".fixed")!);
+    expect(screen.getByText(/la venta quedó en la ficha de sofía herrera como “a agendar”/i)).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: /^cerrar$/i }));
+    expect(onClose).toHaveBeenCalled();
+  });
 });
