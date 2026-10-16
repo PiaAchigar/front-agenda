@@ -26,11 +26,12 @@ const COTIZACION = {
 
 const pedidos: unknown[] = [];
 let errorDeCotizacion: Error | null = null;
+let errorDeCatalogo: Error | null = null;
 const vender = vi.fn((_i: unknown, o?: { onSuccess?: (r: unknown) => void }) => o?.onSuccess?.({ id: "pu9" }));
 const despues = vi.fn();
 
 vi.mock("../../api/ventas", () => ({
-  useCatalogoVendible: () => ({ data: CATALOGO, isLoading: false }),
+  useCatalogoVendible: () => (errorDeCatalogo ? { data: undefined, isLoading: false, error: errorDeCatalogo } : { data: CATALOGO, isLoading: false, error: null }),
   useCotizacion: (p: unknown) => {
     pedidos.push(p);
     if (!p) return { data: undefined, isFetching: false, error: null };
@@ -71,6 +72,7 @@ async function elegirClienta(user: ReturnType<typeof userEvent.setup>, nombre = 
 beforeEach(() => {
   pedidos.length = 0;
   errorDeCotizacion = null;
+  errorDeCatalogo = null;
   vender.mockClear();
   despues.mockClear();
 });
@@ -174,5 +176,53 @@ describe("VenderYAgendar — hasta vender", () => {
     expect(onClose).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: /^cerrar$/i }));
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+describe("VenderYAgendar — fallas y Sesiones", () => {
+  it("si el catálogo no carga, lo dice en vez de dejar el área vacía", () => {
+    errorDeCatalogo = new Error("Forbidden");
+    montar();
+    expect(screen.getByText(/no se pudo cargar lo que se puede vender: forbidden/i)).toBeInTheDocument();
+  });
+
+  async function hastaSesiones(user: ReturnType<typeof userEvent.setup>) {
+    montar();
+    await elegirClienta(user);
+    await user.selectOptions(screen.getByLabelText("Área"), "a-est");
+    await user.selectOptions(screen.getByLabelText("Qué"), "servicio:s1");
+    return screen.getByLabelText("Sesiones") as HTMLInputElement;
+  }
+
+  it("Sesiones se puede vaciar y escribir de nuevo sin que se pegue el 1 (borrar y 6 = 6, no 16)", async () => {
+    const user = userEvent.setup();
+    const input = await hastaSesiones(user);
+    await user.clear(input);
+    expect(input.value).toBe("");
+    await user.type(input, "6");
+    expect(input.value).toBe("6");
+    expect((pedidos.at(-1) as { sessions: number }).sessions).toBe(6);
+  });
+
+  it("mientras Sesiones está vacío no se cotiza otra cosa; al salir vuelve a 1", async () => {
+    const user = userEvent.setup();
+    const input = await hastaSesiones(user);
+    await user.clear(input);
+    expect((pedidos.at(-1) as { sessions: number }).sessions).toBe(1);
+    fireEvent.blur(input);
+    expect(input.value).toBe("1");
+  });
+
+  it("Sesiones sólo acepta enteros de 1 para arriba (2.5 y 0 no entran a la cotización)", async () => {
+    const user = userEvent.setup();
+    const input = await hastaSesiones(user);
+    fireEvent.change(input, { target: { value: "2.5" } });
+    expect((pedidos.at(-1) as { sessions: number }).sessions).toBe(1);
+    fireEvent.change(input, { target: { value: "0" } });
+    expect((pedidos.at(-1) as { sessions: number }).sessions).toBe(1);
+    fireEvent.blur(input);
+    expect(input.value).toBe("1");
+    fireEvent.change(input, { target: { value: "3" } });
+    expect((pedidos.at(-1) as { sessions: number }).sessions).toBe(3);
   });
 });

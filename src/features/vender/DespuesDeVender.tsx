@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useServicesByProvider } from "../../api/agenda";
+import { useParaAgendar, useServicesByProvider } from "../../api/agenda";
 import { useCompraDeCliente, useEstadoDeCobro } from "../../api/ventas";
 import { Button, ErrorNote } from "../../components/ui";
 import {
@@ -34,10 +34,13 @@ type Paso = "cobro" | "deuda" | "que-va";
 export function DespuesDeVender(p: DespuesDeVenderProps) {
   const estado = useEstadoDeCobro(p.compraId);
   const compra = useCompraDeCliente(p.customerId, p.compraId);
-  const { data: serviciosDeElla } = useServicesByProvider(p.hueco.providerId ?? null);
+  const { data: serviciosDeElla, isError: fallaronSuyos } = useServicesByProvider(p.hueco.providerId ?? null);
+  // Si no se pudieron leer sus servicios no sabemos qué hace: se sigue sin
+  // profesional fija (fijar una que no lo ofrece trabaría Agendar).
+  const hueco: Hueco = fallaronSuyos ? { ...p.hueco, providerId: undefined, providerName: undefined } : p.hueco;
   // Mientras llegan sus servicios no sabemos qué hace: no decidir nada todavía.
-  const cargandoSuyos = !!p.hueco.providerId && serviciosDeElla === undefined;
-  const suyos = p.hueco.providerId ? (serviciosDeElla ?? []).map((s) => s.id) : null;
+  const cargandoSuyos = !!hueco.providerId && serviciosDeElla === undefined;
+  const suyos = hueco.providerId ? (serviciosDeElla ?? []).map((s) => s.id) : null;
 
   const [paso, setPaso] = useState<Paso | null>(null);
   const [deuda, setDeuda] = useState(0);
@@ -48,6 +51,17 @@ export function DespuesDeVender(p: DespuesDeVenderProps) {
   if (paso === null && estado.data) setPaso(estado.data.pendiente > 0 ? "cobro" : "que-va");
 
   const opciones: OpcionParaElTurno[] = compra.data ? opcionesParaElTurno(compra.data) : [];
+
+  // Depilación: la profesional del hueco tiene que hacer el servicio ANCLA
+  // (el que devuelve para-agendar), no cualquiera. Se consulta sólo para la
+  // opción que va (la única, o la elegida) y sólo si hay profesional fija.
+  const objetivo = opciones.length === 1 ? opciones[0]! : (opciones.find((o) => o.clave === elegida) ?? null);
+  const objetivoDepi = objetivo?.esDepilacion ? objetivo : null;
+  const ancla = useParaAgendar(hueco.providerId && objetivoDepi ? objetivoDepi.purchaseServiceId : null);
+  const cargandoAncla = !!objetivoDepi && !!hueco.providerId && ancla.isLoading;
+  /** `undefined` = no aplica o todavía no se sabe; `null` = no se pudo leer. */
+  const anclaDepilacion = objetivoDepi && hueco.providerId && !ancla.isLoading ? (ancla.data?.serviceId ?? null) : undefined;
+
   const [preseleccionHecha, setPreseleccionHecha] = useState(false);
   if (paso === "que-va" && compra.data && !cargandoSuyos && !preseleccionHecha) {
     setPreseleccionHecha(true);
@@ -59,23 +73,26 @@ export function DespuesDeVender(p: DespuesDeVenderProps) {
     if (!opcion) return;
     p.onAgendar({
       date: p.fecha,
-      prefill: prefillDeTraspaso({ opcion, compraId: p.compraId, customerId: p.customerId, hueco: p.hueco, serviciosDeLaProfesional: suyos }),
+      prefill: prefillDeTraspaso({ opcion, compraId: p.compraId, customerId: p.customerId, hueco, serviciosDeLaProfesional: suyos, anclaDepilacion }),
     });
   }
 
   // Una sola opción: el paso "¿qué va?" no aparece, se traspasa directo.
   // Efecto y no render: `onAgendar` actualiza el estado del padre.
-  const unica = paso === "que-va" && !cargandoSuyos && opciones.length === 1 ? opciones[0]!.clave : null;
+  const unica = paso === "que-va" && !cargandoSuyos && opciones.length === 1 && !cargandoAncla ? opciones[0]!.clave : null;
   useEffect(() => {
     if (unica) traspasar(unica);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unica]);
 
-  if (estado.error || compra.error) {
-    const error = (estado.error ?? compra.error) as Error;
+  const compraNoAparece = compra.isSuccess && compra.data === null;
+  if (estado.error || compra.error || compraNoAparece) {
+    const mensaje = estado.error || compra.error
+      ? `La venta quedó hecha, pero no se pudo seguir: ${((estado.error ?? compra.error) as Error).message}`
+      : "Todavía no aparece la compra recién vendida. Probá de nuevo en unos segundos.";
     return (
       <div className="space-y-3">
-        <ErrorNote message={`La venta quedó hecha, pero no se pudo seguir: ${error.message}`} />
+        <ErrorNote message={mensaje} />
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={p.onCerrar}>Cerrar</Button>
           <Button type="button" onClick={() => { estado.refetch(); compra.refetch(); }}>Reintentar</Button>
@@ -121,7 +138,7 @@ export function DespuesDeVender(p: DespuesDeVenderProps) {
   }
 
   // paso === "que-va"
-  if (!compra.data || cargandoSuyos) return <p className="text-sm text-ink-soft">Cargando…</p>;
+  if (!compra.data || cargandoSuyos || (opciones.length === 1 && cargandoAncla)) return <p className="text-sm text-ink-soft">Cargando…</p>;
   if (opciones.length === 0) {
     return (
       <div className="space-y-3">
@@ -144,9 +161,9 @@ export function DespuesDeVender(p: DespuesDeVenderProps) {
             <input type="radio" name="que-va" className="mt-1" checked={elegida === o.clave} onChange={() => setElegida(o.clave)} />
             <span className="text-sm text-ink">
               {o.nombre}
-              {!laHace(o, suyos) && (
+              {!laHace(o, suyos, o.clave === objetivoDepi?.clave ? anclaDepilacion : undefined) && (
                 <span className="mt-0.5 block text-xs text-ink-soft">
-                  {p.hueco.providerName ?? "Esta profesional"} no hace este servicio
+                  {hueco.providerName ?? p.hueco.providerName ?? "Esta profesional"} no hace este servicio
                 </span>
               )}
             </span>
@@ -154,7 +171,7 @@ export function DespuesDeVender(p: DespuesDeVenderProps) {
         ))}
       </div>
       <div className="flex justify-end">
-        <Button type="button" disabled={!elegida} onClick={() => traspasar(elegida)}>Agendar</Button>
+        <Button type="button" disabled={!elegida || cargandoAncla} onClick={() => traspasar(elegida)}>Agendar</Button>
       </div>
     </div>
   );

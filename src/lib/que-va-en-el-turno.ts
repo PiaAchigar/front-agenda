@@ -40,9 +40,19 @@ export function opcionesParaElTurno(compra: Pick<Compra, "servicios" | "descript
 }
 
 /** Si la profesional del hueco hace esto. Sin profesional fija, cualquiera.
- *  Depilación siempre: la habilitación sobre el ancla la valida la API. */
-export function laHace(opcion: OpcionParaElTurno, serviciosDeLaProfesional: string[] | null): boolean {
-  if (serviciosDeLaProfesional === null || opcion.esDepilacion) return true;
+ *  Depilación se mide contra su servicio ancla (`anclaDepilacion`, el
+ *  `serviceId` que devuelve para-agendar): `undefined` = todavía no se
+ *  consultó (se asume que sí), `null` = no se pudo saber (no se la fija). */
+export function laHace(
+  opcion: OpcionParaElTurno,
+  serviciosDeLaProfesional: string[] | null,
+  anclaDepilacion?: string | null,
+): boolean {
+  if (serviciosDeLaProfesional === null) return true;
+  if (opcion.esDepilacion) {
+    if (anclaDepilacion === undefined) return true;
+    return anclaDepilacion !== null && serviciosDeLaProfesional.includes(anclaDepilacion);
+  }
   return serviciosDeLaProfesional.includes(opcion.serviceId!);
 }
 
@@ -67,9 +77,10 @@ export function prefillDeTraspaso(a: {
   customerId: string;
   hueco: Hueco;
   serviciosDeLaProfesional: string[] | null;
+  anclaDepilacion?: string | null;
 }): NewApptPrefill {
   const profesional =
-    a.hueco.providerId && laHace(a.opcion, a.serviciosDeLaProfesional)
+    a.hueco.providerId && laHace(a.opcion, a.serviciosDeLaProfesional, a.anclaDepilacion)
       ? { providerId: a.hueco.providerId, providerName: a.hueco.providerName }
       : {};
   if (a.opcion.esDepilacion) {

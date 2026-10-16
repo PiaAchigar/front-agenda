@@ -89,4 +89,35 @@ describe("prefillDeTraspaso", () => {
       prefillDeTraspaso({ opcion: depi!, compraId: "pu9", customerId: "cu1", hueco, serviciosDeLaProfesional: [] }),
     ).toEqual({ customerId: "cu1", purchaseServiceId: "d1", minutes: 930, providerId: "prov1", providerName: "Sofía" });
   });
+
+  it("depilación y la profesional del hueco NO hace el servicio ancla: sin profesional fija", () => {
+    const [depi] = opcionesParaElTurno(DEPI);
+    expect(
+      prefillDeTraspaso({ opcion: depi!, compraId: "pu9", customerId: "cu1", hueco, serviciosDeLaProfesional: ["svc-otro"], anclaDepilacion: "svc-ancla" }),
+    ).toEqual({ customerId: "cu1", purchaseServiceId: "d1", minutes: 930 });
+  });
+
+  it("depilación y la profesional hace el ancla: queda fija", () => {
+    const [depi] = opcionesParaElTurno(DEPI);
+    expect(
+      prefillDeTraspaso({ opcion: depi!, compraId: "pu9", customerId: "cu1", hueco, serviciosDeLaProfesional: ["svc-ancla"], anclaDepilacion: "svc-ancla" }),
+    ).toEqual({ customerId: "cu1", purchaseServiceId: "d1", minutes: 930, providerId: "prov1", providerName: "Sofía" });
+  });
+
+  it("depilación con ancla desconocida (no se pudo leer): sin profesional fija", () => {
+    const [depi] = opcionesParaElTurno(DEPI);
+    expect(
+      prefillDeTraspaso({ opcion: depi!, compraId: "pu9", customerId: "cu1", hueco, serviciosDeLaProfesional: ["svc-ancla"], anclaDepilacion: null }),
+    ).toEqual({ customerId: "cu1", purchaseServiceId: "d1", minutes: 930 });
+  });
+});
+
+describe("laHace con ancla de depilación", () => {
+  it("depilación se compara contra el servicio ancla", () => {
+    const [depi] = opcionesParaElTurno(DEPI);
+    expect(laHace(depi!, ["svc-ancla"], "svc-ancla")).toBe(true);
+    expect(laHace(depi!, ["svc-otro"], "svc-ancla")).toBe(false);
+    expect(laHace(depi!, ["svc-ancla"], null)).toBe(false);
+    expect(laHace(depi!, null, "svc-ancla")).toBe(true);
+  });
 });

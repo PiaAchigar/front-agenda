@@ -43,7 +43,7 @@ export function VenderYAgendar({
   onClose: () => void;
   onAgendar: (t: TraspasoAAgendar) => void;
 }) {
-  const { data: catalogo, isLoading } = useCatalogoVendible();
+  const { data: catalogo, isLoading, error: errorCatalogo } = useCatalogoVendible();
   const vender = useVender();
 
   const [fecha, setFecha] = useState(date);
@@ -53,6 +53,13 @@ export function VenderYAgendar({
   const [busqueda, setBusqueda] = useState("");
   const [item, setItem] = useState<ItemDeCatalogo | null>(null);
   const [sesiones, setSesiones] = useState(1);
+  // Lo que se ve escrito: puede estar vacío o a medias; `sesiones` (lo que se
+  // cotiza) sólo toma enteros >= 1.
+  const [sesionesTxt, setSesionesTxt] = useState("1");
+  function fijarSesiones(n: number) {
+    setSesiones(n);
+    setSesionesTxt(String(n));
+  }
   const [promotionId, setPromotionId] = useState<string | null>(null);
   const [paquete, setPaquete] = useState<PromoVendible | null>(null);
   const [usarSaldo, setUsarSaldo] = useState(false);
@@ -62,7 +69,7 @@ export function VenderYAgendar({
   /** Todo lo que depende de lo elegido vuelve a cero (Review Focus 4). */
   function limpiarEleccion() {
     setItem(null);
-    setSesiones(1);
+    fijarSesiones(1);
     setPromotionId(null);
     setPaquete(null);
     setUsarSaldo(false);
@@ -157,6 +164,7 @@ export function VenderYAgendar({
         </div>
 
         {isLoading && <p className="text-xs text-ink-soft">Cargando lo que se puede vender…</p>}
+        {errorCatalogo && <ErrorNote message={`No se pudo cargar lo que se puede vender: ${(errorCatalogo as Error).message}`} />}
 
         <label className="block">
           <span className={label}>Área</span>
@@ -205,8 +213,13 @@ export function VenderYAgendar({
             {item && sesionesEditables(item) && (
               <label className="block">
                 <span className={label}>Sesiones</span>
-                <input type="number" min={1} aria-label="Sesiones" className={field} value={sesiones}
-                  onChange={(e) => setSesiones(Math.max(1, Number(e.target.value) || 1))} />
+                <input type="number" min={1} aria-label="Sesiones" className={field} step={1} value={sesionesTxt}
+                  onChange={(e) => {
+                    setSesionesTxt(e.target.value);
+                    const n = Number(e.target.value);
+                    if (e.target.value.trim() !== "" && Number.isInteger(n) && n >= 1) setSesiones(n);
+                  }}
+                  onBlur={() => setSesionesTxt(String(sesiones))} />
               </label>
             )}
             {promosDelItem.length > 0 && (
@@ -254,7 +267,7 @@ export function VenderYAgendar({
                   onChange={(e) => {
                     const elegido = itemsDeUnaPromo(promoElegidaEnPromos, catalogo).find((i) => claveDeItem(i) === e.target.value) ?? null;
                     setItem(elegido);
-                    setSesiones(1);
+                    fijarSesiones(1);
                   }}
                 >
                   <option value="">¿A qué se le aplica?</option>
