@@ -6,13 +6,14 @@ import type { Compra, EstadoDeCobro } from "../../api/ventas";
 let estado: { data?: EstadoDeCobro; error: Error | null; refetch: () => void } = { error: null, refetch: vi.fn() };
 let compra: { data?: Compra | null; error: Error | null; refetch: () => void } = { error: null, refetch: vi.fn() };
 let suyos: string[] = [];
+let cargandoSuyos = false;
 
 vi.mock("../../api/ventas", () => ({
   useEstadoDeCobro: () => estado,
   useCompraDeCliente: () => compra,
 }));
 vi.mock("../../api/agenda", () => ({
-  useServicesByProvider: (id: string | null) => ({ data: id ? suyos.map((s) => ({ id: s, name: s })) : [], isFetching: false }),
+  useServicesByProvider: (id: string | null) => ({ data: cargandoSuyos ? undefined : id ? suyos.map((s) => ({ id: s, name: s })) : [], isFetching: false }),
 }));
 vi.mock("./CobrarPaso", () => ({
   CobrarPaso: ({ onCobrado, onDespues }: { onCobrado: (r: number) => void; onDespues: () => void }) => (
@@ -44,6 +45,7 @@ beforeEach(() => {
   estado = { data: { pendiente: 50000, minimo: 20000, sugerido: 50000, faltaElMinimo: true }, error: null, refetch: vi.fn() };
   compra = { data: UNA, error: null, refetch: vi.fn() };
   suyos = ["svc-limpieza"];
+  cargandoSuyos = false;
 });
 
 describe("DespuesDeVender", () => {
@@ -120,5 +122,24 @@ describe("DespuesDeVender", () => {
     expect(onAgendar).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: /cerrar/i }));
     expect(onCerrar).toHaveBeenCalled();
+  });
+
+  it("mientras llegan los servicios de la profesional espera, y al llegar traspasa con ella", () => {
+    estado = { ...estado, data: { pendiente: 0, minimo: 0, sugerido: 0, faltaElMinimo: false } };
+    cargandoSuyos = true;
+    const onAgendar = vi.fn();
+    const el = () => (
+      <DespuesDeVender compraId="pu9" customerId="cu1" customerName="Sofía" descripcion="Combo Glow" fecha="2027-01-21"
+        hueco={{ providerId: "prov1", providerName: "Gabi", minutes: 930 }} onAgendar={onAgendar} onCerrar={vi.fn()} />
+    );
+    const { rerender } = render(el());
+    expect(screen.getByText(/cargando/i)).toBeInTheDocument();
+    expect(onAgendar).not.toHaveBeenCalled();
+    cargandoSuyos = false;
+    rerender(el());
+    expect(onAgendar).toHaveBeenCalledWith({
+      date: "2027-01-21",
+      prefill: { customerId: "cu1", serviceId: "svc-limpieza", compraPreferidaId: "pu9", minutes: 930, providerId: "prov1", providerName: "Gabi" },
+    });
   });
 });

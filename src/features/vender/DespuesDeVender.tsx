@@ -35,6 +35,8 @@ export function DespuesDeVender(p: DespuesDeVenderProps) {
   const estado = useEstadoDeCobro(p.compraId);
   const compra = useCompraDeCliente(p.customerId, p.compraId);
   const { data: serviciosDeElla } = useServicesByProvider(p.hueco.providerId ?? null);
+  // Mientras llegan sus servicios no sabemos qué hace: no decidir nada todavía.
+  const cargandoSuyos = !!p.hueco.providerId && serviciosDeElla === undefined;
   const suyos = p.hueco.providerId ? (serviciosDeElla ?? []).map((s) => s.id) : null;
 
   const [paso, setPaso] = useState<Paso | null>(null);
@@ -47,7 +49,7 @@ export function DespuesDeVender(p: DespuesDeVenderProps) {
 
   const opciones: OpcionParaElTurno[] = compra.data ? opcionesParaElTurno(compra.data) : [];
   const [preseleccionHecha, setPreseleccionHecha] = useState(false);
-  if (paso === "que-va" && compra.data && !preseleccionHecha) {
+  if (paso === "que-va" && compra.data && !cargandoSuyos && !preseleccionHecha) {
     setPreseleccionHecha(true);
     setElegida(preseleccion(opciones, suyos));
   }
@@ -63,7 +65,7 @@ export function DespuesDeVender(p: DespuesDeVenderProps) {
 
   // Una sola opción: el paso "¿qué va?" no aparece, se traspasa directo.
   // Efecto y no render: `onAgendar` actualiza el estado del padre.
-  const unica = paso === "que-va" && opciones.length === 1 ? opciones[0]!.clave : null;
+  const unica = paso === "que-va" && !cargandoSuyos && opciones.length === 1 ? opciones[0]!.clave : null;
   useEffect(() => {
     if (unica) traspasar(unica);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -119,7 +121,7 @@ export function DespuesDeVender(p: DespuesDeVenderProps) {
   }
 
   // paso === "que-va"
-  if (!compra.data) return <p className="text-sm text-ink-soft">Cargando…</p>;
+  if (!compra.data || cargandoSuyos) return <p className="text-sm text-ink-soft">Cargando…</p>;
   if (opciones.length === 0) {
     return (
       <div className="space-y-3">
