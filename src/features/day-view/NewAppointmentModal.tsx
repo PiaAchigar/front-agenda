@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
   useComboPendientes,
   useConsumible,
@@ -14,6 +14,7 @@ import {
 } from "../../api/agenda";
 import type { Customer, Sexo } from "../../api/types";
 import { Button, ErrorNote, Input, Modal } from "../../components/ui";
+import { compraInicial } from "../../lib/compra-preferida";
 import { ComboPendientesPanel } from "./ComboPendientesPanel";
 import { ZonasDelTurno } from "./ZonasDelTurno";
 
@@ -45,7 +46,7 @@ function toArgentinaISO(dateStr: string, timeStr: string): string {
 
 // ── Sub-componente: búsqueda / alta de cliente ────────────────────────────────
 
-function CustomerPicker({
+export function CustomerPicker({
   value,
   onChange,
 }: {
@@ -192,6 +193,12 @@ export type NewApptPrefill = {
    */
   customerId?: string;
   purchaseServiceId?: string;
+  /**
+   * Vender desde el turno (spec 2026-10-16): la COMPRA recién vendida. Si la
+   * clienta tiene varias para este servicio, arranca elegida esta. Sin el
+   * campo, todo como antes.
+   */
+  compraPreferidaId?: string;
 };
 
 type Props = {
@@ -199,6 +206,8 @@ type Props = {
   date: string; // YYYY-MM-DD
   prefill: NewApptPrefill | null;
   onClose: () => void;
+  /** Las solapas Agendar | Vender y agendar. Sin ellas, el modal es el de siempre. */
+  solapas?: ReactNode;
 };
 
 const EXPIRY_OPTIONS = [
@@ -342,7 +351,7 @@ function DescuentoDePack({
   );
 }
 
-export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
+export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: Props) {
   const { data: services = [] } = useServices();
 
   // Turno de depilación (Task 15): la línea del pack ya viene elegida desde
@@ -489,7 +498,7 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
   const [firmaSincronizada, setFirmaSincronizada] = useState<string | null>(null);
   if (!esDepilacion && firmaConsumible !== firmaSincronizada) {
     setFirmaSincronizada(firmaConsumible);
-    setServicioElegido(consumible?.tipo === "automatica" ? consumible.purchaseServiceId : null);
+    setServicioElegido(compraInicial(consumible, prefill?.compraPreferidaId ?? null));
   }
 
   // El servicio ancla de depilación: `datosParaAgendar` lo trae resuelto
@@ -653,6 +662,7 @@ export function NewAppointmentModal({ open, date, prefill, onClose }: Props) {
 
   return (
     <Modal open={open} onClose={onClose} title="Nuevo turno">
+      {solapas}
       <div className="space-y-4">
         {/* Fecha del turno */}
         <div className="flex items-center gap-2 rounded-xl bg-primary/8 px-3 py-2">
