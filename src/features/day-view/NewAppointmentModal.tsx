@@ -573,7 +573,7 @@ export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: P
   const durationMin = esDepilacion
     ? minutosDepilacionElegidos
     : (selectedService?.estimatedDurationMinutes ?? 0);
-  const endTimeStr = durationMin > 0 ? addMinutesToTime(timeStr, durationMin) : "";
+  const endTimeStr = timeStr && durationMin > 0 ? addMinutesToTime(timeStr, durationMin) : "";
 
   // La hora tiene que existir y no haber pasado (regla 1.9, hora argentina).
   const horaValida =
@@ -690,7 +690,7 @@ export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: P
 
         {mostrarPendientes ? (
           <ComboPendientesPanel
-            date={date}
+            date={fecha}
             customerId={customer?.id ?? ""}
             pendientes={pendientes}
             onDone={onClose}

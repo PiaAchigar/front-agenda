@@ -112,6 +112,15 @@ describe("NewAppointmentModal — día y hora en Agendar", () => {
     expect(screen.getByRole("button", { name: /confirmar turno/i })).toBeDisabled();
   });
 
+  it("sin hora elegida, 'Hora fin' queda vacía (no 01:00)", async () => {
+    const user = usuario();
+    render(<NewAppointmentModal open date="2026-10-20" prefill={null} onClose={() => {}} />);
+    await elegirClientaYServicio(user);
+    expect(select("Hora inicio").value).toBe("");
+    const horaFin = screen.getByText(/Hora fin/).parentElement!.querySelector("input") as HTMLInputElement;
+    expect(horaFin.value).toBe("");
+  });
+
   it("desde 'A agendar' arranca en el primer día libre y sin hora", async () => {
     // El primer día libre es el 22, no el 20 que trae la grilla.
     diasLibres = ["2026-10-22", "2026-10-25"];

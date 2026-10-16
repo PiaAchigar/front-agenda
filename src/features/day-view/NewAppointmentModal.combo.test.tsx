@@ -23,6 +23,7 @@ let respuestaComboPendientes: {
   isSuccess: boolean;
   isError: boolean;
 } = { data: { pendientes: [] }, isSuccess: true, isError: false };
+const diasPedidosPorElPanel: string[] = [];
 const disponibilidadHermano: { data?: Availability; isLoading: boolean } = { data: undefined, isLoading: true };
 
 vi.mock("../../api/agenda", () => ({
@@ -34,10 +35,10 @@ vi.mock("../../api/agenda", () => ({
           isFetching: false,
           isLoading: false,
         }
-      : disponibilidadHermano,
+      : (date && diasPedidosPorElPanel.push(date), disponibilidadHermano),
   // Días y horarios libres para el selector de día/hora de "Agendar".
   useMonthAvailability: (_s: unknown, _p: unknown, month: string) => ({
-    data: { month, availableDays: ["2027-01-20"] },
+    data: { month, availableDays: ["2027-01-20", "2027-01-21"] },
     isFetching: false,
   }),
   useComboPendientes: (purchaseServiceId: string | null) =>
@@ -70,6 +71,7 @@ beforeEach(() => {
   respuestaComboPendientes = { data: { pendientes: [] }, isSuccess: true, isError: false };
   disponibilidadHermano.data = undefined;
   disponibilidadHermano.isLoading = true;
+  diasPedidosPorElPanel.length = 0;
 });
 // Los tests usan 2027-01-20: se fija "ahora" antes para que `yaPaso` no dependa del reloj real.
 afterEach(() => {
@@ -100,6 +102,27 @@ describe("NewAppointmentModal — V3c, combos que se hacen juntos", () => {
 
     expect(await screen.findByText(/este combo tiene 1 servicio más/i)).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("si Laura cambia el día en el calendario, el panel de hermanos usa el día elegido y no el de la grilla", async () => {
+    const user = userEvent.setup();
+    respuestaComboPendientes = {
+      data: { pendientes: [{ purchaseServiceId: "ps-b", serviceId: "svc-b", serviceName: "Peeling" }] },
+      isSuccess: true,
+      isError: false,
+    };
+    render(<NewAppointmentModal open date="2027-01-20" prefill={null} onClose={vi.fn()} />);
+    await user.type(screen.getByPlaceholderText(/nombre, dni/i), "Sofía");
+    await user.click(await screen.findByText(/Sofía Herrera/));
+    await user.selectOptions(screen.getAllByRole("combobox")[0]!, "svc-a");
+    await user.click(screen.getByRole("button", { name: "21" }));
+    await user.selectOptions(screen.getByRole("combobox", { name: "Hora inicio" }), "10:00");
+    diasPedidosPorElPanel.length = 0; // lo anterior es el selector de hora, no el panel
+    await user.click(screen.getByRole("button", { name: /confirmar turno/i }));
+
+    expect(await screen.findByText(/este combo tiene 1 servicio más/i)).toBeInTheDocument();
+    expect(diasPedidosPorElPanel.length).toBeGreaterThan(0);
+    expect(new Set(diasPedidosPorElPanel)).toEqual(new Set(["2027-01-21"]));
   });
 
   it("sin hermanos pendientes, el modal se cierra solo — como hoy", async () => {

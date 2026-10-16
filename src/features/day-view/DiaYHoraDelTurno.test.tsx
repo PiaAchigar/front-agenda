@@ -6,6 +6,8 @@ import { AVISO_HORARIO_PASADO } from "../../lib/horario";
 const h = vi.hoisted(() => ({
   dias: [] as string[],
   slots: [] as string[],
+  /** Si está, los huecos dependen de la prestadora. */
+  porPrestadora: null as Record<string, string[]> | null,
 }));
 
 vi.mock("../../api/agenda", () => ({
@@ -13,9 +15,9 @@ vi.mock("../../api/agenda", () => ({
     data: { month, availableDays: h.dias },
     isFetching: false,
   }),
-  useAvailability: (serviceId: string | null, date: string | null) => ({
+  useAvailability: (serviceId: string | null, date: string | null, opts?: { providerId?: string }) => ({
     data: date
-      ? { date, serviceId, durationMinutes: 30, slots: h.slots.map((start) => ({ start, end: start, options: [] })) }
+      ? { date, serviceId, durationMinutes: 30, slots: (h.porPrestadora?.[opts?.providerId ?? ""] ?? h.slots).map((start) => ({ start, end: start, options: [] })) }
       : undefined,
     isFetching: false,
     isLoading: false,
@@ -46,6 +48,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date("2026-10-16T12:30:00Z")); // 09:30 ART
   h.dias = ["2026-10-16", "2026-10-20"];
   h.slots = ["09:00", "10:00", "11:00"];
+  h.porPrestadora = null;
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -99,5 +102,27 @@ describe("DiaYHoraDelTurno", () => {
     const props = montar({ fecha: "2026-10-20", hora: "10:00" });
     expect(props.onCambiarHora).toHaveBeenCalledTimes(1);
     expect(props.onCambiarHora).toHaveBeenCalledWith("");
+  });
+
+  it("A -> B (se limpia) -> A con la misma hora -> B otra vez: vuelve a limpiarla", () => {
+    h.porPrestadora = { A: ["10:00", "11:00"], B: ["11:00"] };
+    const onCambiarHora = vi.fn();
+    const base: Props = {
+      serviceId: "svc", providerId: "A", fecha: "2026-10-20", hora: "10:00",
+      horaLibre: false, elegirPrimerDiaLibre: false, onCambiarFecha: vi.fn(), onCambiarHora,
+    };
+    const { rerender } = render(<DiaYHoraDelTurno {...base} />);
+    expect(onCambiarHora).not.toHaveBeenCalled();
+
+    rerender(<DiaYHoraDelTurno {...base} providerId="B" />); // 10:00 no está libre con B
+    expect(onCambiarHora).toHaveBeenCalledTimes(1);
+
+    rerender(<DiaYHoraDelTurno {...base} providerId="A" hora="" />);
+    rerender(<DiaYHoraDelTurno {...base} providerId="A" hora="10:00" />); // la elige de nuevo, libre con A
+    expect(onCambiarHora).toHaveBeenCalledTimes(1);
+
+    rerender(<DiaYHoraDelTurno {...base} providerId="B" hora="10:00" />);
+    expect(onCambiarHora).toHaveBeenCalledTimes(2);
+    expect(onCambiarHora).toHaveBeenLastCalledWith("");
   });
 });

@@ -4,6 +4,7 @@ import { useQueries } from "@tanstack/react-query";
 import { useCompanyConfig, useProviders } from "../../api/agenda";
 import { api } from "../../api/client";
 import type { Appointment } from "../../api/types";
+import { yaPaso } from "../../lib/horario";
 import { buildProviderColorMap, STATUS_BORDER_COLOR } from "../../lib/colors";
 import { addDays, formatDate, formatTime, isoToLocalMinutes, todayLocal } from "../../lib/format";
 
@@ -255,20 +256,29 @@ export function WeekViewPage() {
                   {SLOTS.map((s) => {
                     const closed = openMin === null || closeMin === null
                       || s < openMin || s >= closeMin;
+                    const pasado = yaPaso(d, s);
                     return (
                       <div
                         key={s}
+                        data-testid={`slot-${d}-${s}`}
                         className={[
-                          "absolute w-full border-b border-surface-high cursor-pointer transition-colors",
+                          "absolute w-full border-b border-surface-high transition-colors",
                           "flex items-center justify-center",
-                          closed ? "bg-surface-high hover:bg-surface-highest" : "bg-white hover:bg-surface-low",
+                          pasado
+                            ? "bg-surface-high cursor-not-allowed"
+                            : closed
+                              ? "bg-surface-high hover:bg-surface-highest cursor-pointer"
+                              : "bg-white hover:bg-surface-low cursor-pointer",
                         ].join(" ")}
                         style={{ top: (s - START_MIN) * PX_PER_MIN, height: SLOT_PX }}
-                        onClick={() => openNewAppt(d, s)}
+                        onClick={pasado ? undefined : () => openNewAppt(d, s)}
+                        aria-disabled={pasado || undefined}
                       >
-                        <span className="text-sm font-light text-gray-200 select-none pointer-events-none">
-                          +
-                        </span>
+                        {!pasado && (
+                          <span className="text-sm font-light text-gray-200 select-none pointer-events-none">
+                            +
+                          </span>
+                        )}
                       </div>
                     );
                   })}

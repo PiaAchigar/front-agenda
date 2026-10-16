@@ -63,7 +63,13 @@ export function DiaYHoraDelTurno({
     Boolean(fecha) && !horaLibre && !delDia.isFetching && !delDia.isError && delDia.data?.date === fecha;
 
   useEffect(() => {
-    if (!cargoElDia || !hora || libres.some((s) => s.start === hora)) return;
+    if (!cargoElDia || !hora) return;
+    if (libres.some((s) => s.start === hora)) {
+      // Eligió una hora libre: lo descartado antes ya no vale (si después
+      // cambia de prestadora y deja de estar libre, hay que limpiarla de nuevo).
+      if (descartada) setDescartada(null);
+      return;
+    }
     // Una sola vez por (día, hora): si el padre no la limpia, no se insiste.
     if (descartada?.fecha === fecha && descartada.hora === hora) return;
     setDescartada({ fecha, hora });
