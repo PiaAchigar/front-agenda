@@ -23,13 +23,14 @@ const datosDepilacion: DatosParaAgendar = {
 
 // Días libres que devuelve el mock para cualquier mes.
 let diasLibres: string[] = [];
+let horariosLibres: string[] = ["09:00", "10:00", "11:00"];
 
 vi.mock("../../api/agenda", async () => {
   const { useEffect, useState } = await import("react");
   return {
   useAvailability: (serviceId: string | null, date: string | null) => ({
     data: date
-      ? { date, serviceId, durationMinutes: 30, slots: ["09:00", "10:00", "11:00"].map((start) => ({ start, end: start, options: [] })) }
+      ? { date, serviceId, durationMinutes: 30, slots: horariosLibres.map((start) => ({ start, end: start, options: [] })) }
       : undefined,
     isFetching: false,
     isLoading: false,
@@ -64,6 +65,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date("2026-10-16T12:30:00Z")); // 09:30 ART
   crear.mockClear();
   diasLibres = ["2026-10-20", "2026-10-22"];
+  horariosLibres = ["09:00", "10:00", "11:00"];
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -146,5 +148,39 @@ describe("NewAppointmentModal — día y hora en Agendar", () => {
 
     fireEvent.change(screen.getByLabelText("Hora inicio"), { target: { value: "10:00" } });
     expect(screen.getByRole("button", { name: /^agendar$/i })).toBeEnabled();
+  });
+
+  it("una hora de la grilla que no está libre se descarta, avisa y apaga Confirmar", async () => {
+    const user = usuario();
+    horariosLibres = ["11:00"];
+    render(
+      <NewAppointmentModal
+        open
+        date="2026-10-20"
+        prefill={{ providerId: "prov1", providerName: "Gabi", minutes: 600 }}
+        onClose={() => {}}
+      />,
+    );
+    await elegirClientaYServicio(user);
+    expect(await screen.findByText("El horario 10:00 no está libre con esta prestadora. Elegí otro.")).toBeInTheDocument();
+    expect(select("Hora inicio").value).toBe("");
+    expect(screen.getByRole("button", { name: /confirmar turno/i })).toBeDisabled();
+  });
+
+  it("una hora de la grilla que sí está libre se conserva y deja confirmar", async () => {
+    const user = usuario();
+    horariosLibres = ["10:00", "11:00"];
+    render(
+      <NewAppointmentModal
+        open
+        date="2026-10-20"
+        prefill={{ providerId: "prov1", providerName: "Gabi", minutes: 600 }}
+        onClose={() => {}}
+      />,
+    );
+    await elegirClientaYServicio(user);
+    expect(select("Hora inicio").value).toBe("10:00");
+    expect(screen.queryByText(/no está libre/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /confirmar turno/i })).toBeEnabled();
   });
 });

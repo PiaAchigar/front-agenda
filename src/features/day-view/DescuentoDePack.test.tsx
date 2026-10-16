@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Consumible } from "../../api/agenda";
 
 const crear = vi.fn();
@@ -69,10 +69,17 @@ async function abrirConClientaYServicio(user: ReturnType<typeof userEvent.setup>
 }
 
 beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(new Date("2026-10-16T12:30:00Z"));
   crear.mockClear();
   consumible.data = { tipo: "ninguna" };
   consumible.isFetching = false;
 });
+// Los tests usan 2027-01-20: se fija "ahora" antes para que `yaPaso` no dependa del reloj real.
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 
 describe("DescuentoDePack — sin nada a favor", () => {
   it("no muestra nada: sería ruido en todos los turnos normales", async () => {

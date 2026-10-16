@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DatosParaAgendar } from "../../api/types";
 
 const crear = vi.fn();
@@ -75,10 +75,17 @@ vi.mock("../../api/agenda", () => ({
 const { NewAppointmentModal } = await import("./NewAppointmentModal");
 
 beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(new Date("2026-10-16T12:30:00Z"));
   crear.mockClear();
   respuestaParaAgendar = { data: datosDepilacion, isFetching: false, error: null };
   sexoPedido = undefined;
 });
+// Los tests usan 2027-01-20: se fija "ahora" antes para que `yaPaso` no dependa del reloj real.
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 
 /** La hora de la depilación se escribe en un campo libre: hay que cargarla para poder confirmar. */
 function elegirHora() {

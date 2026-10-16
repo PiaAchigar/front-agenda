@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Consumible } from "../../api/agenda";
 
 const CLIENTA = { id: "cu1", name: "Sofía Herrera", dni: "30111222", creditBalance: 0 };
@@ -38,6 +38,16 @@ vi.mock("../../api/agenda", () => ({
 }));
 
 const { NewAppointmentModal } = await import("./NewAppointmentModal");
+
+beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(new Date("2026-10-16T12:30:00Z"));
+});
+
+// Los tests usan 2027-01-20: se fija "ahora" antes para que `yaPaso` no dependa del reloj real.
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("NewAppointmentModal — lo que agrega Vender desde el turno", () => {
   it("con compraPreferidaId, arranca elegida la compra recién vendida", async () => {

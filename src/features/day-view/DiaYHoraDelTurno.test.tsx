@@ -93,4 +93,11 @@ describe("DiaYHoraDelTurno", () => {
     expect(input).toHaveAttribute("type", "time");
     expect(screen.getByText(AVISO_HORARIO_PASADO)).toBeInTheDocument();
   });
+
+  it("una hora que no está entre los huecos libres se limpia una vez y avisa", () => {
+    h.slots = ["11:00"];
+    const props = montar({ fecha: "2026-10-20", hora: "10:00" });
+    expect(props.onCambiarHora).toHaveBeenCalledTimes(1);
+    expect(props.onCambiarHora).toHaveBeenCalledWith("");
+  });
 });

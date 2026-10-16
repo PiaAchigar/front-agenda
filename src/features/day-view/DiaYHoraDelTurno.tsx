@@ -39,7 +39,13 @@ export function DiaYHoraDelTurno({
 }: Props) {
   const [mes, setMes] = useState((fecha || todayLocal()).slice(0, 7));
   const delMes = useMonthAvailability(serviceId, providerId, mes);
-  const delDia = useAvailability(serviceId, fecha || null, { providerId: providerId ?? undefined });
+  // En depilación la hora es libre: no hace falta pedir los huecos del día.
+  const delDia = useAvailability(horaLibre ? null : serviceId, horaLibre ? null : fecha || null, {
+    providerId: providerId ?? undefined,
+  });
+  // Hora que se descartó por no estar libre (cubre el prefill de la grilla/traspaso
+  // y la hora vieja tras cambiar de servicio o prestadora).
+  const [descartada, setDescartada] = useState<{ fecha: string; hora: string } | null>(null);
   const yaEligioPrimero = useRef(false);
 
   const dias = delMes.data?.availableDays;
@@ -52,12 +58,22 @@ export function DiaYHoraDelTurno({
     }
   }, [elegirPrimerDiaLibre, fecha, dias, onCambiarFecha]);
 
+  const libres = (delDia.data?.slots ?? []).filter((s) => !yaPaso(fecha, minutosDe(s.start)));
+  const cargoElDia =
+    Boolean(fecha) && !horaLibre && !delDia.isFetching && !delDia.isError && delDia.data?.date === fecha;
+
+  useEffect(() => {
+    if (!cargoElDia || !hora || libres.some((s) => s.start === hora)) return;
+    // Una sola vez por (día, hora): si el padre no la limpia, no se insiste.
+    if (descartada?.fecha === fecha && descartada.hora === hora) return;
+    setDescartada({ fecha, hora });
+    onCambiarHora("");
+  }, [cargoElDia, hora, fecha, libres, descartada, onCambiarHora]);
+
   if (!serviceId || !providerId) {
     return <p className="text-xs text-ink-soft">Elegí servicio y prestadora para ver los días libres</p>;
   }
 
-  const libres = (delDia.data?.slots ?? []).filter((s) => !yaPaso(fecha, minutosDe(s.start)));
-  const cargoElDia = Boolean(fecha) && !delDia.isFetching && delDia.data !== undefined;
   const horaPasada = Boolean(fecha) && Boolean(hora) && yaPaso(fecha, minutosDe(hora));
 
   return (
@@ -109,6 +125,11 @@ export function DiaYHoraDelTurno({
               </option>
             ))}
           </select>
+        )}
+        {!horaLibre && !hora && descartada?.fecha === fecha && (
+          <p className="mt-1 text-xs text-red-600">
+            El horario {descartada.hora} no está libre con esta prestadora. Elegí otro.
+          </p>
         )}
         {!horaLibre && cargoElDia && libres.length === 0 && (
           <p className="mt-1 text-xs text-ink-soft">No quedan horarios libres este día</p>
