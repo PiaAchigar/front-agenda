@@ -18,6 +18,7 @@ import {
   saldoQueEntra,
   sesionesEditables,
 } from "../../lib/vender";
+import { AVISO_HORARIO_PASADO, yaPaso } from "../../lib/horario";
 import { DespuesDeVender } from "./DespuesDeVender";
 
 export type TraspasoAAgendar = { date: string; prefill: NewApptPrefill };
@@ -74,6 +75,8 @@ export function VenderYAgendar({
     setPaquete(null);
     setUsarSaldo(false);
   }
+
+  const horarioPasado = Boolean(fecha && hora) && yaPaso(fecha, minutosDe(hora));
 
   const pedido = pedidoDeCotizacion({ customerId: customer?.id ?? null, paquete, item, sesiones, promotionId });
   const cotizacion = useCotizacion(pedido);
@@ -150,6 +153,7 @@ export function VenderYAgendar({
             <input type="time" aria-label="Hora" className={field} value={hora} onChange={(e) => setHora(e.target.value)} />
           </label>
         </div>
+        {horarioPasado && <p className="text-xs text-red-700">{AVISO_HORARIO_PASADO}</p>}
         {hueco.providerName && <p className="text-xs text-ink-soft">Profesional: {hueco.providerName}</p>}
 
         <div>
@@ -314,7 +318,7 @@ export function VenderYAgendar({
 
         <div className="flex justify-end gap-2 border-t border-surface-high pt-3">
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button type="button" disabled={!q || !fecha || !hora || vender.isPending} onClick={handleVender}>
+          <Button type="button" disabled={!q || !fecha || !hora || horarioPasado || vender.isPending} onClick={handleVender}>
             {vender.isPending ? "Vendiendo…" : "Vender"}
           </Button>
         </div>
