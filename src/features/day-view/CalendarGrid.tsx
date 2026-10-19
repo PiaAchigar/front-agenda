@@ -4,9 +4,7 @@ import type { ProviderSchedule } from "../../api/agenda";
 import { buildProviderColorMap, STATUS_BORDER_COLOR } from "../../lib/colors";
 import { formatTime, isoToLocalMinutes } from "../../lib/format";
 import { yaPaso } from "../../lib/horario";
-
-const STRIPE_BG =
-  "repeating-linear-gradient(-45deg,#f3f4f6,#f3f4f6 4px,#e5e7eb 4px,#e5e7eb 9px)";
+import { FONDO_DEL_HUECO, tipoDeHueco } from "../../lib/fondo-del-hueco";
 
 /** Reservas expiradas se tratan como canceladas hasta que el cron las limpie. */
 function isVisible(appt: Appointment): boolean {
@@ -243,25 +241,29 @@ export function CalendarGrid({
                   const closed      = isClosedSlot(slotMin);
                   const unavailable = !closed && isProviderUnavailable(col.id, slotMin);
                   const pasado      = yaPaso(date, slotMin);
+                  const tipo        = tipoDeHueco({ cerrado: closed, noAtiende: unavailable, pasado });
+                  const fondo       = FONDO_DEL_HUECO[tipo];
                   return (
                     <div
                       key={slotMin}
                       data-testid={`slot-${col.id}-${slotMin}`}
+                      data-hueco={tipo}
                       className={[
                         "absolute w-full border-b border-surface-high",
                         "flex items-center justify-center",
+                        fondo.className,
                         pasado
-                          ? "bg-surface-high cursor-not-allowed"
-                          : closed
-                            ? "bg-surface-high hover:bg-surface-highest cursor-pointer"
-                            : unavailable
-                              ? "cursor-pointer" // background via inline style; hover gestionado abajo
-                              : "bg-white hover:bg-surface-low transition-colors cursor-pointer",
+                          ? "cursor-not-allowed"
+                          : tipo === "cerrado"
+                            ? "hover:bg-surface-highest cursor-pointer"
+                            : tipo === "no-atiende"
+                              ? "cursor-pointer"
+                              : "hover:bg-surface-low transition-colors cursor-pointer",
                       ].join(" ")}
                       style={{
                         top:    (slotMin - START_MIN) * PX_PER_MIN,
                         height: SLOT_PX,
-                        ...(unavailable ? { background: STRIPE_BG } : {}),
+                        ...fondo.style,
                       }}
                       onClick={pasado ? undefined : () => onSlotClick(col.id, slotMin)}
                       aria-disabled={pasado || undefined}

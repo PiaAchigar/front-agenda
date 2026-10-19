@@ -12,6 +12,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge, Button, ErrorNote, Modal } from "../../components/ui";
 import { addDays, formatDate, formatTime, todayLocal } from "../../lib/format";
 import { CalendarGrid, type ColumnMode } from "./CalendarGrid";
+import { ReferenciasAgenda } from "../referencias/ReferenciasAgenda";
 import { NewAppointmentModal, type NewApptPrefill } from "./NewAppointmentModal";
 import { type ModoNuevoTurno, SolapasNuevoTurno } from "../vender/SolapasNuevoTurno";
 import { type TraspasoAAgendar, VenderYAgendar } from "../vender/VenderYAgendar";
@@ -335,6 +336,9 @@ export function DayViewPage() {
               </button>
             </>
           )}
+
+          {/* Qué significa cada fondo y cada color de la grilla */}
+          {agendaMode === "turnos" && <ReferenciasAgenda />}
 
             {/* Selector de vista Día / Semana / Mes */}
             <ViewTabs current="dia" />

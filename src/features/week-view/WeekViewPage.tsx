@@ -4,6 +4,8 @@ import { useQueries } from "@tanstack/react-query";
 import { useCompanyConfig, useProviders } from "../../api/agenda";
 import { api } from "../../api/client";
 import type { Appointment } from "../../api/types";
+import { FONDO_DEL_HUECO, tipoDeHueco } from "../../lib/fondo-del-hueco";
+import { ReferenciasAgenda } from "../referencias/ReferenciasAgenda";
 import { yaPaso } from "../../lib/horario";
 import { buildProviderColorMap, STATUS_BORDER_COLOR } from "../../lib/colors";
 import { addDays, formatDate, formatTime, isoToLocalMinutes, todayLocal } from "../../lib/format";
@@ -172,6 +174,7 @@ export function WeekViewPage() {
         </div>
         <div className="flex items-center gap-2">
           {isLoading && <Spinner />}
+          <ReferenciasAgenda />
           <ViewTabs current="semana" />
         </div>
       </div>
@@ -257,20 +260,24 @@ export function WeekViewPage() {
                     const closed = openMin === null || closeMin === null
                       || s < openMin || s >= closeMin;
                     const pasado = yaPaso(d, s);
+                    const tipo   = tipoDeHueco({ cerrado: closed, noAtiende: false, pasado });
+                    const fondo  = FONDO_DEL_HUECO[tipo];
                     return (
                       <div
                         key={s}
                         data-testid={`slot-${d}-${s}`}
+                        data-hueco={tipo}
                         className={[
                           "absolute w-full border-b border-surface-high transition-colors",
                           "flex items-center justify-center",
+                          fondo.className,
                           pasado
-                            ? "bg-surface-high cursor-not-allowed"
+                            ? "cursor-not-allowed"
                             : closed
-                              ? "bg-surface-high hover:bg-surface-highest cursor-pointer"
-                              : "bg-white hover:bg-surface-low cursor-pointer",
+                              ? "hover:bg-surface-highest cursor-pointer"
+                              : "hover:bg-surface-low cursor-pointer",
                         ].join(" ")}
-                        style={{ top: (s - START_MIN) * PX_PER_MIN, height: SLOT_PX }}
+                        style={{ top: (s - START_MIN) * PX_PER_MIN, height: SLOT_PX, ...fondo.style }}
                         onClick={pasado ? undefined : () => openNewAppt(d, s)}
                         aria-disabled={pasado || undefined}
                       >

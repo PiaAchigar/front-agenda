@@ -43,6 +43,7 @@ describe("WeekViewPage — horarios que ya pasaron", () => {
     const pasado = screen.getByTestId("slot-2026-10-16-540"); // 09:00
     expect(pasado).toHaveAttribute("aria-disabled", "true");
     expect(pasado).not.toHaveTextContent("+");
+    expect(pasado).toHaveAttribute("data-hueco", "pasado");
     fireEvent.click(pasado);
     expect(screen.queryByTestId("modal-nuevo")).not.toBeInTheDocument();
 
@@ -56,5 +57,10 @@ describe("WeekViewPage — horarios que ya pasaron", () => {
     montar();
     fireEvent.click(screen.getByTestId("slot-2026-10-14-600"));
     expect(screen.queryByTestId("modal-nuevo")).not.toBeInTheDocument();
+  });
+
+  it("la barra tiene el botón de Referencias", () => {
+    montar();
+    expect(screen.getByRole("button", { name: /referencias/i })).toBeInTheDocument();
   });
 });
