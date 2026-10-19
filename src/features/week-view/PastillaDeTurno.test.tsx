@@ -69,4 +69,30 @@ describe("PastillaDeTurno", () => {
     expect(b.className).toContain("border-dashed");
     expect(b).toHaveTextContent("⏳");
   });
+
+  it("con el dedo, el primer toque muestra la ficha y NO abre el turno; el segundo lo abre", () => {
+    const onAbrir = montar();
+    const b = screen.getByRole("button");
+    fireEvent.pointerDown(b, { pointerType: "touch" });
+    fireEvent.click(b);
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    expect(onAbrir).not.toHaveBeenCalled();
+
+    fireEvent.pointerDown(b, { pointerType: "touch" });
+    fireEvent.click(b);
+    expect(onAbrir).toHaveBeenCalledTimes(1);
+  });
+
+  it("con el dedo, tocar afuera cierra la ficha y el próximo toque vuelve a ser el primero", () => {
+    const onAbrir = montar();
+    const b = screen.getByRole("button");
+    fireEvent.pointerDown(b, { pointerType: "touch" });
+    fireEvent.click(b);
+    fireEvent.pointerDown(document.body, { pointerType: "touch" });
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+
+    fireEvent.pointerDown(b, { pointerType: "touch" });
+    fireEvent.click(b);
+    expect(onAbrir).not.toHaveBeenCalled();
+  });
 });

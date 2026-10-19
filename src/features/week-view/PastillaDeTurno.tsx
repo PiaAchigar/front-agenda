@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { Appointment } from "../../api/types";
 import { STATUS_BORDER_COLOR, type ProviderColor } from "../../lib/colors";
 import { formatTime } from "../../lib/format";
@@ -24,7 +24,33 @@ function minutosRestantes(expiraEn: string): number {
  */
 export function PastillaDeTurno({ turno, color, carril, total, top, alto, onAbrir }: Props) {
   const [verFicha, setVerFicha] = useState(false);
+  // Con el dedo no hay hover: el primer toque "arma" la pastilla (muestra la
+  // ficha) y recién el segundo abre el turno.
+  const [armada, setArmada] = useState(false);
+  const fueToque = useRef(false);
+  const contenedor = useRef<HTMLDivElement>(null);
   const fichaId = useId();
+  const ficha = verFicha || armada;
+
+  useEffect(() => {
+    if (!armada) return;
+    function alTocarAfuera(e: PointerEvent) {
+      if (contenedor.current?.contains(e.target as Node)) return;
+      setArmada(false);
+      setVerFicha(false);
+    }
+    document.addEventListener("pointerdown", alTocarAfuera);
+    return () => document.removeEventListener("pointerdown", alTocarAfuera);
+  }, [armada]);
+
+  function alHacerClic() {
+    if (fueToque.current && !armada) {
+      setArmada(true);
+      setVerFicha(true);
+      return;
+    }
+    onAbrir(turno);
+  }
 
   const reservada = turno.status === "reserved";
   const faltan = reservada && turno.reservationExpiresAt ? minutosRestantes(turno.reservationExpiresAt) : null;
@@ -33,23 +59,25 @@ export function PastillaDeTurno({ turno, color, carril, total, top, alto, onAbri
 
   return (
     <div
+      ref={contenedor}
       className="absolute"
       style={{
         top,
         height: alto,
         left: `calc(${(carril / total) * 100}% + 2px)`,
         width: `calc(${100 / total}% - 4px)`,
-        zIndex: verFicha ? 40 : 10,
+        zIndex: ficha ? 40 : 10,
       }}
       onMouseEnter={() => setVerFicha(true)}
       onMouseLeave={() => setVerFicha(false)}
     >
       <button
         type="button"
-        onClick={() => onAbrir(turno)}
+        onPointerDown={(e) => { fueToque.current = e.pointerType === "touch"; }}
+        onClick={alHacerClic}
         onFocus={() => setVerFicha(true)}
         onBlur={() => setVerFicha(false)}
-        aria-describedby={verFicha ? fichaId : undefined}
+        aria-describedby={ficha ? fichaId : undefined}
         className={[
           "h-full w-full overflow-hidden rounded px-1 text-left text-[10px] leading-tight shadow-sm",
           "transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-primary",
@@ -67,7 +95,7 @@ export function PastillaDeTurno({ turno, color, carril, total, top, alto, onAbri
         </span>
       </button>
 
-      {verFicha && (
+      {ficha && (
         <div
           id={fichaId}
           role="tooltip"
