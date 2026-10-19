@@ -96,4 +96,13 @@ describe("BarraAgenda", () => {
     await user.click(screen.getByRole("button", { name: "Turnos individuales" }));
     expect(screen.getByRole("button", { name: "Semana" })).not.toHaveAttribute("aria-disabled");
   });
+
+  it("al entrar a Semana o Mes con el modo grupal guardado, vuelve a Turnos individuales", () => {
+    localStorage.setItem("agenda-mode", "clases");
+    montar("mes", "/mes");
+
+    expect(localStorage.getItem("agenda-mode")).toBe("turnos");
+    expect(screen.getByRole("button", { name: "Semana" })).not.toHaveAttribute("aria-disabled");
+    expect(screen.getByRole("button", { name: "Turnos individuales" }).className).toContain("bg-primary");
+  });
 });

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { ViewTabs } from "../../components/ViewTabs";
 import { Spinner } from "../../components/ui";
@@ -27,6 +27,14 @@ type Props = {
 export function BarraAgenda({ vista, fecha, cargando, buscador }: Props) {
   const navigate = useNavigate();
   const [modo, setModo] = useModoAgenda();
+
+  // Entrar a semana o mes es pedir turnos individuales: si quedó guardado el
+  // modo grupal, se vuelve a individuales. Sólo al montar: tocar "Turnos
+  // grupales" estando acá cambia el modo y salta al día, no debe deshacerse.
+  useEffect(() => {
+    if (vista !== "dia" && modo === "clases") setModo("turnos");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function elegir(m: ModoAgenda) {
     setModo(m);
