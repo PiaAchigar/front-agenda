@@ -95,4 +95,15 @@ describe("PastillaDeTurno", () => {
     fireEvent.click(b);
     expect(onAbrir).not.toHaveBeenCalled();
   });
+
+  it("después de un toque, activar con el teclado (clic sin pointerdown) abre el turno al primer Enter", () => {
+    const onAbrir = montar();
+    const b = screen.getByRole("button");
+    fireEvent.pointerDown(b, { pointerType: "touch" });
+    fireEvent.click(b);
+    fireEvent.pointerDown(document.body, { pointerType: "touch" });
+
+    fireEvent.click(b, { detail: 0 });
+    expect(onAbrir).toHaveBeenCalledTimes(1);
+  });
 });

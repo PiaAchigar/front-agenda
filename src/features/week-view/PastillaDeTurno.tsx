@@ -44,7 +44,11 @@ export function PastillaDeTurno({ turno, color, carril, total, top, alto, onAbri
   }, [armada]);
 
   function alHacerClic() {
-    if (fueToque.current && !armada) {
+    // Se lee y se gasta: un clic sin pointerdown propio (Enter o Espacio) no
+    // puede heredar el "fue toque" de una interacción anterior.
+    const esToque = fueToque.current;
+    fueToque.current = false;
+    if (esToque && !armada) {
       setArmada(true);
       setVerFicha(true);
       return;
