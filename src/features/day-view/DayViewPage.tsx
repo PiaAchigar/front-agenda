@@ -147,6 +147,22 @@ export function DayViewPage() {
     (appt) => !appt.activityId && !appt.trainingSessionId,
   );
 
+  // `?turno=<id>` (viene de la semana): una vez cargado el día, abre el detalle
+  // de ese turno y borra el param para que no se reabra al cerrar.
+  const turnoPedido = searchParams.get("turno");
+  useEffect(() => {
+    if (!turnoPedido || isLoading) return;
+    const pedido = allAppointments.find((a) => a.id === turnoPedido);
+    if (pedido) setSelected(pedido);
+    setSearchParams(
+      (params) => {
+        params.delete("turno");
+        return params;
+      },
+      { replace: true },
+    );
+  }, [turnoPedido, isLoading, allAppointments, setSearchParams]);
+
   // IDs de reservas expiradas ya notificadas — evita re-disparar el modal
   // tras "Enterado" mientras el cron aún no canceló el turno.
   const shownExpiredIds = useRef<Set<string>>(new Set());

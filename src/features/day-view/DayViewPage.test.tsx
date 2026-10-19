@@ -47,6 +47,9 @@ const datosDepilacion: DatosParaAgendar = {
 
 const CONFIG_VACIA = { openHours: SIN_DATOS };
 
+// Los turnos del día; cada test puede pisarlos.
+let turnosDelDia: unknown[] = SIN_DATOS;
+
 const TURNO_COMPLETADO = {
   id: "ap1",
   status: "completed",
@@ -63,7 +66,7 @@ const TURNO_COMPLETADO = {
 };
 
 vi.mock("../../api/agenda", () => ({
-  useAppointments: () => ({ data: SIN_DATOS, isLoading: false, error: null }),
+  useAppointments: () => ({ data: turnosDelDia, isLoading: false, error: null }),
   useComboPendientes: () => ({ data: undefined, isSuccess: false }),
   useCompanyConfig: () => ({ data: CONFIG_VACIA }),
   useProviderSchedule: () => ({ data: SIN_DATOS }),
@@ -158,6 +161,7 @@ function montar() {
 
 beforeEach(() => {
   crear.mockClear();
+  turnosDelDia = SIN_DATOS;
 });
 
 afterEach(() => {
@@ -322,5 +326,29 @@ describe("DayViewPage — un turno ausente explica qué hace cada acción", () =
 
     await screen.findByRole("button", { name: "Cancelar turno" });
     expect(screen.queryByText(/Marcado como ausente/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("DayViewPage — ?turno=<id> (viene de la semana)", () => {
+  it("abre el detalle de ese turno y saca el param de la URL", async () => {
+    turnosDelDia = [TURNO_COMPLETADO];
+    conUrl("?date=2026-09-29&turno=ap1");
+    montar();
+
+    expect(await screen.findByText(/ya está cerrado/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(window.location.search).not.toContain("turno");
+    });
+    expect(window.location.search).toContain("date=2026-09-29");
+  });
+
+  it("si el turno no está ese día, no abre nada y igual limpia la URL", async () => {
+    conUrl("?date=2026-09-29&turno=no-existe");
+    montar();
+
+    await waitFor(() => {
+      expect(window.location.search).not.toContain("turno");
+    });
+    expect(screen.queryByText(/ya está cerrado/)).not.toBeInTheDocument();
   });
 });

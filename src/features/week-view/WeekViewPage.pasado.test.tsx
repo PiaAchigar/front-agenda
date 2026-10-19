@@ -3,7 +3,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../api/agenda", () => ({
+vi.mock("../../api/agenda", async () => ({
+  // El hook real del rango, sobre el `api` mockeado.
+  useAppointmentsRange: (await vi.importActual<typeof import("../../api/agenda")>("../../api/agenda")).useAppointmentsRange,
   useProviders: () => ({ data: [] }),
   useServices: () => ({ data: [] }),
   useProvidersByService: () => ({ data: undefined }),

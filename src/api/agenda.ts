@@ -83,6 +83,15 @@ export function useAppointments(date: string) {
   });
 }
 
+/** Turnos de varios días (inclusive) en un solo pedido; la semana lo usa. */
+export function useAppointmentsRange(from: string, to: string) {
+  return useQuery({
+    queryKey: ["appointments-range", from, to],
+    queryFn: () => api<Appointment[]>(`/api/agenda/appointments?from=${from}&to=${to}`),
+    refetchInterval: 30_000,
+  });
+}
+
 /**
  * Clases que se dictan en una fecha: actividades y capacitaciones juntas.
  * Una fila por CLASE, no por inscripta — una clase sin nadie anotado también
@@ -332,6 +341,7 @@ export function useCreateAppointment() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["appointments-range"] });
       queryClient.invalidateQueries({ queryKey: ["availability"] });
       queryClient.invalidateQueries({ queryKey: ["availability-month"] });
       // El turno puede haber descontado una sesión: lo que la clienta tiene a
@@ -352,6 +362,7 @@ export function useUpdateAppointment() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["appointments-range"] });
       queryClient.invalidateQueries({ queryKey: ["availability"] });
       queryClient.invalidateQueries({ queryKey: ["availability-month"] });
     },
@@ -382,6 +393,7 @@ export function useRescheduleAppointment() {
       }),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["appointments-range"] });
       queryClient.invalidateQueries({ queryKey: ["availability"] });
       queryClient.invalidateQueries({ queryKey: ["availability-month"] });
       // El historial del turno que se acaba de mover: sin esto, reagendar dos

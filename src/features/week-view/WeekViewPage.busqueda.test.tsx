@@ -8,14 +8,16 @@ const TURNOS = [
   { id: "b1", providerId: "p2", providerName: "Bea", customerName: "Clienta de Bea", serviceName: "Masaje", status: "scheduled", reservationExpiresAt: null, appointmentStart: "2026-10-19T15:00:00.000Z", appointmentEnd: "2026-10-19T16:00:00.000Z", durationMinutes: 60 },
 ];
 
-vi.mock("../../api/agenda", () => ({
+vi.mock("../../api/agenda", async () => ({
+  // El hook real del rango, sobre el `api` mockeado.
+  useAppointmentsRange: (await vi.importActual<typeof import("../../api/agenda")>("../../api/agenda")).useAppointmentsRange,
   useProviders: () => ({ data: [{ id: "p1", fullName: "Ana", specialties: null }, { id: "p2", fullName: "Bea", specialties: null }] }),
   useServices: () => ({ data: [] }),
   useProvidersByService: (id: string | null) => ({ data: id ? [{ id: "p2", fullName: "Bea", specialties: null }] : undefined }),
   useCompanyConfig: () => ({ data: { openHours: [] } }),
 }));
 vi.mock("../../api/client", () => ({
-  // Los mismos dos turnos en cada día de la semana.
+  // La semana entera en un solo pedido.
   api: vi.fn().mockResolvedValue(TURNOS),
 }));
 vi.mock("../day-view/NewAppointmentModal", () => ({ NewAppointmentModal: () => null }));
@@ -42,25 +44,25 @@ function montar(search: string) {
 
 describe("WeekViewPage — la búsqueda", () => {
   it("sin búsqueda están los turnos de todas", async () => {
-    montar("");
+    montar("?date=2026-10-19");
     expect((await screen.findAllByText("Clienta de Ana")).length).toBeGreaterThan(0);
     expect(screen.getAllByText("Clienta de Bea").length).toBeGreaterThan(0);
   });
 
   it("?prestadora=p1 deja sólo sus turnos", async () => {
-    montar("?prestadora=p1");
+    montar("?date=2026-10-19&prestadora=p1");
     expect((await screen.findAllByText("Clienta de Ana")).length).toBeGreaterThan(0);
     expect(screen.queryByText("Clienta de Bea")).not.toBeInTheDocument();
   });
 
   it("?servicio=s1 deja sólo los turnos de las prestadoras de ese servicio", async () => {
-    montar("?servicio=s1");
+    montar("?date=2026-10-19&servicio=s1");
     expect((await screen.findAllByText("Clienta de Bea")).length).toBeGreaterThan(0);
     expect(screen.queryByText("Clienta de Ana")).not.toBeInTheDocument();
   });
 
   it("tocar un día lleva al día conservando la búsqueda", async () => {
-    montar("?prestadora=p1&con=c9");
+    montar("?date=2026-10-19&prestadora=p1&con=c9");
     fireEvent.click(await screen.findByText("Lun"));
     const url = screen.getByTestId("ubicacion").textContent!;
     expect(url).toMatch(/^\/dia\?/);

@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { rutaConservando } from "../../lib/ruta-agenda";
-import { useQueries } from "@tanstack/react-query";
-import { useCompanyConfig, useProviders } from "../../api/agenda";
-import { api } from "../../api/client";
+import { useAppointmentsRange, useCompanyConfig, useProviders } from "../../api/agenda";
 import type { Appointment } from "../../api/types";
 import { FONDO_DEL_HUECO, tipoDeHueco } from "../../lib/fondo-del-hueco";
 import { yaPaso } from "../../lib/horario";
-import { buildProviderColorMap, STATUS_BORDER_COLOR } from "../../lib/colors";
-import { addDays, formatDate, formatTime, isoToLocalMinutes, todayLocal } from "../../lib/format";
+import { buildProviderColorMap } from "../../lib/colors";
+import { addDays, formatDate, isoToLocalDate, isoToLocalMinutes, todayLocal } from "../../lib/format";
+import { carriles } from "../../lib/carriles";
 
 function isVisible(appt: { status: string | null; reservationExpiresAt: string | null }): boolean {
   if (appt.status === "cancelled") return false;
@@ -18,13 +17,11 @@ function isVisible(appt: { status: string | null; reservationExpiresAt: string |
   return true;
 }
 
-function minutesLeft(expiresAt: string): number {
-  return Math.floor((new Date(expiresAt).getTime() - Date.now()) / 60_000);
-}
 import { saveView } from "../../components/ViewTabs";
 import { BarraAgenda } from "../barra/BarraAgenda";
 import { BuscadorAgenda } from "../barra/BuscadorAgenda";
 import { usePrestadorasDeLaBusqueda } from "../../lib/busqueda-agenda";
+import { PastillaDeTurno } from "./PastillaDeTurno";
 import { NewAppointmentModal, type NewApptPrefill } from "../day-view/NewAppointmentModal";
 
 // ── Constantes del grid ──────────────────────────────────────────────────────
@@ -36,7 +33,6 @@ const SLOT_PX          = SLOT_MIN * PX_PER_MIN;          // 60 px
 const TOTAL_PX         = (END_MIN - START_MIN) * PX_PER_MIN; // 1680 px
 const TIME_COL_W       = 64;
 const DAY_COL_MIN      = 140;       // px mínimos por columna de día
-const OVERLAP_OFFSET   = 8;         // px de desplazamiento horizontal por solapamiento
 
 const SLOTS = Array.from(
   { length: (END_MIN - START_MIN) / SLOT_MIN },
@@ -63,34 +59,12 @@ function weekStart(dateStr: string): string {
   return addDays(dateStr, diff);
 }
 
-/**
- * Para cada appointment devuelve cuántos anteriores (ordenados por inicio)
- * se solapan con él, para calcular el offset horizontal de apilamiento.
- */
-function computeOverlapOffsets(appts: Appointment[]): Map<string, number> {
-  const sorted = [...appts].sort(
-    (a, b) => new Date(a.appointmentStart).getTime() - new Date(b.appointmentStart).getTime(),
-  );
-  const offsets = new Map<string, number>();
-  for (let i = 0; i < sorted.length; i++) {
-    const curr      = sorted[i]!;
-    const currStart = isoToLocalMinutes(curr.appointmentStart);
-    let overlapCount = 0;
-    for (let j = 0; j < i; j++) {
-      const prev    = sorted[j]!;
-      const prevEnd = isoToLocalMinutes(prev.appointmentStart) + (prev.durationMinutes ?? SLOT_MIN);
-      if (prevEnd > currStart) overlapCount++;
-    }
-    offsets.set(curr.id, overlapCount);
-  }
-  return offsets;
-}
-
 // ── Componente ───────────────────────────────────────────────────────────────
 export function WeekViewPage() {
   const navigate    = useNavigate();
-  const [searchParams] = useSearchParams();
-  const [anchorDate, setAnchorDate] = useState(todayLocal);
+  const [searchParams, setSearchParams] = useSearchParams();
+  // La semana vive en la URL (?date=): volver de un día cae en la misma semana.
+  const anchorDate = searchParams.get("date") ?? todayLocal();
   const [newApptOpen,    setNewApptOpen]    = useState(false);
   const [newApptDate,    setNewApptDate]    = useState("");
   const [newApptPrefill, setNewApptPrefill] = useState<NewApptPrefill | null>(null);
@@ -119,44 +93,39 @@ export function WeekViewPage() {
     [providers],
   );
 
-  // Cargar turnos de los 7 días en paralelo
-  const weekQueries = useQueries({
-    queries: weekDates.map((d) => ({
-      queryKey: ["appointments", d],
-      queryFn:  () => api<Appointment[]>(`/api/agenda/appointments?date=${d}`),
-      staleTime: 30_000,
-      refetchInterval: 30_000,
-    })),
-  });
-
-  const isLoading = weekQueries.some((q) => q.isLoading);
+  // Toda la semana en un solo pedido.
+  const { data: turnosDeLaSemana, isLoading } = useAppointmentsRange(weekDates[0]!, weekDates[5]!);
 
   const prestadorasVisibles = usePrestadorasDeLaBusqueda();
 
+  // Sólo turnos de servicio: las inscripciones a clases y capacitaciones viven
+  // en la vista "Clases" (6 inscriptas al mismo Pilates serían 6 pastillas).
   const apptsByDate = useMemo(() => {
-    const map = new Map<string, Appointment[]>();
-    weekDates.forEach((d, i) => {
-      const turnos = weekQueries[i]?.data ?? [];
-      map.set(
-        d,
-        prestadorasVisibles
-          ? turnos.filter((a) => a.providerId && prestadorasVisibles.includes(a.providerId))
-          : turnos,
-      );
-    });
+    const map = new Map<string, Appointment[]>(weekDates.map((d) => [d, []]));
+    for (const a of turnosDeLaSemana ?? []) {
+      if (a.activityId || a.trainingSessionId || !isVisible(a)) continue;
+      if (prestadorasVisibles && !(a.providerId && prestadorasVisibles.includes(a.providerId))) continue;
+      map.get(isoToLocalDate(a.appointmentStart))?.push(a);
+    }
     return map;
-  }, [weekDates, weekQueries, prestadorasVisibles]);
+  }, [weekDates, turnosDeLaSemana, prestadorasVisibles]);
 
   useEffect(() => { saveView("semana"); }, []);
 
   const totalMinWidth = TIME_COL_W + 6 * DAY_COL_MIN;
 
   function navigateWeek(n: -1 | 1) {
-    setAnchorDate((d) => addDays(d, n * 7));
+    setSearchParams(
+      (params) => {
+        params.set("date", addDays(anchorDate, n * 7));
+        return params;
+      },
+      { replace: true },
+    );
   }
 
-  function goToDay(dateStr: string) {
-    navigate(rutaConservando("/dia", searchParams, { date: dateStr }));
+  function goToDay(dateStr: string, turnoId?: string) {
+    navigate(rutaConservando("/dia", searchParams, turnoId ? { date: dateStr, turno: turnoId } : { date: dateStr }));
   }
 
   return (
@@ -258,7 +227,12 @@ export function WeekViewPage() {
               const closeMin  = dayConfig?.isOpen ? timeStrToMin(dayConfig.closingTime) : null;
 
               const dayAppts = apptsByDate.get(d) ?? [];
-              const offsets  = computeOverlapOffsets(dayAppts);
+              const lugares  = carriles(
+                dayAppts.map((a) => {
+                  const inicio = isoToLocalMinutes(a.appointmentStart);
+                  return { id: a.id, inicio, fin: inicio + (a.durationMinutes ?? SLOT_MIN) };
+                }),
+              );
 
               return (
                 <div
@@ -301,75 +275,23 @@ export function WeekViewPage() {
                     );
                   })}
 
-                  {/* Cards de turnos */}
-                  {dayAppts.filter(isVisible).map((appt) => {
-                    const top    = (isoToLocalMinutes(appt.appointmentStart) - START_MIN) * PX_PER_MIN;
-                    const height = Math.max((appt.durationMinutes ?? SLOT_MIN) * PX_PER_MIN, 20);
-                    if (top + height <= 0 || top >= TOTAL_PX) return null;
-
-                    const overlapIdx    = offsets.get(appt.id) ?? 0;
-                    const isReserved    = appt.status === "reserved";
-                    const minsLeft      = isReserved && appt.reservationExpiresAt
-                      ? minutesLeft(appt.reservationExpiresAt) : null;
-                    const urgentReserve = minsLeft !== null && minsLeft <= 10;
-                    const color         = colorMap.get(appt.providerId ?? "");
-                    const borderColor   = STATUS_BORDER_COLOR[appt.status ?? "scheduled"]
-                      ?? STATUS_BORDER_COLOR.scheduled;
-
-                    const startLabel = formatTime(appt.appointmentStart);
-                    const endLabel   = formatTime(appt.appointmentEnd);
-
+                  {/* Pastillas de turnos */}
+                  {dayAppts.map((appt) => {
+                    const top  = (isoToLocalMinutes(appt.appointmentStart) - START_MIN) * PX_PER_MIN;
+                    const alto = Math.max((appt.durationMinutes ?? SLOT_MIN) * PX_PER_MIN, 20);
+                    if (top + alto <= 0 || top >= TOTAL_PX) return null;
+                    const lugar = lugares.get(appt.id) ?? { carril: 0, total: 1 };
                     return (
-                      <button
+                      <PastillaDeTurno
                         key={appt.id}
-                        onClick={() => goToDay(d)}
-                        className={[
-                          "absolute right-0.5 rounded text-left text-[10px]",
-                          "overflow-hidden shadow-sm hover:shadow-md transition-shadow px-1 py-0.5",
-                          isReserved ? "border border-dashed border-amber-400" : "",
-                        ].join(" ")}
-                        style={{
-                          top,
-                          height,
-                          left:            overlapIdx * OVERLAP_OFFSET + 2,
-                          zIndex:          10 + overlapIdx,
-                          backgroundColor: isReserved ? "#fffbeb" : (color?.bg   ?? "#e5e7eb"),
-                          color:           isReserved ? "#92400e"  : (color?.text ?? "#374151"),
-                          borderLeft:      `3px solid ${borderColor}`,
-                        }}
-                        title={`${appt.customerName ?? "Cliente"} · ${appt.serviceName} · ${appt.providerName} · ${startLabel}–${endLabel}`}
-                      >
-                        {/* Prioridad 1: cliente (siempre visible) */}
-                        <span className="font-semibold truncate block leading-tight flex items-center gap-0.5">
-                          {isReserved && (
-                            <span className={urgentReserve ? "text-red-500" : "text-amber-500"}>⏳</span>
-                          )}
-                          {appt.customerName ?? "Cliente"}
-                        </span>
-
-                        {/* Prioridad 2: prestadora (si hay espacio mínimo) */}
-                        {height >= 28 && (
-                          <span className="truncate block leading-tight opacity-90">
-                            {isReserved && minsLeft !== null
-                              ? `expira en ${minsLeft} min`
-                              : (appt.providerName ?? "")}
-                          </span>
-                        )}
-
-                        {/* Prioridad 3: servicio */}
-                        {height >= 52 && !isReserved && (
-                          <span className="truncate block leading-tight opacity-75">
-                            {appt.serviceName}
-                          </span>
-                        )}
-
-                        {/* Prioridad 4: horario inicio–fin */}
-                        {height >= 68 && (
-                          <span className="truncate block leading-tight opacity-70">
-                            {startLabel}–{endLabel}
-                          </span>
-                        )}
-                      </button>
+                        turno={appt}
+                        color={colorMap.get(appt.providerId ?? "")}
+                        carril={lugar.carril}
+                        total={lugar.total}
+                        top={top}
+                        alto={alto}
+                        onAbrir={(t) => goToDay(d, t.id)}
+                      />
                     );
                   })}
                 </div>

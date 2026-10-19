@@ -52,3 +52,8 @@ export function isoToLocalMinutes(iso: string): number {
   const [h = 0, m = 0] = parts.split(":").map(Number);
   return h * 60 + m;
 }
+
+/** Fecha local ART (YYYY-MM-DD) de un ISO UTC. */
+export function isoToLocalDate(iso: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(iso));
+}

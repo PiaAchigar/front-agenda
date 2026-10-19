@@ -69,6 +69,10 @@ export type Appointment = {
    * Ver `lib/acciones-del-turno.ts`.
    */
   customerPurchaseServiceId: string | null;
+  /** La compra de la que sale el turno, si salió de una (sólo en el pedido por rango). */
+  customerPurchaseId?: string | null;
+  /** Lo que la clienta todavía debe de esa compra (sólo en el pedido por rango). */
+  deudaDeLaCompra?: number | null;
 };
 
 /**
