@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type {
   Appointment,
@@ -18,6 +18,8 @@ import type {
   Service,
   Sexo,
 } from "./types";
+import { huecosDelDia, type HuecoLibre } from "../lib/huecos";
+import { ahoraEnArgentina } from "../lib/horario";
 import { disponibilidadDelMesUrl, disponibilidadUrl, type OpcionesDeDisponibilidad } from "../lib/disponibilidad";
 
 export function useCategories() {
@@ -62,6 +64,49 @@ export function useMonthAvailability(
       api<MonthAvailability>(disponibilidadDelMesUrl(serviceId!, providerId!, month!, excludeAppointmentId)),
     enabled: Boolean(serviceId && providerId && month),
   });
+}
+
+/**
+ * Los huecos libres de un servicio en varios días: un pedido de disponibilidad
+ * por día (misma clave de caché que `useAvailability`). `soloDe` deja a una
+ * sola prestadora.
+ */
+export function useHuecosDeLaSemana(
+  serviceId: string | null,
+  dias: string[],
+  soloDe: string | null,
+): { huecos: HuecoLibre[]; cargando: boolean } {
+  const resultados = useQueries({
+    queries: dias.map((dia) => ({
+      queryKey: ["availability", serviceId, dia, null, null],
+      queryFn: () => api<Availability>(disponibilidadUrl(serviceId!, dia)),
+      enabled: Boolean(serviceId),
+    })),
+  });
+  const huecos: HuecoLibre[] = [];
+  resultados.forEach((r, i) => {
+    if (r.data) huecos.push(...huecosDelDia(r.data, dias[i]!, soloDe));
+  });
+  return { huecos, cargando: Boolean(serviceId) && resultados.some((r) => r.isLoading) };
+}
+
+/** Días del mes (sin los pasados) en que alguna de las prestadoras tiene lugar para el servicio. */
+export function useDiasConLugar(
+  serviceId: string | null,
+  providerIds: string[],
+  mes: string,
+): { dias: Set<string>; cargando: boolean } {
+  const resultados = useQueries({
+    queries: providerIds.map((providerId) => ({
+      queryKey: ["availability-month", serviceId, providerId, mes, null],
+      queryFn: () => api<MonthAvailability>(disponibilidadDelMesUrl(serviceId!, providerId, mes)),
+      enabled: Boolean(serviceId),
+    })),
+  });
+  const hoy = ahoraEnArgentina().fecha;
+  const dias = new Set<string>();
+  for (const r of resultados) for (const d of r.data?.availableDays ?? []) if (d >= hoy) dias.add(d);
+  return { dias, cargando: Boolean(serviceId) && resultados.some((r) => r.isLoading) };
 }
 
 export type ProviderWindow = { start: number; end: number };

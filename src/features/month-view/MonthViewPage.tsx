@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { rutaConservando } from "../../lib/ruta-agenda";
 import { useQueries } from "@tanstack/react-query";
-import { useCompanyConfig, useProviders } from "../../api/agenda";
+import { useCompanyConfig, useDiasConLugar, useProviders, useProvidersByService } from "../../api/agenda";
 import { api } from "../../api/client";
 import type { Appointment } from "../../api/types";
 import { buildProviderColorMap } from "../../lib/colors";
@@ -12,7 +12,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { saveView } from "../../components/ViewTabs";
 import { BarraAgenda } from "../barra/BarraAgenda";
 import { BuscadorAgenda } from "../barra/BuscadorAgenda";
-import { usePrestadorasDeLaBusqueda } from "../../lib/busqueda-agenda";
+import { useBusquedaAgenda, usePrestadorasDeLaBusqueda } from "../../lib/busqueda-agenda";
+import { QuienesLoHacen } from "../barra/QuienesLoHacen";
 
 /** Reservas expiradas se tratan como canceladas hasta que el cron las limpie. */
 function isVisible(appt: { status: string | null; reservationExpiresAt: string | null }): boolean {
@@ -29,7 +30,7 @@ const MAX_DOTS = 4;
 export function MonthViewPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [anchorDate, setAnchorDate] = useState(todayLocal);
+  const [anchorDate, setAnchorDate] = useState(() => searchParams.get("date") ?? todayLocal());
   const today = todayLocal();
 
   useEffect(() => { saveView("mes"); }, []);
@@ -60,6 +61,21 @@ export function MonthViewPage() {
   const isLoading = dayQueries.some((q) => q.isLoading);
 
   const prestadorasVisibles = usePrestadorasDeLaBusqueda();
+
+  // Con un servicio buscado se marcan los días con lugar.
+  const [busqueda] = useBusquedaAgenda();
+  const servicioId = busqueda?.tipo === "servicio" ? busqueda.id : null;
+  const soloDe = searchParams.get("con");
+  const { data: queLoHacen } = useProvidersByService(servicioId);
+  const idsQueLoHacen = useMemo(
+    () => (queLoHacen ?? []).map((p) => p.id).filter((id) => !soloDe || id === soloDe),
+    [queLoHacen, soloDe],
+  );
+  const { dias: diasConLugar, cargando: cargandoLugar } = useDiasConLugar(
+    servicioId,
+    idsQueLoHacen,
+    ymd(year, month0, 1).slice(0, 7),
+  );
 
   const statsByDate = useMemo(() => {
     const map = new Map<string, { count: number; providerIds: string[] }>();
@@ -94,7 +110,7 @@ export function MonthViewPage() {
       {/* ── Barra ── */}
       <BarraAgenda
         vista="mes"
-        cargando={isLoading}
+        cargando={isLoading || cargandoLugar}
         fecha={
           <div className="flex items-center gap-1">
             <button
@@ -116,6 +132,8 @@ export function MonthViewPage() {
         }
         buscador={<BuscadorAgenda />}
       />
+
+      {servicioId && <QuienesLoHacen serviceId={servicioId} />}
 
       {/* ── Calendario ── */}
       <div className="modal-scroll flex-1 min-h-0 overflow-auto rounded-xl border border-surface-high">
@@ -144,15 +162,19 @@ export function MonthViewPage() {
             const dayNum  = cell.getUTCDate();
             const dots    = stats?.providerIds ?? [];
             const extra   = dots.length - MAX_DOTS;
+            const conLugar = inMonth && diasConLugar.has(d);
 
             return (
               <button
                 key={d}
-                onClick={() => navigate(rutaConservando("/dia", searchParams, { date: d }))}
+                data-dia={d}
+                data-lugar={conLugar ? "si" : undefined}
+                onClick={() => navigate(rutaConservando(conLugar ? "/semana" : "/dia", searchParams, { date: d }))}
                 className={[
                   "relative flex flex-col items-start gap-1 border-b border-l border-surface-high p-1.5 text-left transition-colors hover:bg-surface-low",
                   closed ? "bg-surface-high/50" : "bg-white",
                   inMonth ? "" : "opacity-40",
+                  conLugar ? "ring-2 ring-inset ring-primary/60" : "",
                 ].join(" ")}
               >
                 {/* Número de día */}

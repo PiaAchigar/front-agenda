@@ -10,7 +10,8 @@ const TURNOS = [
   { ...base, id: "b1", providerId: "p2" },
 ];
 
-vi.mock("../../api/agenda", () => ({
+vi.mock("../../api/agenda", async () => ({
+  useDiasConLugar: (await vi.importActual<typeof import("../../api/agenda")>("../../api/agenda")).useDiasConLugar,
   useProviders: () => ({ data: [{ id: "p1", fullName: "Ana", specialties: null }, { id: "p2", fullName: "Bea", specialties: null }] }),
   useServices: () => ({ data: [] }),
   useProvidersByService: (id: string | null) => ({ data: id ? [{ id: "p2", fullName: "Bea", specialties: null }] : undefined }),

@@ -11,6 +11,7 @@ const TURNOS = [
 vi.mock("../../api/agenda", async () => ({
   // El hook real del rango, sobre el `api` mockeado.
   useAppointmentsRange: (await vi.importActual<typeof import("../../api/agenda")>("../../api/agenda")).useAppointmentsRange,
+  useHuecosDeLaSemana: (await vi.importActual<typeof import("../../api/agenda")>("../../api/agenda")).useHuecosDeLaSemana,
   useProviders: () => ({ data: [{ id: "p1", fullName: "Ana", specialties: null }, { id: "p2", fullName: "Bea", specialties: null }] }),
   useServices: () => ({ data: [] }),
   useProvidersByService: (id: string | null) => ({ data: id ? [{ id: "p2", fullName: "Bea", specialties: null }] : undefined }),
@@ -18,7 +19,8 @@ vi.mock("../../api/agenda", async () => ({
 }));
 vi.mock("../../api/client", () => ({
   // La semana entera en un solo pedido.
-  api: vi.fn().mockResolvedValue(TURNOS),
+  api: vi.fn(async (url: string) =>
+    url.includes("/availability/") ? { date: "x", serviceId: "s1", durationMinutes: 60, slots: [] } : TURNOS),
 }));
 vi.mock("../day-view/NewAppointmentModal", () => ({ NewAppointmentModal: () => null }));
 

@@ -14,7 +14,8 @@ import { addDays, formatDate, formatTime, todayLocal } from "../../lib/format";
 import { CalendarGrid } from "./CalendarGrid";
 import { BarraAgenda } from "../barra/BarraAgenda";
 import { BuscadorAgenda } from "../barra/BuscadorAgenda";
-import { usePrestadorasDeLaBusqueda } from "../../lib/busqueda-agenda";
+import { useBusquedaAgenda, usePrestadorasDeLaBusqueda } from "../../lib/busqueda-agenda";
+import { QuienesLoHacen } from "../barra/QuienesLoHacen";
 import { useModoAgenda } from "../../lib/modo-agenda";
 import { NewAppointmentModal, type NewApptPrefill } from "./NewAppointmentModal";
 import { type ModoNuevoTurno, SolapasNuevoTurno } from "../vender/SolapasNuevoTurno";
@@ -92,6 +93,7 @@ export function DayViewPage() {
   // Turnos individuales vs grupales (clases): ver `lib/modo-agenda.ts`.
   const [agendaMode] = useModoAgenda();
   const columnIds = usePrestadorasDeLaBusqueda();
+  const [busqueda] = useBusquedaAgenda();
 
   function openReschedule(appt: Appointment) {
     setSelected(null);
@@ -261,6 +263,8 @@ export function DayViewPage() {
         }
         buscador={agendaMode === "turnos" ? <BuscadorAgenda /> : undefined}
       />
+
+      {agendaMode === "turnos" && busqueda?.tipo === "servicio" && <QuienesLoHacen serviceId={busqueda.id} />}
 
       {error && <ErrorNote message={(error as Error).message} />}
 

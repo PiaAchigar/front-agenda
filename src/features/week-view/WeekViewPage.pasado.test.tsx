@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../api/agenda", async () => ({
   // El hook real del rango, sobre el `api` mockeado.
   useAppointmentsRange: (await vi.importActual<typeof import("../../api/agenda")>("../../api/agenda")).useAppointmentsRange,
+  useHuecosDeLaSemana: (await vi.importActual<typeof import("../../api/agenda")>("../../api/agenda")).useHuecosDeLaSemana,
   useProviders: () => ({ data: [] }),
   useServices: () => ({ data: [] }),
   useProvidersByService: () => ({ data: undefined }),

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { rutaConservando } from "../../lib/ruta-agenda";
-import { useAppointmentsRange, useCompanyConfig, useProviders } from "../../api/agenda";
+import { useAppointmentsRange, useCompanyConfig, useHuecosDeLaSemana, useProviders, useProvidersByService, useServices } from "../../api/agenda";
 import type { Appointment } from "../../api/types";
 import { FONDO_DEL_HUECO, tipoDeHueco } from "../../lib/fondo-del-hueco";
 import { yaPaso } from "../../lib/horario";
@@ -20,7 +20,9 @@ function isVisible(appt: { status: string | null; reservationExpiresAt: string |
 import { saveView } from "../../components/ViewTabs";
 import { BarraAgenda } from "../barra/BarraAgenda";
 import { BuscadorAgenda } from "../barra/BuscadorAgenda";
-import { usePrestadorasDeLaBusqueda } from "../../lib/busqueda-agenda";
+import { useBusquedaAgenda, usePrestadorasDeLaBusqueda } from "../../lib/busqueda-agenda";
+import { QuienesLoHacen } from "../barra/QuienesLoHacen";
+import { HuecoLibre } from "./HuecoLibre";
 import { PastillaDeTurno } from "./PastillaDeTurno";
 import { NewAppointmentModal, type NewApptPrefill } from "../day-view/NewAppointmentModal";
 
@@ -69,9 +71,9 @@ export function WeekViewPage() {
   const [newApptDate,    setNewApptDate]    = useState("");
   const [newApptPrefill, setNewApptPrefill] = useState<NewApptPrefill | null>(null);
 
-  function openNewAppt(date: string, minutes: number) {
+  function openNewAppt(date: string, minutes: number, extra: Omit<NewApptPrefill, "minutes"> = {}) {
     setNewApptDate(date);
-    setNewApptPrefill({ minutes });
+    setNewApptPrefill({ minutes, ...extra });
     setNewApptOpen(true);
   }
 
@@ -97,6 +99,21 @@ export function WeekViewPage() {
   const { data: turnosDeLaSemana, isLoading } = useAppointmentsRange(weekDates[0]!, weekDates[5]!);
 
   const prestadorasVisibles = usePrestadorasDeLaBusqueda();
+
+  // Con un servicio buscado la semana muestra dónde hay lugar.
+  const [busqueda] = useBusquedaAgenda();
+  const servicioId = busqueda?.tipo === "servicio" ? busqueda.id : null;
+  const soloDe = searchParams.get("con");
+  const { data: servicios = [] } = useServices();
+  const { data: queLoHacen } = useProvidersByService(servicioId);
+  const { huecos, cargando: cargandoHuecos } = useHuecosDeLaSemana(servicioId, weekDates, soloDe);
+  const nombreDelServicio = servicios.find((s) => s.id === servicioId)?.name ?? "este servicio";
+  // Los carriles de los huecos son fijos en toda la semana: una prestadora cae siempre en el mismo.
+  const idsConHuecos = useMemo(
+    () => (queLoHacen ?? []).map((p) => p.id).filter((id) => !soloDe || id === soloDe),
+    [queLoHacen, soloDe],
+  );
+  const sinLugar = Boolean(servicioId) && !cargandoHuecos && (queLoHacen?.length ?? 0) > 0 && huecos.length === 0;
 
   // Sólo turnos de servicio: las inscripciones a clases y capacitaciones viven
   // en la vista "Clases" (6 inscriptas al mismo Pilates serían 6 pastillas).
@@ -134,7 +151,7 @@ export function WeekViewPage() {
       {/* ── Barra ── */}
       <BarraAgenda
         vista="semana"
-        cargando={isLoading}
+        cargando={isLoading || cargandoHuecos}
         fecha={
           <div className="flex items-center gap-1">
             <button
@@ -158,6 +175,20 @@ export function WeekViewPage() {
         }
         buscador={<BuscadorAgenda />}
       />
+
+      {servicioId && <QuienesLoHacen serviceId={servicioId} />}
+      {sinLugar && (
+        <div className="flex shrink-0 items-center gap-3 text-sm text-ink-soft">
+          <span>No hay lugar para {nombreDelServicio} esta semana.</span>
+          <button
+            type="button"
+            onClick={() => navigate(rutaConservando("/mes", searchParams, { date: anchorDate }))}
+            className="rounded-lg border border-surface-highest px-3 py-1 text-ink hover:bg-surface-low"
+          >
+            Ver el mes
+          </button>
+        </div>
+      )}
 
       {/* ── Grid semanal ── */}
       <div className="modal-scroll flex-1 min-h-0 overflow-y-auto overflow-x-auto rounded-xl border border-surface-high">
@@ -263,10 +294,10 @@ export function WeekViewPage() {
                               : "hover:bg-surface-low cursor-pointer",
                         ].join(" ")}
                         style={{ top: (s - START_MIN) * PX_PER_MIN, height: SLOT_PX, ...fondo.style }}
-                        onClick={pasado ? undefined : () => openNewAppt(d, s)}
+                        onClick={pasado || servicioId ? undefined : () => openNewAppt(d, s)}
                         aria-disabled={pasado || undefined}
                       >
-                        {!pasado && (
+                        {!pasado && !servicioId && (
                           <span className="text-sm font-light text-gray-200 select-none pointer-events-none">
                             +
                           </span>
@@ -275,7 +306,12 @@ export function WeekViewPage() {
                     );
                   })}
 
-                  {/* Pastillas de turnos */}
+                  {/* Pastillas de turnos (apagadas si se busca lugar: los huecos son lo que se toca) */}
+                  <div
+                    data-testid={`turnos-${d}`}
+                    className="pointer-events-none absolute inset-0 [&>*]:pointer-events-auto"
+                    style={servicioId ? { opacity: 0.35 } : undefined}
+                  >
                   {dayAppts.map((appt) => {
                     const top  = (isoToLocalMinutes(appt.appointmentStart) - START_MIN) * PX_PER_MIN;
                     const alto = Math.max((appt.durationMinutes ?? SLOT_MIN) * PX_PER_MIN, 20);
@@ -291,6 +327,30 @@ export function WeekViewPage() {
                         top={top}
                         alto={alto}
                         onAbrir={(t) => goToDay(d, t.id)}
+                      />
+                    );
+                  })}
+                  </div>
+
+                  {/* Huecos libres del servicio buscado, un carril por prestadora */}
+                  {huecos.filter((h) => h.dia === d).map((h) => {
+                    const top = (h.minutos - START_MIN) * PX_PER_MIN;
+                    if (top < 0 || top >= TOTAL_PX) return null;
+                    return (
+                      <HuecoLibre
+                        key={`${h.minutos}-${h.providerId}`}
+                        minutos={h.minutos}
+                        providerName={h.providerName}
+                        color={colorMap.get(h.providerId)}
+                        carril={Math.max(idsConHuecos.indexOf(h.providerId), 0)}
+                        total={Math.max(idsConHuecos.length, 1)}
+                        top={top}
+                        alto={SLOT_PX}
+                        onElegir={() => openNewAppt(d, h.minutos, {
+                          serviceId: servicioId!,
+                          providerId: h.providerId,
+                          providerName: h.providerName,
+                        })}
                       />
                     );
                   })}
