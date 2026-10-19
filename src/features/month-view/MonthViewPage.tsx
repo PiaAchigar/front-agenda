@@ -10,6 +10,8 @@ import { diasDeLaGrilla, etiquetaDelMes, utcDate, ymd } from "../../lib/grillaDe
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { saveView } from "../../components/ViewTabs";
 import { BarraAgenda } from "../barra/BarraAgenda";
+import { BuscadorAgenda } from "../barra/BuscadorAgenda";
+import { usePrestadorasDeLaBusqueda } from "../../lib/busqueda-agenda";
 
 /** Reservas expiradas se tratan como canceladas hasta que el cron las limpie. */
 function isVisible(appt: { status: string | null; reservationExpiresAt: string | null }): boolean {
@@ -55,10 +57,14 @@ export function MonthViewPage() {
 
   const isLoading = dayQueries.some((q) => q.isLoading);
 
+  const prestadorasVisibles = usePrestadorasDeLaBusqueda();
+
   const statsByDate = useMemo(() => {
     const map = new Map<string, { count: number; providerIds: string[] }>();
     days.forEach((d, i) => {
-      const appts = (dayQueries[i]?.data ?? []).filter(isVisible);
+      const appts = (dayQueries[i]?.data ?? [])
+        .filter(isVisible)
+        .filter((a) => !prestadorasVisibles || (a.providerId && prestadorasVisibles.includes(a.providerId)));
       const providerIds: string[] = [];
       for (const a of appts) {
         const pid = a.providerId ?? "";
@@ -67,7 +73,7 @@ export function MonthViewPage() {
       map.set(d, { count: appts.length, providerIds });
     });
     return map;
-  }, [days, dayQueries]);
+  }, [days, dayQueries, prestadorasVisibles]);
 
   function navigateMonth(n: -1 | 1) {
     const d = new Date(Date.UTC(year, month0 + n, 1));
@@ -106,6 +112,7 @@ export function MonthViewPage() {
             </button>
           </div>
         }
+        buscador={<BuscadorAgenda />}
       />
 
       {/* ── Calendario ── */}

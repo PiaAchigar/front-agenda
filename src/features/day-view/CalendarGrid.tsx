@@ -65,8 +65,8 @@ type Props = {
   providerSchedule?: ProviderSchedule[];
   /** Clase CSS extra para controlar la altura desde el padre (ej: "flex-1 min-h-0"). */
   className?: string;
-  /** Filtra las columnas por nombre (prestadora). */
-  columnFilter?: string;
+  /** Si viene, sólo se dibujan las columnas de estas prestadoras. */
+  columnIds?: string[];
   onAppointmentClick: (appt: Appointment) => void;
   /** columnId = providerId. */
   onSlotClick: (columnId: string, minutes: number) => void;
@@ -80,7 +80,7 @@ export function CalendarGrid({
   openHours,
   providerSchedule,
   className = "",
-  columnFilter = "",
+  columnIds,
   onAppointmentClick,
   onSlotClick,
 }: Props) {
@@ -105,10 +105,9 @@ export function CalendarGrid({
 
   // ── Columnas: una por prestadora ──────────────────────────────────────────────────
   const columns = useMemo(() => {
-    const q = columnFilter.trim().toLowerCase();
-    if (!q) return providers;
-    return providers.filter((c) => c.name.toLowerCase().includes(q));
-  }, [providers, columnFilter]);
+    if (!columnIds) return providers;
+    return providers.filter((c) => columnIds.includes(c.id));
+  }, [providers, columnIds]);
 
   // ── Turnos agrupados por columna (excluye cancelados y reservas expiradas) ─
   const byColumn = useMemo(() => {

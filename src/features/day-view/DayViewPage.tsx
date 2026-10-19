@@ -13,6 +13,8 @@ import { Badge, Button, ErrorNote, Modal } from "../../components/ui";
 import { addDays, formatDate, formatTime, todayLocal } from "../../lib/format";
 import { CalendarGrid } from "./CalendarGrid";
 import { BarraAgenda } from "../barra/BarraAgenda";
+import { BuscadorAgenda } from "../barra/BuscadorAgenda";
+import { usePrestadorasDeLaBusqueda } from "../../lib/busqueda-agenda";
 import { useModoAgenda } from "../../lib/modo-agenda";
 import { NewAppointmentModal, type NewApptPrefill } from "./NewAppointmentModal";
 import { type ModoNuevoTurno, SolapasNuevoTurno } from "../vender/SolapasNuevoTurno";
@@ -30,16 +32,6 @@ import { ClassesView } from "./ClassesView";
 
 import { saveView } from "../../components/ViewTabs";
 import { isEmbedded, prefillDesdeUrl, requestCheckoutHandoff } from "../../lib/embed";
-
-/** Debounce simple para el buscador del nav (filtrado client-side). */
-function useDebounced<T>(value: T, ms = 200): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), ms);
-    return () => clearTimeout(t);
-  }, [value, ms]);
-  return debounced;
-}
 
 const STATUS_LABELS: Record<
   string,
@@ -99,8 +91,7 @@ export function DayViewPage() {
   const [expiredAppt,    setExpiredAppt]    = useState<Appointment | null>(null);
   // Turnos individuales vs grupales (clases): ver `lib/modo-agenda.ts`.
   const [agendaMode] = useModoAgenda();
-  const [search, setSearch] = useState("");
-  const debouncedSearch = useDebounced(search, 200);
+  const columnIds = usePrestadorasDeLaBusqueda();
 
   function openReschedule(appt: Appointment) {
     setSelected(null);
@@ -252,17 +243,7 @@ export function DayViewPage() {
             </button>
           </div>
         }
-        buscador={
-          agendaMode === "turnos" ? (
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar prestadora…"
-              className="w-60 rounded-lg border border-surface-highest bg-white px-3 py-1.5 text-sm outline-none focus:border-primary"
-            />
-          ) : undefined
-        }
+        buscador={agendaMode === "turnos" ? <BuscadorAgenda /> : undefined}
       />
 
       {error && <ErrorNote message={(error as Error).message} />}
@@ -275,7 +256,7 @@ export function DayViewPage() {
           providers={providers}
           date={date}
           openHours={openHours}
-          columnFilter={debouncedSearch}
+          columnIds={columnIds}
           providerSchedule={providerSchedule}
           onAppointmentClick={setSelected}
           onSlotClick={(columnId, minutes) =>

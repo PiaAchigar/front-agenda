@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api/agenda", () => ({
   useProviders: () => ({ data: [] }),
+  useServices: () => ({ data: [] }),
+  useProvidersByService: () => ({ data: undefined }),
   useCompanyConfig: () => ({
     data: { openHours: [1, 2, 3, 4, 5, 6].map((d) => ({ dayOfWeek: d, openingTime: "08:00", closingTime: "20:00", isOpen: true })) },
   }),

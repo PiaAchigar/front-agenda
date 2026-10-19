@@ -22,6 +22,8 @@ function minutesLeft(expiresAt: string): number {
 }
 import { saveView } from "../../components/ViewTabs";
 import { BarraAgenda } from "../barra/BarraAgenda";
+import { BuscadorAgenda } from "../barra/BuscadorAgenda";
+import { usePrestadorasDeLaBusqueda } from "../../lib/busqueda-agenda";
 import { NewAppointmentModal, type NewApptPrefill } from "../day-view/NewAppointmentModal";
 
 // ── Constantes del grid ──────────────────────────────────────────────────────
@@ -127,13 +129,21 @@ export function WeekViewPage() {
 
   const isLoading = weekQueries.some((q) => q.isLoading);
 
+  const prestadorasVisibles = usePrestadorasDeLaBusqueda();
+
   const apptsByDate = useMemo(() => {
     const map = new Map<string, Appointment[]>();
     weekDates.forEach((d, i) => {
-      map.set(d, weekQueries[i]?.data ?? []);
+      const turnos = weekQueries[i]?.data ?? [];
+      map.set(
+        d,
+        prestadorasVisibles
+          ? turnos.filter((a) => a.providerId && prestadorasVisibles.includes(a.providerId))
+          : turnos,
+      );
     });
     return map;
-  }, [weekDates, weekQueries]);
+  }, [weekDates, weekQueries, prestadorasVisibles]);
 
   useEffect(() => { saveView("semana"); }, []);
 
@@ -175,6 +185,7 @@ export function WeekViewPage() {
             </button>
           </div>
         }
+        buscador={<BuscadorAgenda />}
       />
 
       {/* ── Grid semanal ── */}
