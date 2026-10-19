@@ -673,7 +673,7 @@ export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: P
     : "Elegí un día";
 
   return (
-    <Modal open={open} onClose={onClose} title="Nuevo turno">
+    <Modal open={open} onClose={onClose} title="Nuevo turno" altoFijo={solapas !== undefined}>
       {solapas}
       <div className="space-y-4">
         {/* Fecha del turno */}

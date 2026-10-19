@@ -78,6 +78,20 @@ describe("NewAppointmentModal — lo que agrega Vender desde el turno", () => {
     expect(screen.getByText("SOLAPAS")).toBeInTheDocument();
   });
 
+  it("con solapas, el alto queda fijo: no salta al pasar a Vender y agendar", () => {
+    render(
+      <NewAppointmentModal open date="2027-01-20" prefill={null} onClose={() => {}} solapas={<div>SOLAPAS</div>} />,
+    );
+    const panel = screen.getByRole("heading", { name: "Nuevo turno" }).parentElement!.parentElement!;
+    expect(panel).toHaveClass("h-[90vh]");
+  });
+
+  it("sin solapas, el modal es el de siempre", () => {
+    render(<NewAppointmentModal open date="2027-01-20" prefill={null} onClose={() => {}} />);
+    const panel = screen.getByRole("heading", { name: "Nuevo turno" }).parentElement!.parentElement!;
+    expect(panel).not.toHaveClass("h-[90vh]");
+  });
+
   it("depilación con profesional de la columna: queda fija", () => {
     render(
       <NewAppointmentModal

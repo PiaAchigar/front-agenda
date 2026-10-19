@@ -78,6 +78,12 @@ beforeEach(() => {
 });
 
 describe("VenderYAgendar — hasta vender", () => {
+  it("tiene el mismo alto fijo que Agendar, para que el modal no salte", () => {
+    montar();
+    const panel = screen.getByRole("heading", { name: "Nuevo turno" }).parentElement!.parentElement!;
+    expect(panel).toHaveClass("h-[90vh]");
+  });
+
   it("abre con el día y la hora del hueco, editables", () => {
     montar();
     expect(screen.getByText("SOLAPAS")).toBeInTheDocument();

@@ -112,7 +112,7 @@ export function VenderYAgendar({
 
   if (vendida && customer) {
     return (
-      <Modal open onClose={cerrar} title="Nuevo turno">
+      <Modal open onClose={cerrar} title="Nuevo turno" altoFijo>
         {avisoDeCierre ? (
           <div className="space-y-3">
             <p className="text-sm text-ink">
@@ -140,7 +140,7 @@ export function VenderYAgendar({
   }
 
   return (
-    <Modal open onClose={cerrar} title="Nuevo turno">
+    <Modal open onClose={cerrar} title="Nuevo turno" altoFijo>
       {solapas}
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
