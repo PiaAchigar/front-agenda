@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { rutaConservando } from "../../lib/ruta-agenda";
 import { useQueries } from "@tanstack/react-query";
 import { useCompanyConfig, useProviders } from "../../api/agenda";
 import { api } from "../../api/client";
@@ -88,6 +89,7 @@ function computeOverlapOffsets(appts: Appointment[]): Map<string, number> {
 // ── Componente ───────────────────────────────────────────────────────────────
 export function WeekViewPage() {
   const navigate    = useNavigate();
+  const [searchParams] = useSearchParams();
   const [anchorDate, setAnchorDate] = useState(todayLocal);
   const [newApptOpen,    setNewApptOpen]    = useState(false);
   const [newApptDate,    setNewApptDate]    = useState("");
@@ -154,7 +156,7 @@ export function WeekViewPage() {
   }
 
   function goToDay(dateStr: string) {
-    navigate(`/dia?date=${dateStr}`);
+    navigate(rutaConservando("/dia", searchParams, { date: dateStr }));
   }
 
   return (

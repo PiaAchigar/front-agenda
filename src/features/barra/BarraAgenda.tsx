@@ -1,8 +1,9 @@
 import { useEffect, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ViewTabs } from "../../components/ViewTabs";
 import { Spinner } from "../../components/ui";
 import { useModoAgenda, type ModoAgenda } from "../../lib/modo-agenda";
+import { rutaConservando } from "../../lib/ruta-agenda";
 import { ReferenciasAgenda } from "../referencias/ReferenciasAgenda";
 
 const MODOS: { key: ModoAgenda; label: string }[] = [
@@ -26,6 +27,7 @@ type Props = {
  */
 export function BarraAgenda({ vista, fecha, cargando, buscador }: Props) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [modo, setModo] = useModoAgenda();
 
   // Entrar a semana o mes es pedir turnos individuales: si quedó guardado el
@@ -39,7 +41,7 @@ export function BarraAgenda({ vista, fecha, cargando, buscador }: Props) {
   function elegir(m: ModoAgenda) {
     setModo(m);
     // Las clases sólo se ven por día: desde semana o mes se salta al día.
-    if (m === "clases" && vista !== "dia") navigate("/dia");
+    if (m === "clases" && vista !== "dia") navigate(rutaConservando("/dia", searchParams));
   }
 
   return (

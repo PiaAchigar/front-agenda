@@ -1,5 +1,6 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useModoAgenda } from "../lib/modo-agenda";
+import { rutaConservando } from "../lib/ruta-agenda";
 
 export type AgendaView = "dia" | "semana" | "mes";
 
@@ -8,9 +9,6 @@ const TABS: { key: "semana" | "mes"; label: string; path: string }[] = [
   { key: "semana", label: "Semana", path: "/semana" },
   { key: "mes",    label: "Mes",    path: "/mes" },
 ];
-
-/** Query params que sobreviven al cambiar de vista. */
-const PARAMS_QUE_SE_CONSERVAN = ["prestadora", "servicio", "con", "date"];
 
 export function saveView(view: AgendaView) {
   localStorage.setItem("agenda-view", view);
@@ -30,13 +28,7 @@ export function ViewTabs({ current }: { current: AgendaView }) {
   function handleClick(tab: (typeof TABS)[number]) {
     if (deshabilitado) return;
     saveView(tab.key);
-    const conservados = new URLSearchParams();
-    for (const k of PARAMS_QUE_SE_CONSERVAN) {
-      const v = searchParams.get(k);
-      if (v) conservados.set(k, v);
-    }
-    const qs = conservados.toString();
-    navigate(qs ? `${tab.path}?${qs}` : tab.path);
+    navigate(rutaConservando(tab.path, searchParams));
   }
 
   return (

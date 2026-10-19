@@ -49,6 +49,15 @@ describe("BarraAgenda", () => {
     expect(screen.getByRole("button", { name: "Mes" })).not.toHaveAttribute("aria-current");
   });
 
+  it("Turnos grupales desde Semana conserva la búsqueda al saltar al día", async () => {
+    const user = userEvent.setup();
+    montar("semana", "/semana?prestadora=p1&date=2026-10-19");
+
+    await user.click(screen.getByRole("button", { name: "Turnos grupales" }));
+
+    expect(ubicacion()).toBe("/dia?prestadora=p1&date=2026-10-19");
+  });
+
   it("Turnos grupales desde Semana lleva al día y deshabilita Semana y Mes", async () => {
     const user = userEvent.setup();
     montar("semana");

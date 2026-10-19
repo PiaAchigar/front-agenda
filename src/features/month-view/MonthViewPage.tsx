@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { rutaConservando } from "../../lib/ruta-agenda";
 import { useQueries } from "@tanstack/react-query";
 import { useCompanyConfig, useProviders } from "../../api/agenda";
 import { api } from "../../api/client";
@@ -27,6 +28,7 @@ const MAX_DOTS = 4;
 
 export function MonthViewPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [anchorDate, setAnchorDate] = useState(todayLocal);
   const today = todayLocal();
 
@@ -146,7 +148,7 @@ export function MonthViewPage() {
             return (
               <button
                 key={d}
-                onClick={() => navigate(`/dia?date=${d}`)}
+                onClick={() => navigate(rutaConservando("/dia", searchParams, { date: d }))}
                 className={[
                   "relative flex flex-col items-start gap-1 border-b border-l border-surface-high p-1.5 text-left transition-colors hover:bg-surface-low",
                   closed ? "bg-surface-high/50" : "bg-white",
