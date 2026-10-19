@@ -1,12 +1,16 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useModoAgenda } from "../lib/modo-agenda";
 
 export type AgendaView = "dia" | "semana" | "mes";
 
-const TABS: { key: AgendaView; label: string; path: string }[] = [
-  { key: "dia",    label: "Día",    path: "/" },
+/** El día no tiene solapa: se llega con Turnos individuales / grupales. */
+const TABS: { key: "semana" | "mes"; label: string; path: string }[] = [
   { key: "semana", label: "Semana", path: "/semana" },
   { key: "mes",    label: "Mes",    path: "/mes" },
 ];
+
+/** Query params que sobreviven al cambiar de vista. */
+const PARAMS_QUE_SE_CONSERVAN = ["prestadora", "servicio", "con", "date"];
 
 export function saveView(view: AgendaView) {
   localStorage.setItem("agenda-view", view);
@@ -18,10 +22,21 @@ export function getSavedView(): AgendaView {
 
 export function ViewTabs({ current }: { current: AgendaView }) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [modo] = useModoAgenda();
+  // Las clases todavía sólo se ven por día.
+  const deshabilitado = modo === "clases";
 
-  function handleClick(tab: (typeof TABS)[0]) {
+  function handleClick(tab: (typeof TABS)[number]) {
+    if (deshabilitado) return;
     saveView(tab.key);
-    navigate(tab.path);
+    const conservados = new URLSearchParams();
+    for (const k of PARAMS_QUE_SE_CONSERVAN) {
+      const v = searchParams.get(k);
+      if (v) conservados.set(k, v);
+    }
+    const qs = conservados.toString();
+    navigate(qs ? `${tab.path}?${qs}` : tab.path);
   }
 
   return (
@@ -30,11 +45,16 @@ export function ViewTabs({ current }: { current: AgendaView }) {
         <button
           key={tab.key}
           onClick={() => handleClick(tab)}
+          aria-current={current === tab.key ? "page" : undefined}
+          aria-disabled={deshabilitado || undefined}
+          title={deshabilitado ? "Por ahora las clases se ven por día" : undefined}
           className={[
             "px-3 py-1.5 transition-colors",
-            current === tab.key
-              ? "bg-primary text-white font-medium"
-              : "bg-white text-ink-soft hover:bg-surface-low",
+            deshabilitado
+              ? "bg-white text-ink-soft/50 cursor-not-allowed"
+              : current === tab.key
+                ? "bg-primary text-white font-medium"
+                : "bg-white text-ink-soft hover:bg-surface-low",
           ].join(" ")}
         >
           {tab.label}

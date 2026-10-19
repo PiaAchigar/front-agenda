@@ -161,6 +161,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  localStorage.clear();
   window.history.pushState({}, "", "/dia");
 });
 
@@ -210,7 +211,7 @@ describe("DayViewPage — el prefill de \"A agendar\" llega por la URL", () => {
     pedirMes.mockClear();
     conUrl("?embed=1");
     montar();
-    await screen.findByRole("button", { name: /\+ nuevo turno/i });
+    await screen.findByRole("button", { name: /referencias de colores/i });
     expect(pedirMes).not.toHaveBeenCalled();
   });
 
@@ -218,7 +219,7 @@ describe("DayViewPage — el prefill de \"A agendar\" llega por la URL", () => {
     conUrl("?embed=1");
     montar();
 
-    await screen.findByRole("button", { name: /\+ nuevo turno/i });
+    await screen.findByRole("button", { name: /referencias de colores/i });
     expect(screen.queryByText(/sesión \d+ de \d+/i)).not.toBeInTheDocument();
   });
 
@@ -234,6 +235,29 @@ describe("DayViewPage — el prefill de \"A agendar\" llega por la URL", () => {
     await user.click(screen.getByRole("button", { name: /abrir un slot cualquiera/i }));
     expect(await screen.findByText("Servicio")).toBeInTheDocument();
     expect(screen.queryByText(/sesión \d+ de \d+/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("DayViewPage — la barra nueva", () => {
+  it("no tiene Por servicio, + Nuevo turno ni Día; sí Semana, Mes y los dos modos", async () => {
+    conUrl("?embed=1");
+    montar();
+
+    expect(await screen.findByRole("button", { name: "Turnos individuales" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Turnos grupales" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Semana" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mes" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Por servicio" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /\+ nuevo turno/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Día" })).not.toBeInTheDocument();
+  });
+
+  it("en el día ni Semana ni Mes quedan marcadas", async () => {
+    conUrl("?embed=1");
+    montar();
+
+    expect(await screen.findByRole("button", { name: "Semana" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("button", { name: "Mes" })).not.toHaveAttribute("aria-current");
   });
 });
 

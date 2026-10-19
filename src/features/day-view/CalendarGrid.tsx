@@ -46,7 +46,6 @@ function timeStrToMin(t: string | null | undefined): number | null {
 }
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
-export type ColumnMode = "provider" | "service";
 
 type OpenHour = {
   dayOfWeek: number | null;
@@ -62,15 +61,14 @@ type Props = {
   providers: ProviderCol[];
   date: string;
   openHours: OpenHour[];
-  columnMode: ColumnMode;
   /** Horarios de trabajo por proveedora (minutos locales). */
   providerSchedule?: ProviderSchedule[];
   /** Clase CSS extra para controlar la altura desde el padre (ej: "flex-1 min-h-0"). */
   className?: string;
-  /** Filtra las columnas por nombre (prestadora o servicio según columnMode). */
+  /** Filtra las columnas por nombre (prestadora). */
   columnFilter?: string;
   onAppointmentClick: (appt: Appointment) => void;
-  /** columnId = providerId en modo "provider", serviceId en modo "service". */
+  /** columnId = providerId. */
   onSlotClick: (columnId: string, minutes: number) => void;
 };
 
@@ -80,7 +78,6 @@ export function CalendarGrid({
   providers,
   date,
   openHours,
-  columnMode,
   providerSchedule,
   className = "",
   columnFilter = "",
@@ -106,39 +103,25 @@ export function CalendarGrid({
     return map;
   }, [providerSchedule]);
 
-  // ── Columnas según modo ──────────────────────────────────────────────────
+  // ── Columnas: una por prestadora ──────────────────────────────────────────────────
   const columns = useMemo(() => {
-    let cols: ProviderCol[];
-    if (columnMode === "provider") {
-      cols = providers;
-    } else {
-      const seen = new Map<string, string>();
-      for (const appt of appointments) {
-        if (appt.serviceId && appt.serviceName && !seen.has(appt.serviceId)) {
-          seen.set(appt.serviceId, appt.serviceName);
-        }
-      }
-      cols = [...seen.entries()].map(([id, name]) => ({ id, name }));
-    }
     const q = columnFilter.trim().toLowerCase();
-    if (!q) return cols;
-    return cols.filter((c) => c.name.toLowerCase().includes(q));
-  }, [columnMode, providers, appointments, columnFilter]);
+    if (!q) return providers;
+    return providers.filter((c) => c.name.toLowerCase().includes(q));
+  }, [providers, columnFilter]);
 
   // ── Turnos agrupados por columna (excluye cancelados y reservas expiradas) ─
   const byColumn = useMemo(() => {
     const map = new Map<string, Appointment[]>();
     for (const appt of appointments) {
       if (!isVisible(appt)) continue;
-      const key = columnMode === "provider"
-        ? (appt.providerId ?? "__unassigned")
-        : (appt.serviceId  ?? "__unknown");
+      const key = appt.providerId ?? "__unassigned";
       const list = map.get(key) ?? [];
       list.push(appt);
       map.set(key, list);
     }
     return map;
-  }, [appointments, columnMode]);
+  }, [appointments]);
 
   // ── Helpers ──────────────────────────────────────────────────────────────
   function isClosedSlot(slotMin: number): boolean {
@@ -148,7 +131,6 @@ export function CalendarGrid({
 
   /** True si la proveedora no trabaja en ese slot (pero el local sí está abierto). */
   function isProviderUnavailable(providerId: string, slotMin: number): boolean {
-    if (columnMode !== "provider") return false;
     const windows = scheduleMap.get(providerId);
     if (!windows || windows.length === 0) return windows !== undefined; // sin dato = no pintar
     return !windows.some((w) => slotMin >= w.start && slotMin < w.end);
@@ -194,7 +176,7 @@ export function CalendarGrid({
           />
           {/* Nombres de columnas */}
           {columns.map((col) => {
-            const color = columnMode === "provider" ? colorMap.get(col.id) : undefined;
+            const color = colorMap.get(col.id);
             return (
               <div
                 key={col.id}
@@ -289,9 +271,7 @@ export function CalendarGrid({
                   const isCancelled = appt.status === "cancelled";
                   // Los turnos de ACTIVIDAD no tienen serviceName: sin esto la
                   // card queda con la línea de abajo vacía.
-                  const cardSubtext = columnMode === "provider"
-                    ? (appt.serviceName ?? appt.activityName)
-                    : appt.providerName;
+                  const cardSubtext = appt.serviceName ?? appt.activityName;
 
                   const isReserved = appt.status === "reserved";
                   const minsLeft   = isReserved && appt.reservationExpiresAt

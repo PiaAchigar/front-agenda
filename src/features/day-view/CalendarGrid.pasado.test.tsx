@@ -16,7 +16,6 @@ function montar(date: string, onSlotClick: (col: string, min: number) => void, p
       date={date}
       providers={PROVIDERS}
       openHours={OPEN_HOURS}
-      columnMode="provider"
       appointments={[]}
       onSlotClick={onSlotClick}
       onAppointmentClick={vi.fn()}

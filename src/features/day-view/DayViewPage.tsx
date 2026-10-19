@@ -11,8 +11,9 @@ import type { Appointment, Consumo } from "../../api/types";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge, Button, ErrorNote, Modal } from "../../components/ui";
 import { addDays, formatDate, formatTime, todayLocal } from "../../lib/format";
-import { CalendarGrid, type ColumnMode } from "./CalendarGrid";
-import { ReferenciasAgenda } from "../referencias/ReferenciasAgenda";
+import { CalendarGrid } from "./CalendarGrid";
+import { BarraAgenda } from "../barra/BarraAgenda";
+import { useModoAgenda } from "../../lib/modo-agenda";
 import { NewAppointmentModal, type NewApptPrefill } from "./NewAppointmentModal";
 import { type ModoNuevoTurno, SolapasNuevoTurno } from "../vender/SolapasNuevoTurno";
 import { type TraspasoAAgendar, VenderYAgendar } from "../vender/VenderYAgendar";
@@ -27,13 +28,7 @@ import {
 import { AttendanceModal, type AttendanceTarget } from "./AttendanceModal";
 import { ClassesView } from "./ClassesView";
 
-/**
- * Dos formas de mirar el día:
- * - "turnos": servicios 1 a 1 — una card por persona (grilla horaria)
- * - "clases": actividades y capacitaciones — una card por clase, con su cupo
- */
-type AgendaMode = "turnos" | "clases";
-import { ViewTabs, saveView } from "../../components/ViewTabs";
+import { saveView } from "../../components/ViewTabs";
 import { isEmbedded, prefillDesdeUrl, requestCheckoutHandoff } from "../../lib/embed";
 
 /** Debounce simple para el buscador del nav (filtrado client-side). */
@@ -102,28 +97,10 @@ export function DayViewPage() {
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [rescheduleAppt, setRescheduleAppt] = useState<Appointment | null>(null);
   const [expiredAppt,    setExpiredAppt]    = useState<Appointment | null>(null);
-  const [columnMode, setColumnMode] = useState<ColumnMode>(() => {
-    return (localStorage.getItem("agenda-column-mode") as ColumnMode) ?? "provider";
-  });
-  // Turnos simples (servicios 1 a 1) vs clases grupales. Son dos formas de
-  // agenda distintas: en turnos cada card es una persona, en clases cada card
-  // es una clase con N inscriptas adentro. Mezclarlas apilaba N cards en el
-  // mismo horario y escondía las clases sin nadie anotado.
-  const [agendaMode, setAgendaMode] = useState<AgendaMode>(() => {
-    return (localStorage.getItem("agenda-mode") as AgendaMode) ?? "turnos";
-  });
+  // Turnos individuales vs grupales (clases): ver `lib/modo-agenda.ts`.
+  const [agendaMode] = useModoAgenda();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounced(search, 200);
-
-  function changeColumnMode(mode: ColumnMode) {
-    setColumnMode(mode);
-    localStorage.setItem("agenda-column-mode", mode);
-  }
-
-  function changeAgendaMode(mode: AgendaMode) {
-    setAgendaMode(mode);
-    localStorage.setItem("agenda-mode", mode);
-  }
 
   function openReschedule(appt: Appointment) {
     setSelected(null);
@@ -152,7 +129,7 @@ export function DayViewPage() {
   // Sacar el prefill de la URL apenas se usó para abrir el modal de arriba:
   // si quedara, un refresh (o cerrar este modal y volver a entrar a "/dia")
   // lo reabriría solo, sin que Laura lo haya vuelto a pedir. No hace falta
-  // proteger un turno normal de esto: tocar un slot o "+ Nuevo turno" llaman
+  // proteger un turno normal de esto: tocar un slot llama
   // a `openNewAppt` con su propio prefill y siempre reemplazan el estado.
   useEffect(() => {
     if (!newApptPrefill) return;
@@ -236,114 +213,57 @@ export function DayViewPage() {
 
   return (
     <div className="flex flex-col gap-3 h-full min-h-0">
-      {/* ── Header ── */}
-      <div className="flex flex-wrap items-center justify-between gap-0 shrink-1">
-        <div className="flex items-center gap-0.5">
-          <button
-            onClick={() => navigate(-1)}
-            className="group p-1 rounded hover:bg-surface-low transition-colors"
-            aria-label="Día anterior"
-          >
-            <ChevronLeft size={18} className="text-ink-soft group-hover:text-primary transition-colors" />
-          </button>
+      {/* ── Barra ── */}
+      <BarraAgenda
+        vista="dia"
+        cargando={isLoading}
+        fecha={
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={() => navigate(-1)}
+              className="group p-1 rounded hover:bg-surface-low transition-colors"
+              aria-label="Día anterior"
+            >
+              <ChevronLeft size={18} className="text-ink-soft group-hover:text-primary transition-colors" />
+            </button>
          
-             {/* Selector de fecha */}
-          <label className="flex items-center gap-1 rounded-lg border border-surface-highest bg-white px-3 py-1.5 text-sm transition-colors">
-            <span className="text-ink-soft text-xs">📅</span>
-            <span className="text-ink">{formatDate(date)}</span>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="sr-only"
-            />
-              <span className="text-l font-semibold min-w-24 text-center">
-              {["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"][
-                new Date(`${date}T12:00:00Z`).getUTCDay()
-              ]}
-            </span> 
-          </label>
-          <button
-            onClick={() => navigate(1)}
-            className="group p-1 rounded hover:bg-surface-low transition-colors"
-            aria-label="Día siguiente"
-          >
-            <ChevronRight size={18} className="text-ink-soft group-hover:text-primary transition-colors" />
-          </button>
-        </div>
-     
-        <div className="flex items-center gap-2">
-          <div className="h-1 w-1">
-            <div className={`h-1 w-1 rounded-full border-2 border-primary-container border-t-primary ${isLoading ? "animate-spin" : "invisible"}`} />
-          </div>
-
-          {/* Toggle turnos simples / clases grupales */}
-          <div className="flex rounded-lg border border-surface-highest overflow-hidden text-sm">
-            {([
-              { key: "turnos", label: "Turnos simples" },
-              { key: "clases", label: "Clases y capacitaciones" },
-            ] as const).map((mode) => (
-              <button
-                key={mode.key}
-                onClick={() => changeAgendaMode(mode.key)}
-                className={[
-                  "px-3 py-1.5 transition-colors",
-                  agendaMode === mode.key
-                    ? "bg-primary text-white font-medium"
-                    : "bg-white text-ink-soft hover:bg-surface-low",
-                ].join(" ")}
-              >
-                {mode.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Buscador y columnas sólo aplican a la grilla de turnos: la vista
-              de clases es una lista cronológica, no tiene columnas que filtrar. */}
-          {agendaMode === "turnos" && (
-            <>
+               {/* Selector de fecha */}
+            <label className="flex items-center gap-1 rounded-lg border border-surface-highest bg-white px-3 py-1.5 text-sm transition-colors">
+              <span className="text-ink-soft text-xs">📅</span>
+              <span className="text-ink">{formatDate(date)}</span>
               <input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={columnMode === "provider" ? "Buscar prestadora…" : "Buscar servicio…"}
-                className="w-60 rounded-lg border border-surface-highest bg-white px-3 py-1.5 text-sm outline-none focus:border-primary"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="sr-only"
               />
-
-              {/* Toggle prestadora / servicio */}
-              <div className="flex rounded-lg border border-surface-highest overflow-hidden text-sm">
-                {(["provider", "service"] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => changeColumnMode(mode)}
-                    className={[
-                      "px-3 py-1.5 transition-colors",
-                      columnMode === mode
-                        ? "bg-primary text-white font-medium"
-                        : "bg-white text-ink-soft hover:bg-surface-low",
-                    ].join(" ")}
-                  >
-                    {mode === "provider" ? "Por prestadora" : "Por servicio"}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary/90 transition-colors"
-                onClick={() => openNewAppt()}
-              >
-                + Nuevo turno
-              </button>
-            </>
-          )}
-
-          {/* Qué significa cada fondo y cada color de la grilla */}
-          {agendaMode === "turnos" && <ReferenciasAgenda />}
-
-            {/* Selector de vista Día / Semana / Mes */}
-            <ViewTabs current="dia" />
-        </div>
-      </div>
+                <span className="text-l font-semibold min-w-24 text-center">
+                {["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"][
+                  new Date(`${date}T12:00:00Z`).getUTCDay()
+                ]}
+              </span> 
+            </label>
+            <button
+              onClick={() => navigate(1)}
+              className="group p-1 rounded hover:bg-surface-low transition-colors"
+              aria-label="Día siguiente"
+            >
+              <ChevronRight size={18} className="text-ink-soft group-hover:text-primary transition-colors" />
+            </button>
+          </div>
+        }
+        buscador={
+          agendaMode === "turnos" ? (
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar prestadora…"
+              className="w-60 rounded-lg border border-surface-highest bg-white px-3 py-1.5 text-sm outline-none focus:border-primary"
+            />
+          ) : undefined
+        }
+      />
 
       {error && <ErrorNote message={(error as Error).message} />}
 
@@ -355,18 +275,15 @@ export function DayViewPage() {
           providers={providers}
           date={date}
           openHours={openHours}
-          columnMode={columnMode}
           columnFilter={debouncedSearch}
           providerSchedule={providerSchedule}
           onAppointmentClick={setSelected}
           onSlotClick={(columnId, minutes) =>
-            columnMode === "provider"
-              ? openNewAppt({
-                  providerId: columnId,
-                  providerName: providers.find((p) => p.id === columnId)?.name,
-                  minutes,
-                })
-              : openNewAppt({ serviceId: columnId, minutes })
+            openNewAppt({
+              providerId: columnId,
+              providerName: providers.find((p) => p.id === columnId)?.name,
+              minutes,
+            })
           }
         />
       ) : (

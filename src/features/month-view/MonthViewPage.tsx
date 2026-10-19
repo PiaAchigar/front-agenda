@@ -8,8 +8,8 @@ import { buildProviderColorMap } from "../../lib/colors";
 import { todayLocal } from "../../lib/format";
 import { diasDeLaGrilla, etiquetaDelMes, utcDate, ymd } from "../../lib/grillaDelMes";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { ViewTabs, saveView } from "../../components/ViewTabs";
-import { Spinner } from "../../components/ui";
+import { saveView } from "../../components/ViewTabs";
+import { BarraAgenda } from "../barra/BarraAgenda";
 
 /** Reservas expiradas se tratan como canceladas hasta que el cron las limpie. */
 function isVisible(appt: { status: string | null; reservationExpiresAt: string | null }): boolean {
@@ -83,30 +83,30 @@ export function MonthViewPage() {
   return (
     <div className="flex flex-col gap-3 h-full min-h-0">
 
-      {/* ── Header ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => navigateMonth(-1)}
-            className="group p-1.5 rounded hover:bg-surface-low transition-colors"
-            aria-label="Mes anterior"
-          >
-            <ChevronLeft size={18} className="text-ink-soft group-hover:text-primary transition-colors" />
-          </button>
-          <span className="text-xl font-semibold min-w-44 text-center">{monthLabel}</span>
-          <button
-            onClick={() => navigateMonth(1)}
-            className="group p-1.5 rounded hover:bg-surface-low transition-colors"
-            aria-label="Mes siguiente"
-          >
-            <ChevronRight size={18} className="text-ink-soft group-hover:text-primary transition-colors" />
-          </button>
-        </div>
-        <div className="flex items-center gap-2">
-          {isLoading && <Spinner />}
-          <ViewTabs current="mes" />
-        </div>
-      </div>
+      {/* ── Barra ── */}
+      <BarraAgenda
+        vista="mes"
+        cargando={isLoading}
+        fecha={
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => navigateMonth(-1)}
+              className="group p-1.5 rounded hover:bg-surface-low transition-colors"
+              aria-label="Mes anterior"
+            >
+              <ChevronLeft size={18} className="text-ink-soft group-hover:text-primary transition-colors" />
+            </button>
+            <span className="text-xl font-semibold min-w-44 text-center">{monthLabel}</span>
+            <button
+              onClick={() => navigateMonth(1)}
+              className="group p-1.5 rounded hover:bg-surface-low transition-colors"
+              aria-label="Mes siguiente"
+            >
+              <ChevronRight size={18} className="text-ink-soft group-hover:text-primary transition-colors" />
+            </button>
+          </div>
+        }
+      />
 
       {/* ── Calendario ── */}
       <div className="modal-scroll flex-1 min-h-0 overflow-auto rounded-xl border border-surface-high">

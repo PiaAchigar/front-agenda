@@ -5,7 +5,6 @@ import { useCompanyConfig, useProviders } from "../../api/agenda";
 import { api } from "../../api/client";
 import type { Appointment } from "../../api/types";
 import { FONDO_DEL_HUECO, tipoDeHueco } from "../../lib/fondo-del-hueco";
-import { ReferenciasAgenda } from "../referencias/ReferenciasAgenda";
 import { yaPaso } from "../../lib/horario";
 import { buildProviderColorMap, STATUS_BORDER_COLOR } from "../../lib/colors";
 import { addDays, formatDate, formatTime, isoToLocalMinutes, todayLocal } from "../../lib/format";
@@ -21,8 +20,8 @@ function isVisible(appt: { status: string | null; reservationExpiresAt: string |
 function minutesLeft(expiresAt: string): number {
   return Math.floor((new Date(expiresAt).getTime() - Date.now()) / 60_000);
 }
-import { ViewTabs, saveView } from "../../components/ViewTabs";
-import { Spinner } from "../../components/ui";
+import { saveView } from "../../components/ViewTabs";
+import { BarraAgenda } from "../barra/BarraAgenda";
 import { NewAppointmentModal, type NewApptPrefill } from "../day-view/NewAppointmentModal";
 
 // ── Constantes del grid ──────────────────────────────────────────────────────
@@ -151,33 +150,32 @@ export function WeekViewPage() {
   return (
     <div className="flex flex-col gap-3 h-full min-h-0">
 
-      {/* ── Header ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => navigateWeek(-1)}
-            className="p-1.5 rounded hover:bg-surface text-ink-soft hover:text-ink transition-colors"
-            aria-label="Semana anterior"
-          >
-            ‹
-          </button>
-          <span className="text-xl font-semibold min-w-56 text-center">
-            {formatDate(monday)} – {formatDate(weekDates[5]!)}
-          </span>
-          <button
-            onClick={() => navigateWeek(1)}
-            className="p-1.5 rounded hover:bg-surface text-ink-soft hover:text-ink transition-colors"
-            aria-label="Semana siguiente"
-          >
-            ›
-          </button>
-        </div>
-        <div className="flex items-center gap-2">
-          {isLoading && <Spinner />}
-          <ReferenciasAgenda />
-          <ViewTabs current="semana" />
-        </div>
-      </div>
+      {/* ── Barra ── */}
+      <BarraAgenda
+        vista="semana"
+        cargando={isLoading}
+        fecha={
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => navigateWeek(-1)}
+              className="p-1.5 rounded hover:bg-surface text-ink-soft hover:text-ink transition-colors"
+              aria-label="Semana anterior"
+            >
+              ‹
+            </button>
+            <span className="text-xl font-semibold min-w-56 text-center">
+              {formatDate(monday)} – {formatDate(weekDates[5]!)}
+            </span>
+            <button
+              onClick={() => navigateWeek(1)}
+              className="p-1.5 rounded hover:bg-surface text-ink-soft hover:text-ink transition-colors"
+              aria-label="Semana siguiente"
+            >
+              ›
+            </button>
+          </div>
+        }
+      />
 
       {/* ── Grid semanal ── */}
       <div className="modal-scroll flex-1 min-h-0 overflow-y-auto overflow-x-auto rounded-xl border border-surface-high">
