@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 
 /**
@@ -16,6 +16,47 @@ export function useSacarDeClase() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["classes"] });
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
+    },
+  });
+}
+
+export type CuotaDelMes = {
+  billingCycleId: string;
+  mes: string;
+  cuota: number;
+  pagado: number;
+  debe: number;
+  isPaid: boolean;
+};
+
+/** La cuota de una suscripción en un mes (YYYY-MM): cuánto es, cuánto se pagó y cuánto debe. */
+export function useCuotaDelMes(subscriptionId: string | null, mes: string | null) {
+  return useQuery({
+    queryKey: ["cuota-del-mes", subscriptionId, mes],
+    queryFn: () => api<CuotaDelMes>(`/api/training-subscriptions/${subscriptionId}/cuota?mes=${mes}`),
+    enabled: !!subscriptionId && !!mes,
+  });
+}
+
+export type CobrarCuotaInput = {
+  subscriptionId: string;
+  mes: string;
+  amount: number;
+  method: string;
+  wantsInvoice: boolean;
+};
+
+export function useCobrarCuota() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ subscriptionId, ...body }: CobrarCuotaInput) =>
+      api<{ cuota: CuotaDelMes }>(`/api/training-subscriptions/${subscriptionId}/cobrar`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["cuota-del-mes"] });
     },
   });
 }

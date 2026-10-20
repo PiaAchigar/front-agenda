@@ -14,6 +14,8 @@ export function CobrarLoQueFalta({
   etiqueta = "Cobrar lo que falta",
   variante = "secondary",
   alCobrar,
+  abiertoDeEntrada = false,
+  alCerrar,
 }: {
   compraId: string;
   descripcion: string;
@@ -22,9 +24,14 @@ export function CobrarLoQueFalta({
   variante?: "primary" | "secondary";
   /** Se llama al cobrar, antes de cerrar (el detalle del turno relee los turnos). */
   alCobrar?: () => void;
+  /** Arranca con el cobro abierto, sin el botón intermedio (lo usa la agenda grupal). */
+  abiertoDeEntrada?: boolean;
+  /** Se llama al cerrar el cobro, haya cobrado o no. */
+  alCerrar?: () => void;
 }) {
-  const [abierto, setAbierto] = useState(false);
+  const [abierto, setAbierto] = useState(abiertoDeEntrada);
   if (!abierto) {
+    if (abiertoDeEntrada) return null;
     return (
       <Button type="button" variant={variante} onClick={() => setAbierto(true)}>
         {etiqueta}
@@ -35,8 +42,8 @@ export function CobrarLoQueFalta({
     <CobroAbierto
       compraId={compraId}
       descripcion={descripcion}
-      onCobrado={() => { alCobrar?.(); setAbierto(false); }}
-      onTerminar={() => setAbierto(false)}
+      onCobrado={() => { alCobrar?.(); setAbierto(false); alCerrar?.(); }}
+      onTerminar={() => { setAbierto(false); alCerrar?.(); }}
     />
   );
 }

@@ -11,7 +11,7 @@ import { pesos } from "../../lib/vender";
  * `GET /purchases/:id/checkout-state`, y el cobro va al MISMO `checkout` del
  * mostrador, que resuelve factura ARCA, declarado/no declarado y caja.
  */
-const MEDIOS: { valor: MedioDePago; texto: string }[] = [
+export const MEDIOS: { valor: MedioDePago; texto: string }[] = [
   { valor: "cash", texto: "Efectivo" },
   { valor: "debit_card", texto: "Débito" },
   { valor: "credit_card", texto: "Crédito" },

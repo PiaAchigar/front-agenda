@@ -7,7 +7,7 @@ import {
   useProviders,
   useUpdateAppointment,
 } from "../../api/agenda";
-import type { Appointment, ClassOccurrence, Consumo } from "../../api/types";
+import type { Anotada, Appointment, ClassOccurrence, Consumo } from "../../api/types";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge, Button, ErrorNote, Modal } from "../../components/ui";
 import { addDays, formatDate, formatTime, todayLocal } from "../../lib/format";
@@ -32,6 +32,7 @@ import { CobrarLoQueFalta } from "../vender/CobrarLoQueFalta";
 import { pesos } from "../../lib/vender";
 import { debeDelTurno } from "../../lib/deuda-del-turno";
 import { ClassesView } from "./ClassesView";
+import { CobrarCuota, mesEnLetras } from "../grupal/CobrarCuota";
 
 import { saveView } from "../../components/ViewTabs";
 import { isEmbedded, prefillDesdeUrl, requestCheckoutHandoff } from "../../lib/embed";
@@ -80,6 +81,7 @@ export function DayViewPage() {
   const [avisoInsumos, setAvisoInsumos]     = useState<Consumo | null>(null);
   const [attendanceFor, setAttendanceFor]   = useState<AttendanceTarget | null>(null);
   // Clase en la que se quiere anotar; por ahora sólo se recuerda (sin modal todavía).
+  const [cobrandoEn, setCobrandoEn] = useState<{ o: ClassOccurrence; a: Anotada } | null>(null);
   const [, setAnotarEn] = useState<ClassOccurrence | null>(null);
   // El prefill de "A agendar" que pide la ficha del CRM viaja CRM → dashboard
   // → la URL de este iframe (`lib/embed.ts`, `prefillDesdeUrl`). Se lee acá,
@@ -301,8 +303,32 @@ export function DayViewPage() {
           }
           // Las Tasks 4-6 conectan los modales de anotar y cobrar.
           onAnotar={setAnotarEn}
-          onCobrar={() => {}}
+          onCobrar={(o, a) => setCobrandoEn({ o, a })}
         />
+      )}
+
+      {/* ── Cobrar desde la clase: cuota (actividad) o deuda (capacitación) ── */}
+      {cobrandoEn && (
+        <Modal open onClose={() => setCobrandoEn(null)} title="Cobrar">
+          {cobrandoEn.o.kind === "activity" && cobrandoEn.a.subscriptionId ? (
+            <CobrarCuota
+              subscriptionId={cobrandoEn.a.subscriptionId}
+              mes={cobrandoEn.o.date.slice(0, 7)}
+              descripcion={`${cobrandoEn.o.name} — ${mesEnLetras(cobrandoEn.o.date.slice(0, 7))} ${cobrandoEn.o.date.slice(0, 4)} · ${cobrandoEn.a.nombre ?? "Sin nombre"}`}
+              onCobrado={() => setCobrandoEn(null)}
+              onCerrar={() => setCobrandoEn(null)}
+            />
+          ) : cobrandoEn.o.kind === "training" && cobrandoEn.a.compraId ? (
+            <CobrarLoQueFalta
+              abiertoDeEntrada
+              compraId={cobrandoEn.a.compraId}
+              descripcion={`${cobrandoEn.o.name} · ${cobrandoEn.a.nombre ?? "Sin nombre"}`}
+              alCerrar={() => setCobrandoEn(null)}
+            />
+          ) : (
+            <p className="text-sm text-ink-soft">Esta anotada no tiene nada para cobrar.</p>
+          )}
+        </Modal>
       )}
 
       {/* ── Nuevo turno (se monta de cero en cada apertura) ── */}
