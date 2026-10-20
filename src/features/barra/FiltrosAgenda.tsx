@@ -17,7 +17,7 @@ export function FiltrosAgenda() {
   const { busqueda, agregar, quitar } = useBusquedaAgenda();
   const { data: provs = [] } = useProviders();
   const { data: servs = [] } = useServices();
-  const { porServicio, cargando } = useProvidersByServices(busqueda.servicios);
+  const { porServicio, cargando, fallo } = useProvidersByServices(busqueda.servicios);
   const colores = useMemo(() => buildProviderColorMap(provs.map((p) => p.id)), [provs]);
 
   const nombreDe = (id: string) => provs.find((p) => p.id === id)?.fullName ?? "Prestadora";
@@ -33,7 +33,7 @@ export function FiltrosAgenda() {
   return (
     <div
       data-testid="filtros-agenda"
-      className="flex h-9 shrink-0 flex-nowrap items-center gap-2 overflow-x-auto overflow-y-hidden whitespace-nowrap text-sm"
+      className="flex h-9 shrink-0 flex-nowrap items-center gap-2 overflow-x-auto overflow-y-hidden whitespace-nowrap text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {!hayFiltros && (
         <span className="text-ink-soft/80">Elegí una prestadora o un servicio en el buscador para filtrar</span>
@@ -51,7 +51,10 @@ export function FiltrosAgenda() {
         <Chip key={`s-${id}`} nombre={servicioDe(id)} onQuitar={() => quitar("servicio", id)} />
       ))}
 
-      {busqueda.servicios.length > 0 && !cargando && queLoHacen.length === 0 && (
+      {busqueda.servicios.length > 0 && fallo && (
+        <span className="shrink-0 text-ink-soft/80">No se pudo cargar quién lo hace.</span>
+      )}
+      {busqueda.servicios.length > 0 && !cargando && !fallo && queLoHacen.length === 0 && (
         <span className="shrink-0 text-ink-soft">Nadie tiene asignado este servicio todavía.</span>
       )}
       {paraSumar.length > 0 && (

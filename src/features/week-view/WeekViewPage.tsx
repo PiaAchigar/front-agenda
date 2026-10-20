@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { rutaConservando } from "../../lib/ruta-agenda";
-import { useAppointmentsRange, useCompanyConfig, useHuecosDeLaSemana, useProviders, useServices } from "../../api/agenda";
+import { useAppointmentsRange, useCompanyConfig, useHuecosDeLaSemana, useProviders, useProvidersByServices, useServices } from "../../api/agenda";
 import type { Appointment } from "../../api/types";
 import { FONDO_DEL_HUECO, tipoDeHueco } from "../../lib/fondo-del-hueco";
 import { yaPaso } from "../../lib/horario";
@@ -116,7 +116,13 @@ export function WeekViewPage() {
   );
   const nombreDelServicio = (id: string) => servicios.find((s) => s.id === id)?.name ?? "este servicio";
   // Los carriles de los huecos son fijos en toda la semana: una prestadora cae siempre en el mismo.
+  // Un carril por (prestadora, servicio): dos servicios de la misma prestadora
+  // a la misma hora no se pisan.
+  const { porServicio } = useProvidersByServices(serviciosIds);
   const idsConHuecos = prestadorasVisibles ?? [];
+  const carrilesDeHuecos = serviciosIds.flatMap((sid) =>
+    idsConHuecos.filter((pid) => (porServicio.get(sid) ?? []).some((p) => p.id === pid)).map((pid) => `${pid}|${sid}`),
+  );
   const sinLugar = buscaLugar && !cargandoHuecos && !falloHuecos && idsConHuecos.length > 0 && huecos.length === 0;
 
   // Sólo turnos de servicio: las inscripciones a clases y capacitaciones viven
@@ -352,8 +358,8 @@ export function WeekViewPage() {
                         providerName={h.providerName}
                         servicioNombre={serviciosIds.length > 1 ? nombreDelServicio(h.serviceId) : undefined}
                         color={colorMap.get(h.providerId)}
-                        carril={Math.max(idsConHuecos.indexOf(h.providerId), 0)}
-                        total={Math.max(idsConHuecos.length, 1)}
+                        carril={Math.max(carrilesDeHuecos.indexOf(`${h.providerId}|${h.serviceId}`), 0)}
+                        total={Math.max(carrilesDeHuecos.length, 1)}
                         top={top}
                         alto={PASO_HUECO_MIN * PX_PER_MIN}
                         onElegir={() => openNewAppt(d, h.minutos, {

@@ -246,7 +246,7 @@ export function useProvidersByServices(serviceIds: string[]) {
   resultados.forEach((r, i) => {
     if (r.data) porServicio.set(serviceIds[i]!, r.data);
   });
-  return { porServicio, cargando: resultados.some((r) => r.isLoading) };
+  return { porServicio, cargando: resultados.some((r) => r.isLoading), fallo: resultados.some((r) => r.isError) };
 }
 
 export function useProvidersByService(serviceId: string | null) {

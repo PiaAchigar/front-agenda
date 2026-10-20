@@ -13,11 +13,12 @@ const SERVICIOS = [
 ];
 let porServicio = new Map<string, typeof PRESTADORAS>();
 let cargando = false;
+let fallo = false;
 
 vi.mock("../../api/agenda", () => ({
   useProviders: () => ({ data: PRESTADORAS }),
   useServices: () => ({ data: SERVICIOS }),
-  useProvidersByServices: () => ({ porServicio, cargando }),
+  useProvidersByServices: () => ({ porServicio, cargando, fallo }),
 }));
 
 const { FiltrosAgenda } = await import("./FiltrosAgenda");
@@ -44,6 +45,7 @@ describe("FiltrosAgenda", () => {
       ["s2", [PRESTADORAS[1]!, PRESTADORAS[2]!]],
     ]);
     cargando = false;
+    fallo = false;
   });
 
   it("sin filtros muestra el texto suave, siempre presente", () => {
@@ -120,5 +122,13 @@ describe("FiltrosAgenda", () => {
     cargando = true;
     montar("?servicio=s1");
     expect(screen.queryByText("Nadie tiene asignado este servicio todavía.")).not.toBeInTheDocument();
+  });
+
+  it("si falló la consulta no dice que nadie lo hace: avisa suave", () => {
+    porServicio = new Map();
+    fallo = true;
+    montar("?servicio=s1");
+    expect(screen.queryByText("Nadie tiene asignado este servicio todavía.")).not.toBeInTheDocument();
+    expect(screen.getByText("No se pudo cargar quién lo hace.")).toBeInTheDocument();
   });
 });

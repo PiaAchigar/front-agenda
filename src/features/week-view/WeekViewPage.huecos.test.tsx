@@ -8,6 +8,7 @@ let delServicio: typeof PROVEEDORAS = PROVEEDORAS;
 let huecosDelMiercoles = true;
 let fallar = false;
 let slotsCada15 = false;
+let masajeALas1030 = false;
 
 const TURNO = { id: "a1", providerId: "p1", providerName: "Romina", customerName: "Clienta tomada", serviceName: "Rostro", status: "scheduled", reservationExpiresAt: null, appointmentStart: "2026-10-21T13:00:00.000Z", appointmentEnd: "2026-10-21T14:00:00.000Z", durationMinutes: 60 };
 
@@ -31,7 +32,7 @@ vi.mock("../../api/client", () => ({
     if (fallar) throw new Error("boom");
     const masaje = /availability\/s2\?date=([\d-]+)/.exec(url);
     if (masaje && masaje[1] === "2026-10-21" && huecosDelMiercoles) {
-      return { date: masaje[1], serviceId: "s2", durationMinutes: 60, slots: [{ start: "12:00", end: "13:00", options: [{ providerId: "p2", providerName: "Tamara", machineId: null }] }] };
+      return { date: masaje[1], serviceId: "s2", durationMinutes: 60, slots: [{ start: masajeALas1030 ? "10:30" : "12:00", end: "13:00", options: [{ providerId: "p2", providerName: "Tamara", machineId: null }] }] };
     }
     const m = /availability\/s1\?date=([\d-]+)/.exec(url);
     if (m && m[1] === "2026-10-21" && huecosDelMiercoles) {
@@ -82,6 +83,7 @@ describe("WeekViewPage — dónde hay lugar", () => {
     huecosDelMiercoles = true;
     fallar = false;
     slotsCada15 = false;
+    masajeALas1030 = false;
     abrirNuevo.mockClear();
   });
   afterEach(() => vi.useRealTimers());
@@ -136,6 +138,14 @@ describe("WeekViewPage — dónde hay lugar", () => {
       "2026-10-21",
       expect.objectContaining({ serviceId: "s2", providerId: "p2", minutes: 720 }),
     );
+  });
+
+  it("dos servicios de la misma prestadora a la misma hora no se pisan: cada uno su carril", async () => {
+    masajeALas1030 = true;
+    montar("?date=2026-10-19&servicio=s1&servicio=s2");
+    const a = await screen.findByRole("button", { name: "10:30 Tamara · Limpieza facial" });
+    const b = await screen.findByRole("button", { name: "10:30 Tamara · Masaje" });
+    expect(a.style.left).not.toBe(b.style.left);
   });
 
   it("con 2 servicios y una prestadora elegida, sólo sus huecos", async () => {
