@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAvailability, useMonthAvailability } from "../../api/agenda";
 import { todayLocal } from "../../lib/format";
+import { mesSiguiente } from "../../lib/grillaDelMes";
 import { AVISO_HORARIO_PASADO, yaPaso } from "../../lib/horario";
 import { primerDiaLibre } from "../../lib/primer-dia-libre";
 import { minutosDe } from "../../lib/vender";
@@ -13,11 +14,14 @@ type Props = {
   hora: string;
   /** Depilación: la duración la fijan las zonas, así que la hora se escribe libre. */
   horaLibre: boolean;
-  /** Desde "A agendar": si no hay día, arranca en el primer día libre. */
+  /** Desde "A agendar": si no hay día, arranca en el primer día libre (buscándolo hasta `MESES_A_BUSCAR` meses adelante). */
   elegirPrimerDiaLibre: boolean;
   onCambiarFecha: (f: string) => void;
   onCambiarHora: (h: string) => void;
 };
+
+/** Hasta cuántos meses (contando el que se ve) se busca el primer día libre. */
+const MESES_A_BUSCAR = 6;
 
 // Mismas clases que `fieldClass` de NewAppointmentModal.
 const fieldClass =
@@ -37,7 +41,8 @@ export function DiaYHoraDelTurno({
   onCambiarFecha,
   onCambiarHora,
 }: Props) {
-  const [mes, setMes] = useState((fecha || todayLocal()).slice(0, 7));
+  const mesInicial = (fecha || todayLocal()).slice(0, 7);
+  const [mes, setMes] = useState(mesInicial);
   const delMes = useMonthAvailability(serviceId, providerId, mes);
   // En depilación la hora es libre: no hace falta pedir los huecos del día.
   const delDia = useAvailability(horaLibre ? null : serviceId, horaLibre ? null : fecha || null, {
@@ -46,17 +51,34 @@ export function DiaYHoraDelTurno({
   // Hora que se descartó por no estar libre (cubre el prefill de la grilla/traspaso
   // y la hora vieja tras cambiar de servicio o prestadora).
   const [descartada, setDescartada] = useState<{ fecha: string; hora: string } | null>(null);
-  const yaEligioPrimero = useRef(false);
+  // Búsqueda del primer día libre ("A agendar"): cuántos meses se miraron y
+  // cómo terminó. Es de un servicio con una prestadora: si cambian y no se
+  // había encontrado lugar, se vuelve a buscar desde el mes de arranque.
+  const clave = `${serviceId}|${providerId}`;
+  const [busqueda, setBusqueda] = useState({ de: clave, meses: 1, terminada: false, sinLugar: false });
+  if (busqueda.de !== clave) {
+    const encontrada = busqueda.terminada && !busqueda.sinLugar;
+    setBusqueda(encontrada ? { ...busqueda, de: clave } : { de: clave, meses: 1, terminada: false, sinLugar: false });
+    if (!encontrada) setMes(mesInicial);
+  }
 
-  const dias = delMes.data?.availableDays;
+  // Sólo los días del mes que se está mirando (no los de un pedido anterior).
+  const dias = delMes.data?.month === mes ? delMes.data.availableDays : undefined;
   useEffect(() => {
-    if (!elegirPrimerDiaLibre || fecha || yaEligioPrimero.current || !dias) return;
+    if (!elegirPrimerDiaLibre || fecha || busqueda.terminada || !dias) return;
     const primero = primerDiaLibre(dias, todayLocal());
     if (primero) {
-      yaEligioPrimero.current = true;
+      // Responde a lo que llegó de la API (los días del mes): no se puede derivar en el render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setBusqueda((b) => ({ ...b, terminada: true }));
       onCambiarFecha(primero);
+    } else if (busqueda.meses < MESES_A_BUSCAR) {
+      setBusqueda((b) => ({ ...b, meses: b.meses + 1 }));
+      setMes(mesSiguiente(mes));
+    } else {
+      setBusqueda((b) => ({ ...b, terminada: true, sinLugar: true }));
     }
-  }, [elegirPrimerDiaLibre, fecha, dias, onCambiarFecha]);
+  }, [elegirPrimerDiaLibre, fecha, dias, mes, busqueda.terminada, busqueda.meses, onCambiarFecha]);
 
   const libres = (delDia.data?.slots ?? []).filter((s) => !yaPaso(fecha, minutosDe(s.start)));
   const cargoElDia =
@@ -98,8 +120,17 @@ export function DiaYHoraDelTurno({
             onCambiarFecha(d);
             onCambiarHora("");
           }}
-          onMonthChange={setMes}
+          onMonthChange={(m) => {
+            // Cambiar de mes a mano corta la búsqueda: el calendario no se mueve solo.
+            setBusqueda((b) => ({ ...b, terminada: true }));
+            setMes(m);
+          }}
         />
+        {busqueda.sinLugar && !fecha && (
+          <p className="mt-1 text-xs text-ink-soft">
+            No hay días libres en los próximos {MESES_A_BUSCAR} meses para este servicio con esta prestadora.
+          </p>
+        )}
       </div>
 
       <div>
