@@ -18,6 +18,11 @@ export function fechaCorta(iso: string): string {
   return `${String(p.weekday).replace(".", "")} ${p.day}/${p.month} ${p.hour}:${p.minute}`;
 }
 
+/** "1 clase" / "N clases". */
+export function clases(n: number): string {
+  return `${n} ${n === 1 ? "clase" : "clases"}`;
+}
+
 /** Anotar a una clienta al mes: elegir horarios y cuota, y anotar (con o sin cobro inmediato). */
 export function AnotarAlMes({
   activityId,
@@ -107,13 +112,13 @@ function Formulario({
             />
             <span>
               {h.etiqueta}
-              {h.maquina ? ` · ${h.maquina}` : ""} ({h.clases} {h.clases === 1 ? "clase" : "clases"})
+              {h.maquina ? ` · ${h.maquina}` : ""} ({clases(h.clases)})
             </span>
           </label>
         ))}
       </div>
 
-      <p className="text-sm font-medium text-ink">{total} clases en {mesEnLetras(mes)}</p>
+      <p className="text-sm font-medium text-ink">{clases(total)} en {mesEnLetras(mes)}</p>
       {supera && <p className="text-xs text-amber-700">Supera las {opciones.clasesDelPlan} clases del plan</p>}
 
       <label className="block text-sm">

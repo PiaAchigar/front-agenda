@@ -3,7 +3,7 @@ import { useAnotarAClase, useOpcionesParaAnotar, type AnotarAlMesResultado } fro
 import type { ClassOccurrence, Customer } from "../../api/types";
 import { Button, ErrorNote, Modal } from "../../components/ui";
 import { CustomerPicker } from "../day-view/NewAppointmentModal";
-import { AnotarAlMes, fechaCorta } from "./AnotarAlMes";
+import { AnotarAlMes, clases, fechaCorta } from "./AnotarAlMes";
 import { CobrarCuota, mesEnLetras } from "./CobrarCuota";
 
 type Resultado = { r: AnotarAlMesResultado; mes: string; cobrar: boolean };
@@ -60,7 +60,9 @@ export function AnotarEnClaseModal({ occurrence, onClose }: { occurrence: ClassO
 function Resumen({ r }: { r: AnotarAlMesResultado }) {
   return (
     <div className="space-y-1 text-sm">
-      <p className="font-medium text-ink">Quedó anotada en {r.anotadas} clases</p>
+      <p className="font-medium text-ink">
+        {r.anotadas === 0 ? "No quedó anotada en ninguna clase" : `Quedó anotada en ${clases(r.anotadas)}`}
+      </p>
       {r.sinLugar.length > 0 && (
         <p className="text-amber-700">Sin lugar: {r.sinLugar.map(fechaCorta).join(", ")}</p>
       )}
@@ -72,7 +74,8 @@ function Anotada({
   resultado, occurrence, customer, onClose,
 }: { resultado: Resultado; occurrence: ClassOccurrence; customer: Customer | null; onClose: () => void }) {
   const { r, mes, cobrar } = resultado;
-  if (!cobrar) {
+  // Sin ninguna clase no hay nada que cobrar: nunca se pasa al cobro.
+  if (!cobrar || r.anotadas === 0) {
     return (
       <div className="space-y-3">
         <Resumen r={r} />

@@ -206,6 +206,45 @@ describe("AnotarEnClaseModal — anotar al mes", () => {
     expect(boton("Anotar y cobrar")).toBeEnabled();
   });
 
+  it("un 409 'no hay lugar en ninguna' muestra el mensaje y no pasa al cobro", async () => {
+    const user = userEvent.setup();
+    anotarMes = { ok: false, status: 409, body: { error: "No hay lugar en ninguna de esas clases" } };
+    await abrir(user);
+    await user.click(boton("Anotar y cobrar")!);
+    expect(await screen.findByText("No hay lugar en ninguna de esas clases")).toBeInTheDocument();
+    expect(screen.queryByText("Cobrar la cuota")).toBeNull();
+    expect(boton("Anotar y cobrar")).toBeEnabled();
+  });
+
+  it("un 201 con 0 anotadas dice que no quedó anotada, muestra el sin lugar y nunca pasa al cobro", async () => {
+    const user = userEvent.setup();
+    anotarMes = { ok: true, status: 201, body: { success: true, data: { subscriptionId: "s9", billingCycleId: "b", anotadas: 0, sinLugar: ["2026-11-17T13:00:00.000Z"], superaPlan: false, clasesDelMes: 0 } } };
+    await abrir(user);
+    await user.click(boton("Anotar y cobrar")!);
+    expect(await screen.findByText("No quedó anotada en ninguna clase")).toBeInTheDocument();
+    expect(screen.getByText(/Sin lugar: mar 17\/11 10:00/)).toBeInTheDocument();
+    expect(screen.queryByText("Cobrar la cuota")).toBeNull();
+    expect(fetchMock.mock.calls.some(([u]) => String(u).includes("/cuota?mes="))).toBe(false);
+    expect(boton("Cerrar")).toBeInTheDocument();
+  });
+
+  it("singular: 'Quedó anotada en 1 clase'", async () => {
+    const user = userEvent.setup();
+    anotarMes = { ok: true, status: 201, body: { success: true, data: { subscriptionId: "s9", billingCycleId: "b", anotadas: 1, sinLugar: [], superaPlan: false, clasesDelMes: 1 } } };
+    await abrir(user);
+    await user.click(boton("Anotar, cobro después")!);
+    expect(await screen.findByText("Quedó anotada en 1 clase")).toBeInTheDocument();
+  });
+
+  it("singular en el total: '1 clase en noviembre'", async () => {
+    const user = userEvent.setup();
+    opciones = { ...base, horarios: [{ scheduleId: "h1", etiqueta: "Lun 10:00", maquina: null, clases: 1 }] };
+    montar();
+    await elegir(user);
+    await user.click(await screen.findByRole("button", { name: "Anotar al mes" }));
+    expect(await screen.findByText("1 clase en noviembre")).toBeInTheDocument();
+  });
+
   it("el mes se cambia si la clase es desde el 25", async () => {
     const user = userEvent.setup();
     montar({ ...occ, date: "2026-11-26" } as ClassOccurrence);

@@ -105,6 +105,16 @@ describe("FormularioVender", () => {
     expect(screen.getByRole("button", { name: "Vender y agendar" })).toBeDisabled();
   });
 
+  it("con sinHorario y minutos=null se puede vender con cotización, y etiqueta pone el texto", async () => {
+    const onVendido = vi.fn();
+    render(<FormularioVender eleccion={{ tipo: "pack", item: PACK }} customer={CLIENTA} fecha="" minutos={null}
+      sinHorario etiqueta="Vender" onVendido={onVendido} />);
+    const b = screen.getByRole("button", { name: "Vender" });
+    expect(b).toBeEnabled();
+    await userEvent.click(b);
+    expect(onVendido).toHaveBeenCalledWith({ compraId: "pu9", descripcion: "Pack Glow x4" });
+  });
+
   it("con un horario que ya pasó no deja vender", () => {
     render(<FormularioVender eleccion={{ tipo: "servicio", item: SERVICIO }} customer={CLIENTA} fecha="2020-01-20" minutos={600}
       onVendido={vi.fn()} />);

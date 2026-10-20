@@ -83,7 +83,7 @@ export function DayViewPage() {
   const [avisoInsumos, setAvisoInsumos]     = useState<Consumo | null>(null);
   const [attendanceFor, setAttendanceFor]   = useState<AttendanceTarget | null>(null);
   const [cobrandoEn, setCobrandoEn] = useState<{ o: ClassOccurrence; a: Anotada } | null>(null);
-  // Clase en la que se quiere anotar; por ahora sólo se recuerda (sin modal todavía).
+  // Clase en la que se está anotando: abre el modal de actividad o de capacitación según su tipo.
   const [anotarEn, setAnotarEn] = useState<ClassOccurrence | null>(null);
   // El prefill de "A agendar" que pide la ficha del CRM viaja CRM → dashboard
   // → la URL de este iframe (`lib/embed.ts`, `prefillDesdeUrl`). Se lee acá,
@@ -303,13 +303,13 @@ export function DayViewPage() {
               machineId: occurrence.machineId,
             })
           }
-          // Las Tasks 4-6 conectan los modales de anotar y cobrar.
+          // onAnotar abre el modal de anotar; onCobrar el de cobrar lo que debe una anotada.
           onAnotar={setAnotarEn}
           onCobrar={(o, a) => setCobrandoEn({ o, a })}
         />
       )}
 
-      {/* ── Anotar en una clase de actividad (capacitaciones: Task 6) ── */}
+      {/* ── Anotar en una clase de actividad (y en una capacitación) ── */}
       {anotarEn?.kind === "activity" && (
         <AnotarEnClaseModal key={anotarEn.occurrenceId} occurrence={anotarEn} onClose={() => setAnotarEn(null)} />
       )}

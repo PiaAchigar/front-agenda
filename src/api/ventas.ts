@@ -168,6 +168,8 @@ function invalidarLoQueAgendaLee(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["appointments-range"] });
   // La card de la clase (agenda grupal) trae el "Debe $X" de cada anotada.
   qc.invalidateQueries({ queryKey: ["classes"] });
+  // El modal de anotar en una capacitación muestra el "Debe $X" desde acá.
+  qc.invalidateQueries({ queryKey: ["opciones-capacitacion"] });
 }
 
 export function useVender() {

@@ -53,5 +53,7 @@ describe("cobrar relee lo que la agenda muestra", () => {
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ["appointments"] });
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ["appointments-range"] });
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ["classes"] });
+    // El modal de capacitaciones muestra el "Debe $X" desde acá.
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["opciones-capacitacion"] });
   });
 });
