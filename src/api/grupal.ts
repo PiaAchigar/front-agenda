@@ -60,3 +60,82 @@ export function useCobrarCuota() {
     },
   });
 }
+
+export type OpcionesParaAnotar = {
+  anotadaAlMes: boolean;
+  suscripcion: "activa" | "pausada" | null;
+  puedePrueba: boolean;
+  cuotaSugerida: number;
+  horariosDelMes: string[];
+  subscriptionId: string | null;
+  clasesDelPlan: number | null;
+  horarios: { scheduleId: string; etiqueta: string; maquina: string | null; clases: number }[];
+};
+
+/** Qué se le puede ofrecer a una clienta en una actividad, para un mes (YYYY-MM). */
+export function useOpcionesParaAnotar(activityId: string, customerId: string | null, mes: string) {
+  return useQuery({
+    queryKey: ["opciones-anotar", activityId, customerId, mes],
+    queryFn: () =>
+      api<{ success: boolean; data: OpcionesParaAnotar }>(
+        `/api/agenda/classes/opciones?activityId=${activityId}&customerId=${customerId}&mes=${mes}`,
+      ).then((r) => r.data),
+    enabled: !!customerId,
+  });
+}
+
+export type AnotarAlMesInput = {
+  activityId: string;
+  customerId: string;
+  mes: string;
+  scheduleIds: string[];
+  cuota: number;
+};
+
+export type AnotarAlMesResultado = {
+  subscriptionId: string;
+  billingCycleId: string;
+  anotadas: number;
+  /** ISO de las clases que no tuvieron lugar */
+  sinLugar: string[];
+  superaPlan: boolean;
+  clasesDelMes: number;
+};
+
+function invalidarClases(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: ["classes"] });
+  queryClient.invalidateQueries({ queryKey: ["appointments"] });
+  queryClient.invalidateQueries({ queryKey: ["opciones-anotar"] });
+}
+
+export function useAnotarAlMes() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: AnotarAlMesInput) =>
+      api<{ success: boolean; data: AnotarAlMesResultado }>("/api/agenda/classes/anotar-al-mes", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }).then((r) => r.data),
+    onSuccess: () => invalidarClases(queryClient),
+  });
+}
+
+export type AnotarAClaseInput = {
+  activityId: string;
+  startsAt: string;
+  customerId: string;
+  scheduleId?: string;
+  prueba?: boolean;
+};
+
+export function useAnotarAClase() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: AnotarAClaseInput) =>
+      api<{ success: boolean; data: { appointmentId: string } }>("/api/agenda/classes/anotar-a-clase", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }).then((r) => r.data),
+    onSuccess: () => invalidarClases(queryClient),
+  });
+}

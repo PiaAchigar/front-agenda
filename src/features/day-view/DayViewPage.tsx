@@ -33,6 +33,7 @@ import { pesos } from "../../lib/vender";
 import { debeDelTurno } from "../../lib/deuda-del-turno";
 import { ClassesView } from "./ClassesView";
 import { CobrarCuota, mesEnLetras } from "../grupal/CobrarCuota";
+import { AnotarEnClaseModal } from "../grupal/AnotarEnClaseModal";
 
 import { saveView } from "../../components/ViewTabs";
 import { isEmbedded, prefillDesdeUrl, requestCheckoutHandoff } from "../../lib/embed";
@@ -82,7 +83,7 @@ export function DayViewPage() {
   const [attendanceFor, setAttendanceFor]   = useState<AttendanceTarget | null>(null);
   const [cobrandoEn, setCobrandoEn] = useState<{ o: ClassOccurrence; a: Anotada } | null>(null);
   // Clase en la que se quiere anotar; por ahora sólo se recuerda (sin modal todavía).
-  const [, setAnotarEn] = useState<ClassOccurrence | null>(null);
+  const [anotarEn, setAnotarEn] = useState<ClassOccurrence | null>(null);
   // El prefill de "A agendar" que pide la ficha del CRM viaja CRM → dashboard
   // → la URL de este iframe (`lib/embed.ts`, `prefillDesdeUrl`). Se lee acá,
   // en el estado inicial y no en un efecto: así el modal ya nace abierto en
@@ -305,6 +306,11 @@ export function DayViewPage() {
           onAnotar={setAnotarEn}
           onCobrar={(o, a) => setCobrandoEn({ o, a })}
         />
+      )}
+
+      {/* ── Anotar en una clase de actividad (capacitaciones: Task 6) ── */}
+      {anotarEn?.kind === "activity" && (
+        <AnotarEnClaseModal key={anotarEn.occurrenceId} occurrence={anotarEn} onClose={() => setAnotarEn(null)} />
       )}
 
       {/* ── Cobrar desde la clase: cuota (actividad) o deuda (capacitación) ── */}
