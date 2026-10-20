@@ -279,6 +279,8 @@ export function DayViewPage() {
               providerId: columnId,
               providerName: providers.find((p) => p.id === columnId)?.name,
               minutes,
+              // Con un servicio buscado, el hueco ya sabe qué se va a hacer.
+              ...(busqueda?.tipo === "servicio" ? { serviceId: busqueda.id } : {}),
             })
           }
         />

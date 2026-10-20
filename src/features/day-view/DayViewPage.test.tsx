@@ -271,6 +271,16 @@ describe("DayViewPage — el prefill de \"A agendar\" llega por la URL", () => {
   });
 });
 
+describe("DayViewPage — la búsqueda por servicio", () => {
+  it("con ?servicio= activo, tocar un slot abre Nuevo turno con ese servicio puesto", async () => {
+    conUrl("?embed=1&servicio=svc-full");
+    const user = userEvent.setup();
+    montar();
+    await user.click(await screen.findByRole("button", { name: /abrir un slot cualquiera/i }));
+    expect(await screen.findByLabelText("Qué")).toHaveValue("servicio:svc-full");
+  });
+});
+
 describe("DayViewPage — la barra nueva", () => {
   it("no tiene Por servicio, + Nuevo turno ni Día; sí Semana, Mes y los dos modos", async () => {
     conUrl("?embed=1");
