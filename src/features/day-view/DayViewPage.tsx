@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import {
   useAppointments,
@@ -28,7 +29,8 @@ import {
   sePuedeCobrar,
 } from "../../lib/acciones-del-turno";
 import { AttendanceModal, type AttendanceTarget } from "./AttendanceModal";
-import { CobrarDeudaDelTurno } from "./CobrarDeudaDelTurno";
+import { CobrarLoQueFalta } from "../vender/CobrarLoQueFalta";
+import { pesos } from "../../lib/vender";
 import { debeDelTurno } from "../../lib/deuda-del-turno";
 import { ClassesView } from "./ClassesView";
 
@@ -45,6 +47,24 @@ const STATUS_LABELS: Record<
   cancelled: { label: "Cancelado",  tone: "danger"   },
   no_show:   { label: "Ausente",    tone: "warning"  },
 };
+
+/** "Cobrar $X" sobre la compra del turno; al cobrar relee los turnos para que
+ *  el "Debe $X" se actualice. Mismas claves que `api/agenda.ts`. */
+function CobrarDeudaDelTurno({ compraId, descripcion, deuda }: { compraId: string; descripcion: string; deuda: number }) {
+  const queryClient = useQueryClient();
+  return (
+    <CobrarLoQueFalta
+      compraId={compraId}
+      descripcion={descripcion}
+      etiqueta={`Cobrar ${pesos(deuda)}`}
+      variante="primary"
+      alCobrar={() => {
+        queryClient.invalidateQueries({ queryKey: ["appointments"] });
+        queryClient.invalidateQueries({ queryKey: ["appointments-range"] });
+      }}
+    />
+  );
+}
 
 export function DayViewPage() {
   /**
@@ -208,6 +228,7 @@ export function DayViewPage() {
     );
   }
 
+  const debe = selected ? debeDelTurno(selected) : null;
   const statusInfo = STATUS_LABELS[selected?.status ?? "scheduled"] ?? STATUS_LABELS.scheduled!;
 
   return (
@@ -371,11 +392,11 @@ export function DayViewPage() {
               )}
               {/* La deuda es de la compra entera: se cobra sobre la compra. El
                   "Cobrar" común sigue bloqueado para estos turnos (sePuedeCobrar). */}
-              {selected.customerPurchaseId && debeDelTurno(selected) !== null && (
+              {selected.customerPurchaseId && debe !== null && (
                 <CobrarDeudaDelTurno
                   compraId={selected.customerPurchaseId}
-                  deuda={debeDelTurno(selected)!}
                   descripcion={selected.serviceName ?? "Compra"}
+                  deuda={debe}
                 />
               )}
               {selected.status !== "completed" && (

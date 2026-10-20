@@ -8,19 +8,40 @@ import { CobrarPaso } from "./CobrarPaso";
  * agendar, se cobra ahí mismo sobre esa compra. Al cobrar, `useCobrarCompra`
  * invalida `para-agendar` y la puerta se vuelve a leer sola.
  */
-export function CobrarLoQueFalta({ compraId, descripcion }: { compraId: string; descripcion: string }) {
+export function CobrarLoQueFalta({
+  compraId,
+  descripcion,
+  etiqueta = "Cobrar lo que falta",
+  variante = "secondary",
+  alCobrar,
+}: {
+  compraId: string;
+  descripcion: string;
+  /** Texto del botón (el detalle del turno dice "Cobrar $X"). */
+  etiqueta?: string;
+  variante?: "primary" | "secondary";
+  /** Se llama al cobrar, antes de cerrar (el detalle del turno relee los turnos). */
+  alCobrar?: () => void;
+}) {
   const [abierto, setAbierto] = useState(false);
   if (!abierto) {
     return (
-      <Button type="button" variant="secondary" onClick={() => setAbierto(true)}>
-        Cobrar lo que falta
+      <Button type="button" variant={variante} onClick={() => setAbierto(true)}>
+        {etiqueta}
       </Button>
     );
   }
-  return <CobroAbierto compraId={compraId} descripcion={descripcion} onTerminar={() => setAbierto(false)} />;
+  return (
+    <CobroAbierto
+      compraId={compraId}
+      descripcion={descripcion}
+      onCobrado={() => { alCobrar?.(); setAbierto(false); }}
+      onTerminar={() => setAbierto(false)}
+    />
+  );
 }
 
-function CobroAbierto({ compraId, descripcion, onTerminar }: { compraId: string; descripcion: string; onTerminar: () => void }) {
+function CobroAbierto({ compraId, descripcion, onCobrado, onTerminar }: { compraId: string; descripcion: string; onCobrado: () => void; onTerminar: () => void }) {
   const estado = useEstadoDeCobro(compraId);
   if (estado.error) {
     return (
@@ -46,7 +67,7 @@ function CobroAbierto({ compraId, descripcion, onTerminar }: { compraId: string;
         descripcion={descripcion}
         pendiente={estado.data.pendiente}
         minimo={estado.data.minimo}
-        onCobrado={onTerminar}
+        onCobrado={onCobrado}
         onDespues={onTerminar}
       />
     </div>
