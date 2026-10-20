@@ -51,6 +51,28 @@ h3 {
   display: none;
 }
 
+/* Scroll de la página: siempre visible y con el mismo estilo que la grilla.
+   Si sólo apareciera al abrir Referencias (que puede pasarse del alto de la
+   pantalla), el contenido saltaría de costado al hacerle lugar. */
+html {
+  overflow-y: scroll;
+  scrollbar-width: thin;
+  scrollbar-color: #a16d47 transparent;
+}
+html::-webkit-scrollbar {
+  width: 4px;
+}
+html::-webkit-scrollbar-track {
+  background: transparent;
+}
+html::-webkit-scrollbar-thumb {
+  background-color: #a16d47;
+  border-radius: 9999px;
+}
+html::-webkit-scrollbar-button {
+  display: none;
+}
+
 /* Entrada del panel de Referencias: aparece desde el botón, sin rebote. */
 @keyframes referencias-entra {
   from { opacity: 0; transform: translateY(-4px); }

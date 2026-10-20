@@ -82,7 +82,8 @@ export function BuscadorAgenda() {
         onKeyDown={alTeclear}
         onBlur={() => setAbierta(false)}
         placeholder="Buscar prestadora o servicio…"
-        className="w-64 rounded-lg border border-surface-highest bg-white px-3 py-1.5 text-sm outline-none focus:border-primary"
+        title="Buscar prestadora o servicio"
+        className="w-64 max-w-full min-w-0 text-ellipsis rounded-lg border border-surface-highest bg-white px-3 py-1.5 text-sm outline-none focus:border-primary"
       />
       {listaAbierta && (
         <div

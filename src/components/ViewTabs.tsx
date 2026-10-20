@@ -32,16 +32,16 @@ export function ViewTabs({ current }: { current: AgendaView }) {
   }
 
   return (
-    <div className="flex rounded-lg border border-surface-highest overflow-hidden text-sm">
+    <div className="flex shrink-0 rounded-lg border border-surface-highest overflow-hidden text-sm">
       {TABS.map((tab) => (
         <button
           key={tab.key}
           onClick={() => handleClick(tab)}
           aria-current={current === tab.key ? "page" : undefined}
           aria-disabled={deshabilitado || undefined}
-          title={deshabilitado ? "Por ahora las clases se ven por día" : undefined}
+          title={deshabilitado ? "Por ahora las clases se ven por día" : tab.label}
           className={[
-            "px-3 py-1.5 transition-colors",
+            "min-w-0 truncate whitespace-nowrap px-3 py-1.5 transition-colors",
             deshabilitado
               ? "bg-white text-ink-soft/50 cursor-not-allowed"
               : current === tab.key

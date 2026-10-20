@@ -59,9 +59,10 @@ export function ReferenciasAgenda() {
         aria-label="Referencias de colores"
         aria-expanded={abierto}
         aria-controls={panelId}
+        title="Referencias"
         onClick={() => setAbierto((a) => !a)}
         className={[
-          "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm transition-colors",
+          "flex items-center rounded-lg border p-2 text-sm transition-colors",
           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
           abierto
             ? "border-primary-container bg-surface-low text-primary"
@@ -69,7 +70,6 @@ export function ReferenciasAgenda() {
         ].join(" ")}
       >
         <Info size={16} aria-hidden />
-        <span className="hidden xl:inline">Referencias</span>
       </button>
 
       {abierto && (

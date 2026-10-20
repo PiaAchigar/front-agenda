@@ -23,7 +23,8 @@ type Props = {
 /**
  * La barra de arriba, común al día, la semana y el mes:
  * fecha · Turnos individuales | grupales · buscador · referencias · Semana | Mes.
- * Envuelve a dos renglones si no entra.
+ * Siempre en un solo renglón, para que el nav no le coma alto a la grilla: si
+ * no entra, los textos se cortan y se leen enteros al pasar el mouse.
  */
 export function BarraAgenda({ vista, fecha, cargando, buscador }: Props) {
   const navigate = useNavigate();
@@ -45,18 +46,21 @@ export function BarraAgenda({ vista, fecha, cargando, buscador }: Props) {
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 shrink-0">
-      {fecha}
-      <div className="flex flex-wrap items-center gap-2">
-        {cargando && <Spinner />}
+    <div className="flex flex-nowrap items-center gap-2 shrink-0 min-w-0">
+      <div className="shrink-0">{fecha}</div>
 
-        <div className="flex rounded-lg border border-surface-highest overflow-hidden text-sm">
+      {/* Lugar fijo para el spinner: que aparezca no corre nada. */}
+      <span className="flex w-4 shrink-0 justify-center">{cargando && <Spinner />}</span>
+
+      <div className="ml-auto flex min-w-0 flex-nowrap items-center gap-2">
+        <div className="flex min-w-0 rounded-lg border border-surface-highest overflow-hidden text-sm">
           {MODOS.map((m) => (
             <button
               key={m.key}
               onClick={() => elegir(m.key)}
+              title={m.label}
               className={[
-                "px-3 py-1.5 transition-colors",
+                "min-w-10 truncate whitespace-nowrap px-3 py-1.5 transition-colors",
                 modo === m.key
                   ? "bg-primary text-white font-medium"
                   : "bg-white text-ink-soft hover:bg-surface-low",
@@ -67,10 +71,11 @@ export function BarraAgenda({ vista, fecha, cargando, buscador }: Props) {
           ))}
         </div>
 
-        {buscador}
+        {/* El buscador cede ancho antes que los modos. */}
+        <div className="min-w-20 shrink-[3]">{buscador}</div>
 
         {/* Qué significa cada fondo y cada color de la grilla */}
-        {modo === "turnos" && <ReferenciasAgenda />}
+        {modo === "turnos" && <div className="shrink-0"><ReferenciasAgenda /></div>}
 
         <ViewTabs current={vista} />
       </div>

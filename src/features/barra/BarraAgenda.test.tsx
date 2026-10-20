@@ -38,6 +38,22 @@ describe("BarraAgenda", () => {
     expect(screen.getByText("el buscador")).toBeInTheDocument();
   });
 
+  it("va en un solo renglón y cada botón muestra su texto entero al pasar el mouse", () => {
+    const { container } = montar("semana");
+
+    expect(container.firstElementChild).toHaveClass("flex-nowrap");
+    for (const n of ["Turnos individuales", "Turnos grupales", "Semana", "Mes"]) {
+      expect(screen.getByRole("button", { name: n })).toHaveAttribute("title", n);
+    }
+  });
+
+  it("Referencias es sólo el ícono, con el nombre al pasar el mouse", () => {
+    montar("semana");
+
+    expect(screen.getByRole("button", { name: "Referencias de colores" })).toHaveAttribute("title", "Referencias");
+    expect(screen.queryByText("Referencias")).not.toBeInTheDocument();
+  });
+
   it("marca la solapa de la vista actual, y en el día ninguna", () => {
     const { unmount } = montar("semana");
     expect(screen.getByRole("button", { name: "Semana" })).toHaveAttribute("aria-current", "page");
