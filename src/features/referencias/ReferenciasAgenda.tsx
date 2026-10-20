@@ -87,6 +87,16 @@ export function ReferenciasAgenda() {
 
           <div className="my-3 border-t border-surface-high" />
 
+          <Grupo titulo="Mes">
+            <Item
+              nombre="Día en verde"
+              texto="Con una prestadora elegida: el día que ella atiende. Con un servicio elegido: el día en que hay lugar. Los días que ya pasaron nunca se pintan."
+              muestra={<span className="block h-6 w-10 rounded-md border border-surface-high bg-emerald-100" />}
+            />
+          </Grupo>
+
+          <div className="my-3 border-t border-surface-high" />
+
           <Grupo titulo="Turnos">
             <Item
               nombre="Color de la tarjeta"

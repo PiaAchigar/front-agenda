@@ -6,6 +6,8 @@ const hhmm = (min: number) =>
 type Props = {
   minutos: number;
   providerName: string;
+  /** Sólo con 2 o más servicios buscados: cuál es el de este hueco. */
+  servicioNombre?: string;
   color: ProviderColor | undefined;
   carril: number;
   total: number;
@@ -18,7 +20,7 @@ type Props = {
  * Un lugar libre para el servicio buscado: botón con borde punteado del color
  * de la prestadora, en su carril dentro del día para no tapar a las otras.
  */
-export function HuecoLibre({ minutos, providerName, color, carril, total, top, alto, onElegir }: Props) {
+export function HuecoLibre({ minutos, providerName, servicioNombre, color, carril, total, top, alto, onElegir }: Props) {
   return (
     <button
       type="button"
@@ -35,7 +37,7 @@ export function HuecoLibre({ minutos, providerName, color, carril, total, top, a
         borderColor: color?.text ?? "#94a3b8",
       }}
     >
-      {hhmm(minutos)} {providerName}
+      {hhmm(minutos)} {providerName}{servicioNombre ? ` · ${servicioNombre}` : ""}
     </button>
   );
 }

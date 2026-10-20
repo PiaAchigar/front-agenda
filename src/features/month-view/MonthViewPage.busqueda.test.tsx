@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
-const base = { status: "scheduled", reservationExpiresAt: null, customerName: "X", serviceName: "S" };
+const base = { status: "scheduled", reservationExpiresAt: null, customerName: "X", serviceName: "S", appointmentStart: "2026-10-21T13:00:00.000Z" };
 const TURNOS = [
   { ...base, id: "a1", providerId: "p1" },
   { ...base, id: "a2", providerId: "p1" },
@@ -14,7 +14,11 @@ vi.mock("../../api/agenda", async () => ({
   useDiasConLugar: (await vi.importActual<typeof import("../../api/agenda")>("../../api/agenda")).useDiasConLugar,
   useProviders: () => ({ data: [{ id: "p1", fullName: "Ana", specialties: null }, { id: "p2", fullName: "Bea", specialties: null }] }),
   useServices: () => ({ data: [] }),
-  useProvidersByService: (id: string | null) => ({ data: id ? [{ id: "p2", fullName: "Bea", specialties: null }] : undefined }),
+  useDiasQueAtienden: () => ({ dias: new Set<string>(), cargando: false }),
+  useProvidersByServices: (ids: string[]) => ({
+    porServicio: new Map(ids.map((id) => [id, [{ id: "p2", fullName: "Bea", specialties: null }]])),
+    cargando: false,
+  }),
   useCompanyConfig: () => ({ data: { openHours: [] } }),
 }));
 vi.mock("../../api/client", () => ({ api: vi.fn().mockResolvedValue(TURNOS) }));
@@ -57,13 +61,19 @@ describe("MonthViewPage — la búsqueda", () => {
     expect(screen.queryByText("3 turnos")).not.toBeInTheDocument();
   });
 
-  it("tocar un día lleva al día conservando la búsqueda", async () => {
-    montar("?servicio=s1&con=p2");
-    fireEvent.click((await screen.findAllByText("1 turno"))[0]!);
+  it("con varias prestadoras cuenta los turnos de todas las elegidas", async () => {
+    montar("?prestadora=p1&prestadora=p2");
+    expect((await screen.findAllByText("3 turnos")).length).toBeGreaterThan(0);
+  });
+
+  it("tocar un día lleva al día conservando la búsqueda (todos los filtros repetidos)", async () => {
+    montar("?servicio=s1&servicio=s2&prestadora=p2&prestadora=p1");
+    fireEvent.click((await screen.findAllByText("3 turnos"))[0]!);
     const url = screen.getByTestId("ubicacion").textContent!;
     expect(url).toMatch(/^\/dia\?/);
     expect(url).toContain("date=");
-    expect(url).toContain("servicio=s1");
-    expect(url).toContain("con=p2");
+    const u = new URL("http://x" + url);
+    expect(u.searchParams.getAll("servicio")).toEqual(["s1", "s2"]);
+    expect(u.searchParams.getAll("prestadora")).toEqual(["p2", "p1"]);
   });
 });

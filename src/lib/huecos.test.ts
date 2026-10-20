@@ -17,8 +17,8 @@ describe("huecosDelDia", () => {
   it("dos opciones en el mismo slot son dos huecos", () => {
     const r = huecosDelDia(av([{ start: "10:30", options: [ROMINA, TAMARA] }]), "2026-10-21", null, VIERNES_0930);
     expect(r).toEqual([
-      { dia: "2026-10-21", minutos: 630, providerId: "p1", providerName: "Romina" },
-      { dia: "2026-10-21", minutos: 630, providerId: "p2", providerName: "Tamara" },
+      { dia: "2026-10-21", minutos: 630, providerId: "p1", providerName: "Romina", serviceId: "s1" },
+      { dia: "2026-10-21", minutos: 630, providerId: "p2", providerName: "Tamara", serviceId: "s1" },
     ]);
   });
 
@@ -29,7 +29,7 @@ describe("huecosDelDia", () => {
   });
 
   it("soloDe deja nada más que a esa prestadora", () => {
-    const r = huecosDelDia(av([{ start: "10:30", options: [ROMINA, TAMARA] }]), "2026-10-21", "p2", VIERNES_0930);
+    const r = huecosDelDia(av([{ start: "10:30", options: [ROMINA, TAMARA] }]), "2026-10-21", ["p2"], VIERNES_0930);
     expect(r.map((h) => h.providerId)).toEqual(["p2"]);
   });
 });

@@ -103,6 +103,7 @@ vi.mock("../../api/agenda", () => ({
     data: serviceId ? [PROVEEDORA] : SIN_DATOS,
     isFetching: false,
   }),
+  useProvidersByServices: () => ({ porServicio: new Map(), cargando: false }),
   useServices: () => ({ data: SIN_DATOS }),
   useServicesByProvider: () => ({ data: SIN_DATOS, isFetching: false }),
   // `AttendanceModal`, `ReagendarTurnoModal` y `AvisoInsumosModal` se montan

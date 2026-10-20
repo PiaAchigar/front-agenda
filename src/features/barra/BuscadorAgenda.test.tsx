@@ -52,7 +52,37 @@ describe("BuscadorAgenda", () => {
     await user.keyboard("{ArrowDown}{Enter}");
 
     expect(ubicacion()).toContain("prestadora=p1");
-    expect(screen.getByText("Romina Suárez")).toBeInTheDocument();
+  });
+
+  it("elegir NO reemplaza al input por un chip: sigue vacío y listo para tipear", async () => {
+    const user = userEvent.setup();
+    montar();
+
+    await user.type(screen.getByRole("combobox"), "rom");
+    await user.keyboard("{ArrowDown}{Enter}");
+
+    expect(screen.getByRole("combobox")).toHaveValue("");
+    expect(screen.queryByText("Romina Suárez")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Quitar búsqueda" })).not.toBeInTheDocument();
+  });
+
+  it("se pueden sumar varias prestadoras y servicios, y repetir una no hace nada", async () => {
+    const user = userEvent.setup();
+    montar();
+    const caja = () => screen.getByRole("combobox");
+
+    await user.type(caja(), "rom");
+    await user.click(screen.getByRole("option", { name: "Romina Suárez" }));
+    await user.type(caja(), "gab");
+    await user.click(screen.getByRole("option", { name: "Gabi Médica" }));
+    await user.type(caja(), "ros");
+    await user.click(screen.getByRole("option", { name: "Rostro completo" }));
+    await user.type(caja(), "rom");
+    await user.click(screen.getByRole("option", { name: "Romina Suárez" }));
+
+    const u = new URL("http://x" + ubicacion());
+    expect(u.searchParams.getAll("prestadora")).toEqual(["p1", "p2"]);
+    expect(u.searchParams.getAll("servicio")).toEqual(["s1"]);
   });
 
   it("elegir un servicio lo pone en la URL", async () => {
@@ -75,17 +105,5 @@ describe("BuscadorAgenda", () => {
 
     expect(caja).toHaveValue("");
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
-  });
-
-  it("con algo elegido muestra el nombre y 'Quitar búsqueda' lo saca", async () => {
-    const user = userEvent.setup();
-    montar("/dia?prestadora=p2&date=2026-10-19");
-
-    expect(screen.getByText("Gabi Médica")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Quitar búsqueda" }));
-
-    expect(ubicacion()).not.toContain("prestadora");
-    expect(ubicacion()).toContain("date=2026-10-19");
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
   });
 });

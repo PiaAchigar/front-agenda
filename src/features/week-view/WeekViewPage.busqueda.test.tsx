@@ -14,7 +14,10 @@ vi.mock("../../api/agenda", async () => ({
   useHuecosDeLaSemana: (await vi.importActual<typeof import("../../api/agenda")>("../../api/agenda")).useHuecosDeLaSemana,
   useProviders: () => ({ data: [{ id: "p1", fullName: "Ana", specialties: null }, { id: "p2", fullName: "Bea", specialties: null }] }),
   useServices: () => ({ data: [] }),
-  useProvidersByService: (id: string | null) => ({ data: id ? [{ id: "p2", fullName: "Bea", specialties: null }] : undefined }),
+  useProvidersByServices: (ids: string[]) => ({
+    porServicio: new Map(ids.map((id) => [id, [{ id: "p2", fullName: "Bea", specialties: null }]])),
+    cargando: false,
+  }),
   useCompanyConfig: () => ({ data: { openHours: [] } }),
 }));
 vi.mock("../../api/client", () => ({
@@ -63,13 +66,25 @@ describe("WeekViewPage — la búsqueda", () => {
     expect(screen.queryByText("Clienta de Ana")).not.toBeInTheDocument();
   });
 
-  it("tocar un día lleva al día conservando la búsqueda", async () => {
-    montar("?date=2026-10-19&prestadora=p1&con=c9");
+  it("la fila de filtros está siempre, también sin filtros", async () => {
+    montar("?date=2026-10-19");
+    expect(await screen.findByText("Elegí una prestadora o un servicio en el buscador para filtrar")).toBeInTheDocument();
+  });
+
+  it("con varias prestadoras deja los turnos de todas las elegidas", async () => {
+    montar("?date=2026-10-19&prestadora=p1&prestadora=p2");
+    expect((await screen.findAllByText("Clienta de Ana")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Clienta de Bea").length).toBeGreaterThan(0);
+  });
+
+  it("tocar un día lleva al día conservando todos los filtros", async () => {
+    montar("?date=2026-10-19&prestadora=p1&prestadora=c9&servicio=s1");
     fireEvent.click(await screen.findByText("Lun"));
     const url = screen.getByTestId("ubicacion").textContent!;
     expect(url).toMatch(/^\/dia\?/);
     expect(url).toContain("date=");
-    expect(url).toContain("prestadora=p1");
-    expect(url).toContain("con=c9");
+    const u = new URL("http://x" + url);
+    expect(u.searchParams.getAll("prestadora")).toEqual(["p1", "c9"]);
+    expect(u.searchParams.getAll("servicio")).toEqual(["s1"]);
   });
 });

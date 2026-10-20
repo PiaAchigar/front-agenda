@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { rutaConservando } from "../../lib/ruta-agenda";
 import { useQueries } from "@tanstack/react-query";
-import { useCompanyConfig, useDiasConLugar, useProviders, useProvidersByService } from "../../api/agenda";
+import { useCompanyConfig, useDiasConLugar, useDiasQueAtienden, useProviders, useProvidersByServices } from "../../api/agenda";
 import { api } from "../../api/client";
 import type { Appointment } from "../../api/types";
 import { buildProviderColorMap } from "../../lib/colors";
@@ -13,7 +13,8 @@ import { saveView } from "../../components/ViewTabs";
 import { BarraAgenda } from "../barra/BarraAgenda";
 import { BuscadorAgenda } from "../barra/BuscadorAgenda";
 import { useBusquedaAgenda, usePrestadorasDeLaBusqueda } from "../../lib/busqueda-agenda";
-import { QuienesLoHacen } from "../barra/QuienesLoHacen";
+import { FiltrosAgenda } from "../barra/FiltrosAgenda";
+import { PuntoDeLaPrestadora } from "./PuntoDeLaPrestadora";
 
 /** Reservas expiradas se tratan como canceladas hasta que el cron las limpie. */
 function isVisible(appt: { status: string | null; reservationExpiresAt: string | null }): boolean {
@@ -65,33 +66,42 @@ export function MonthViewPage() {
 
   const prestadorasVisibles = usePrestadorasDeLaBusqueda();
 
-  // Con un servicio buscado se marcan los días con lugar.
-  const [busqueda] = useBusquedaAgenda();
-  const servicioId = busqueda?.tipo === "servicio" ? busqueda.id : null;
-  const soloDe = searchParams.get("con");
-  const { data: queLoHacen } = useProvidersByService(servicioId);
-  const idsQueLoHacen = useMemo(
-    () => (queLoHacen ?? []).map((p) => p.id).filter((id) => !soloDe || id === soloDe),
-    [queLoHacen, soloDe],
+  // Verde, según lo que se filtre:
+  //  · servicios elegidos: los días con lugar (sólo en las prestadoras elegidas, si hay);
+  //  · sólo prestadoras: los días en que alguna de ellas trabaja.
+  const { busqueda } = useBusquedaAgenda();
+  const { porServicio } = useProvidersByServices(busqueda.servicios);
+  const paresConLugar = busqueda.servicios.flatMap((serviceId) =>
+    (porServicio.get(serviceId) ?? [])
+      .map((p) => p.id)
+      .filter((id) => busqueda.prestadoras.length === 0 || busqueda.prestadoras.includes(id))
+      .map((providerId) => ({ serviceId, providerId })),
   );
   const { dias: diasConLugar, cargando: cargandoLugar, fallo: falloLugar } = useDiasConLugar(
-    servicioId,
-    idsQueLoHacen,
+    paresConLugar,
     ymd(year, month0, 1).slice(0, 7),
+  );
+  const buscaLugar = busqueda.servicios.length > 0;
+  const { dias: diasQueAtienden, cargando: cargandoHorario } = useDiasQueAtienden(
+    days,
+    !buscaLugar ? busqueda.prestadoras : [],
   );
 
   const statsByDate = useMemo(() => {
-    const map = new Map<string, { count: number; providerIds: string[] }>();
+    const map = new Map<string, { count: number; providerIds: string[]; porPrestadora: Map<string, Appointment[]> }>();
     days.forEach((d, i) => {
       const appts = (dayQueries[i]?.data ?? [])
         .filter(isVisible)
         .filter((a) => !prestadorasVisibles || (a.providerId && prestadorasVisibles.includes(a.providerId)));
       const providerIds: string[] = [];
+      const porPrestadora = new Map<string, Appointment[]>();
       for (const a of appts) {
         const pid = a.providerId ?? "";
-        if (pid && !providerIds.includes(pid)) providerIds.push(pid);
+        if (!pid) continue;
+        if (!providerIds.includes(pid)) providerIds.push(pid);
+        porPrestadora.set(pid, [...(porPrestadora.get(pid) ?? []), a]);
       }
-      map.set(d, { count: appts.length, providerIds });
+      map.set(d, { count: appts.length, providerIds, porPrestadora });
     });
     return map;
   }, [days, dayQueries, prestadorasVisibles]);
@@ -113,7 +123,7 @@ export function MonthViewPage() {
       {/* ── Barra ── */}
       <BarraAgenda
         vista="mes"
-        cargando={isLoading || cargandoLugar}
+        cargando={isLoading || cargandoLugar || cargandoHorario}
         fecha={
           <div className="flex items-center gap-1">
             <button
@@ -136,7 +146,7 @@ export function MonthViewPage() {
         buscador={<BuscadorAgenda />}
       />
 
-      {servicioId && <QuienesLoHacen serviceId={servicioId} />}
+      <FiltrosAgenda />
       {falloLugar && <p className="shrink-0 text-sm text-red-700">No se pudo consultar la disponibilidad. Probá de nuevo.</p>}
 
       {/* ── Calendario ── */}
@@ -166,17 +176,20 @@ export function MonthViewPage() {
             const dayNum  = cell.getUTCDate();
             const dots    = stats?.providerIds ?? [];
             const extra   = dots.length - MAX_DOTS;
-            const conLugar = inMonth && diasConLugar.has(d);
+            const conLugar = inMonth && buscaLugar && diasConLugar.has(d);
+            const atiende = inMonth && !buscaLugar && diasQueAtienden.has(d);
+            const verde   = conLugar || atiende;
 
             return (
               <button
                 key={d}
                 data-dia={d}
                 data-lugar={conLugar ? "si" : undefined}
+                data-atiende={atiende ? "si" : undefined}
                 onClick={() => navigate(rutaConservando(conLugar ? "/semana" : "/dia", searchParams, { date: d }))}
                 className={[
                   "relative flex flex-col items-start gap-1 border-b border-l border-surface-high p-1.5 text-left transition-colors",
-                  conLugar ? "bg-emerald-100 hover:bg-emerald-200" : closed ? "bg-surface-high/50 hover:bg-surface-low" : "bg-white hover:bg-surface-low",
+                  verde ? "bg-emerald-100 hover:bg-emerald-200" : closed ? "bg-surface-high/50 hover:bg-surface-low" : "bg-white hover:bg-surface-low",
                   inMonth ? "" : "opacity-40",
                 ].join(" ")}
               >
@@ -199,10 +212,13 @@ export function MonthViewPage() {
                   <div className="mt-auto flex w-full flex-col gap-2">
                     <div className="flex flex-wrap items-center gap-0.5">
                       {dots.slice(0, MAX_DOTS).map((pid) => (
-                        <span
+                        <PuntoDeLaPrestadora
                           key={pid}
-                          className="h-4 w-4 rounded-full"
-                          style={{ backgroundColor: colorMap.get(pid)?.bg ?? "#cbd5e1" }}
+                          dia={d}
+                          providerId={pid}
+                          providerName={providers.find((p) => p.id === pid)?.fullName ?? "Prestadora"}
+                          color={colorMap.get(pid)}
+                          turnos={stats?.porPrestadora.get(pid) ?? []}
                         />
                       ))}
                       {extra > 0 && (

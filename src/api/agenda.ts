@@ -67,46 +67,47 @@ export function useMonthAvailability(
 }
 
 /**
- * Los huecos libres de un servicio en varios días: un pedido de disponibilidad
- * por día (misma clave de caché que `useAvailability`). `soloDe` deja a una
- * sola prestadora.
+ * Los huecos libres de varios servicios en varios días: un pedido de
+ * disponibilidad por servicio y por día (misma clave de caché que
+ * `useAvailability`). `soloDe` deja a esas prestadoras nada más.
  */
 export function useHuecosDeLaSemana(
-  serviceId: string | null,
+  serviceIds: string[],
   dias: string[],
-  soloDe: string | null,
+  soloDe: string[] | null,
 ): { huecos: HuecoLibre[]; cargando: boolean; fallo: boolean } {
+  const pares = serviceIds.flatMap((serviceId) => dias.map((dia) => ({ serviceId, dia })));
   const resultados = useQueries({
-    queries: dias.map((dia) => ({
+    queries: pares.map(({ serviceId, dia }) => ({
       queryKey: ["availability", serviceId, dia, null, null],
-      queryFn: () => api<Availability>(disponibilidadUrl(serviceId!, dia)),
-      enabled: Boolean(serviceId),
+      queryFn: () => api<Availability>(disponibilidadUrl(serviceId, dia)),
     })),
   });
   const huecos: HuecoLibre[] = [];
   resultados.forEach((r, i) => {
-    if (r.data) huecos.push(...huecosDelDia(r.data, dias[i]!, soloDe));
+    if (r.data) huecos.push(...huecosDelDia(r.data, pares[i]!.dia, soloDe));
   });
-  return { huecos, cargando: Boolean(serviceId) && resultados.some((r) => r.isLoading), fallo: resultados.some((r) => r.isError) };
+  return { huecos, cargando: resultados.some((r) => r.isLoading), fallo: resultados.some((r) => r.isError) };
 }
 
-/** Días del mes (sin los pasados) en que alguna de las prestadoras tiene lugar para el servicio. */
+/** Un servicio y una prestadora que lo hace: lo que se consulta para saber dónde hay lugar. */
+export type ParServicioPrestadora = { serviceId: string; providerId: string };
+
+/** Días del mes (sin los pasados) en que alguno de los pares tiene lugar. */
 export function useDiasConLugar(
-  serviceId: string | null,
-  providerIds: string[],
+  pares: ParServicioPrestadora[],
   mes: string,
 ): { dias: Set<string>; cargando: boolean; fallo: boolean } {
   const resultados = useQueries({
-    queries: providerIds.map((providerId) => ({
+    queries: pares.map(({ serviceId, providerId }) => ({
       queryKey: ["availability-month", serviceId, providerId, mes, null],
-      queryFn: () => api<MonthAvailability>(disponibilidadDelMesUrl(serviceId!, providerId, mes)),
-      enabled: Boolean(serviceId),
+      queryFn: () => api<MonthAvailability>(disponibilidadDelMesUrl(serviceId, providerId, mes)),
     })),
   });
   const hoy = ahoraEnArgentina().fecha;
   const dias = new Set<string>();
   for (const r of resultados) for (const d of r.data?.availableDays ?? []) if (d >= hoy) dias.add(d);
-  return { dias, cargando: Boolean(serviceId) && resultados.some((r) => r.isLoading), fallo: resultados.some((r) => r.isError) };
+  return { dias, cargando: resultados.some((r) => r.isLoading), fallo: resultados.some((r) => r.isError) };
 }
 
 export type ProviderWindow = { start: number; end: number };
@@ -118,6 +119,36 @@ export function useProviderSchedule(date: string) {
     queryFn: () => api<ProviderSchedule[]>(`/api/agenda/providers/schedule?date=${date}`),
     staleTime: 5 * 60 * 1000,
   });
+}
+
+/**
+ * Días (sin los pasados) en que alguna de las prestadoras trabaja, según el
+ * horario que ya lee la agenda (`/providers/schedule`: ventanas por día, con
+ * horario semanal, excepciones y sábados). "Trabaja" = tiene al menos una ventana.
+ */
+export function useDiasQueAtienden(
+  dias: string[],
+  providerIds: string[],
+): { dias: Set<string>; cargando: boolean } {
+  const activa = providerIds.length > 0;
+  const resultados = useQueries({
+    queries: dias.map((date) => ({
+      queryKey: ["provider-schedule", date],
+      queryFn: () => api<ProviderSchedule[]>(`/api/agenda/providers/schedule?date=${date}`),
+      staleTime: 5 * 60 * 1000,
+      enabled: activa,
+    })),
+  });
+  const hoy = ahoraEnArgentina().fecha;
+  const atienden = new Set<string>();
+  if (activa) {
+    resultados.forEach((r, i) => {
+      const dia = dias[i]!;
+      if (dia < hoy) return;
+      if ((r.data ?? []).some((h) => providerIds.includes(h.providerId) && h.windows.length > 0)) atienden.add(dia);
+    });
+  }
+  return { dias: atienden, cargando: activa && resultados.some((r) => r.isLoading) };
 }
 
 export function useAppointments(date: string) {
@@ -200,6 +231,22 @@ export function useProviders() {
     queryFn: () => api<Provider[]>("/api/agenda/providers"),
     staleTime: 5 * 60 * 1000,
   });
+}
+
+/** Las prestadoras de cada servicio (un pedido por servicio, misma caché que `useProvidersByService`). */
+export function useProvidersByServices(serviceIds: string[]) {
+  const resultados = useQueries({
+    queries: serviceIds.map((serviceId) => ({
+      queryKey: ["providers", "by-service", serviceId],
+      queryFn: () => api<Provider[]>(`/api/agenda/providers?serviceId=${serviceId}`),
+      staleTime: 5 * 60 * 1000,
+    })),
+  });
+  const porServicio = new Map<string, Provider[]>();
+  resultados.forEach((r, i) => {
+    if (r.data) porServicio.set(serviceIds[i]!, r.data);
+  });
+  return { porServicio, cargando: resultados.some((r) => r.isLoading) };
 }
 
 export function useProvidersByService(serviceId: string | null) {

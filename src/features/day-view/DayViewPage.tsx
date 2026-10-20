@@ -15,7 +15,7 @@ import { CalendarGrid } from "./CalendarGrid";
 import { BarraAgenda } from "../barra/BarraAgenda";
 import { BuscadorAgenda } from "../barra/BuscadorAgenda";
 import { useBusquedaAgenda, usePrestadorasDeLaBusqueda } from "../../lib/busqueda-agenda";
-import { QuienesLoHacen } from "../barra/QuienesLoHacen";
+import { FiltrosAgenda } from "../barra/FiltrosAgenda";
 import { useModoAgenda } from "../../lib/modo-agenda";
 import type { NewApptPrefill } from "./NewAppointmentModal";
 import { NuevoTurnoModal } from "../nuevo-turno/NuevoTurnoModal";
@@ -95,7 +95,7 @@ export function DayViewPage() {
   // Turnos individuales vs grupales (clases): ver `lib/modo-agenda.ts`.
   const [agendaMode] = useModoAgenda();
   const columnIds = usePrestadorasDeLaBusqueda();
-  const [busqueda] = useBusquedaAgenda();
+  const { busqueda } = useBusquedaAgenda();
 
   function openReschedule(appt: Appointment) {
     setSelectedId(null);
@@ -259,7 +259,7 @@ export function DayViewPage() {
         buscador={agendaMode === "turnos" ? <BuscadorAgenda /> : undefined}
       />
 
-      {agendaMode === "turnos" && busqueda?.tipo === "servicio" && <QuienesLoHacen serviceId={busqueda.id} />}
+      {agendaMode === "turnos" && <FiltrosAgenda />}
 
       {error && <ErrorNote message={(error as Error).message} />}
 
@@ -279,8 +279,8 @@ export function DayViewPage() {
               providerId: columnId,
               providerName: providers.find((p) => p.id === columnId)?.name,
               minutes,
-              // Con un servicio buscado, el hueco ya sabe qué se va a hacer.
-              ...(busqueda?.tipo === "servicio" ? { serviceId: busqueda.id } : {}),
+              // Con un solo servicio buscado, el hueco ya sabe qué se va a hacer.
+              ...(busqueda.servicios.length === 1 ? { serviceId: busqueda.servicios[0]! } : {}),
             })
           }
         />

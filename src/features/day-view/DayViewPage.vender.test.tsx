@@ -25,6 +25,7 @@ vi.mock("../../api/agenda", () => ({
   useCustomerSearch: () => ({ data: SIN_DATOS, isFetching: false }),
   useParaAgendar: () => ({ data: undefined, isFetching: false }),
   useProvidersByService: () => ({ data: SIN_DATOS, isFetching: false }),
+  useProvidersByServices: () => ({ porServicio: new Map(), cargando: false }),
   useServices: () => ({ data: SIN_DATOS }),
   useServicesByProvider: () => ({ data: SIN_DATOS, isFetching: false }),
   useClassRoster: () => ({ data: SIN_DATOS, isLoading: false }),

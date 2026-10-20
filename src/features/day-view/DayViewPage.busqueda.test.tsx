@@ -36,6 +36,10 @@ vi.mock("../../api/agenda", () => ({
     data: serviceId === "s2" ? [PRESTADORAS[0], PRESTADORAS[1]] : serviceId ? [PRESTADORAS[0]] : undefined,
     isFetching: false,
   }),
+  useProvidersByServices: (ids: string[]) => ({
+    porServicio: new Map(ids.map((id) => [id, id === "s2" ? [PRESTADORAS[0], PRESTADORAS[1]] : [PRESTADORAS[0]]])),
+    cargando: false,
+  }),
   useServices: () => ({ data: SERVICIOS }),
   useServicesByProvider: () => ({ data: SIN_DATOS, isFetching: false }),
   // `AttendanceModal`, `ReagendarTurnoModal` y `AvisoInsumosModal` se montan
@@ -85,8 +89,16 @@ describe("DayViewPage — la búsqueda filtra las columnas", () => {
     expect(montar("?date=2026-10-19&servicio=s1")).toEqual(["p1"]);
   });
 
-  it("?servicio=s2&con=p2 deja sólo la columna de la prestadora elegida en 'La hacen:'", () => {
+  it("?servicio=s2&prestadora=p2 deja sólo la columna de la prestadora elegida (la de 'La hacen:')", () => {
     expect(montar("?date=2026-10-19&servicio=s2")).toEqual(["p1", "p2"]);
-    expect(montar("?date=2026-10-19&servicio=s2&con=p2")).toEqual(["p2"]);
+    expect(montar("?date=2026-10-19&servicio=s2&prestadora=p2")).toEqual(["p2"]);
+  });
+
+  it("dos prestadoras elegidas dejan las dos columnas", () => {
+    expect(montar("?date=2026-10-19&prestadora=p3&prestadora=p1")).toEqual(["p1", "p3"]);
+  });
+
+  it("dos servicios dejan las prestadoras de cualquiera de los dos", () => {
+    expect(montar("?date=2026-10-19&servicio=s1&servicio=s2")).toEqual(["p1", "p2"]);
   });
 });

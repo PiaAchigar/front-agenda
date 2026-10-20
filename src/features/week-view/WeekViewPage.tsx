@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { rutaConservando } from "../../lib/ruta-agenda";
-import { useAppointmentsRange, useCompanyConfig, useHuecosDeLaSemana, useProviders, useProvidersByService, useServices } from "../../api/agenda";
+import { useAppointmentsRange, useCompanyConfig, useHuecosDeLaSemana, useProviders, useServices } from "../../api/agenda";
 import type { Appointment } from "../../api/types";
 import { FONDO_DEL_HUECO, tipoDeHueco } from "../../lib/fondo-del-hueco";
 import { yaPaso } from "../../lib/horario";
@@ -21,7 +21,7 @@ import { saveView } from "../../components/ViewTabs";
 import { BarraAgenda } from "../barra/BarraAgenda";
 import { BuscadorAgenda } from "../barra/BuscadorAgenda";
 import { useBusquedaAgenda, usePrestadorasDeLaBusqueda } from "../../lib/busqueda-agenda";
-import { QuienesLoHacen } from "../barra/QuienesLoHacen";
+import { FiltrosAgenda } from "../barra/FiltrosAgenda";
 import { HuecoLibre } from "./HuecoLibre";
 import { PastillaDeTurno } from "./PastillaDeTurno";
 import type { NewApptPrefill } from "../day-view/NewAppointmentModal";
@@ -103,20 +103,21 @@ export function WeekViewPage() {
 
   const prestadorasVisibles = usePrestadorasDeLaBusqueda();
 
-  // Con un servicio buscado la semana muestra dónde hay lugar.
-  const [busqueda] = useBusquedaAgenda();
-  const servicioId = busqueda?.tipo === "servicio" ? busqueda.id : null;
-  const soloDe = searchParams.get("con");
+  // Con servicios buscados la semana muestra dónde hay lugar: cada servicio
+  // elegido en cada prestadora visible (la API sólo ofrece a las que lo hacen).
+  const { busqueda } = useBusquedaAgenda();
+  const serviciosIds = busqueda.servicios;
+  const buscaLugar = serviciosIds.length > 0;
   const { data: servicios = [] } = useServices();
-  const { data: queLoHacen } = useProvidersByService(servicioId);
-  const { huecos, cargando: cargandoHuecos, fallo: falloHuecos } = useHuecosDeLaSemana(servicioId, weekDates, soloDe);
-  const nombreDelServicio = servicios.find((s) => s.id === servicioId)?.name ?? "este servicio";
-  // Los carriles de los huecos son fijos en toda la semana: una prestadora cae siempre en el mismo.
-  const idsConHuecos = useMemo(
-    () => (queLoHacen ?? []).map((p) => p.id).filter((id) => !soloDe || id === soloDe),
-    [queLoHacen, soloDe],
+  const { huecos, cargando: cargandoHuecos, fallo: falloHuecos } = useHuecosDeLaSemana(
+    serviciosIds,
+    weekDates,
+    prestadorasVisibles ?? null,
   );
-  const sinLugar = Boolean(servicioId) && !cargandoHuecos && !falloHuecos && (queLoHacen?.length ?? 0) > 0 && huecos.length === 0;
+  const nombreDelServicio = (id: string) => servicios.find((s) => s.id === id)?.name ?? "este servicio";
+  // Los carriles de los huecos son fijos en toda la semana: una prestadora cae siempre en el mismo.
+  const idsConHuecos = prestadorasVisibles ?? [];
+  const sinLugar = buscaLugar && !cargandoHuecos && !falloHuecos && idsConHuecos.length > 0 && huecos.length === 0;
 
   // Sólo turnos de servicio: las inscripciones a clases y capacitaciones viven
   // en la vista "Clases" (6 inscriptas al mismo Pilates serían 6 pastillas).
@@ -179,11 +180,15 @@ export function WeekViewPage() {
         buscador={<BuscadorAgenda />}
       />
 
-      {servicioId && <QuienesLoHacen serviceId={servicioId} />}
+      <FiltrosAgenda />
       {falloHuecos && <p className="shrink-0 text-sm text-red-700">No se pudo consultar la disponibilidad. Probá de nuevo.</p>}
       {sinLugar && (
         <div className="flex shrink-0 items-center gap-3 text-sm text-ink-soft">
-          <span>No hay lugar para {nombreDelServicio} esta semana.</span>
+          <span>
+            {serviciosIds.length === 1
+              ? `No hay lugar para ${nombreDelServicio(serviciosIds[0]!)} esta semana.`
+              : "No hay lugar para esos servicios esta semana."}
+          </span>
           <button
             type="button"
             onClick={() => navigate(rutaConservando("/mes", searchParams, { date: anchorDate }))}
@@ -298,10 +303,10 @@ export function WeekViewPage() {
                               : "hover:bg-surface-low cursor-pointer",
                         ].join(" ")}
                         style={{ top: (s - START_MIN) * PX_PER_MIN, height: SLOT_PX, ...fondo.style }}
-                        onClick={pasado || servicioId ? undefined : () => openNewAppt(d, s)}
+                        onClick={pasado || buscaLugar ? undefined : () => openNewAppt(d, s)}
                         aria-disabled={pasado || undefined}
                       >
-                        {!pasado && !servicioId && (
+                        {!pasado && !buscaLugar && (
                           <span className="text-sm font-light text-gray-200 select-none pointer-events-none">
                             +
                           </span>
@@ -314,7 +319,7 @@ export function WeekViewPage() {
                   <div
                     data-testid={`turnos-${d}`}
                     className="pointer-events-none absolute inset-0 [&>*]:pointer-events-auto"
-                    style={servicioId ? { opacity: 0.35 } : undefined}
+                    style={buscaLugar ? { opacity: 0.35 } : undefined}
                   >
                   {dayAppts.map((appt) => {
                     const top  = (isoToLocalMinutes(appt.appointmentStart) - START_MIN) * PX_PER_MIN;
@@ -342,16 +347,17 @@ export function WeekViewPage() {
                     if (top < 0 || top >= TOTAL_PX) return null;
                     return (
                       <HuecoLibre
-                        key={`${h.minutos}-${h.providerId}`}
+                        key={`${h.minutos}-${h.providerId}-${h.serviceId}`}
                         minutos={h.minutos}
                         providerName={h.providerName}
+                        servicioNombre={serviciosIds.length > 1 ? nombreDelServicio(h.serviceId) : undefined}
                         color={colorMap.get(h.providerId)}
                         carril={Math.max(idsConHuecos.indexOf(h.providerId), 0)}
                         total={Math.max(idsConHuecos.length, 1)}
                         top={top}
                         alto={PASO_HUECO_MIN * PX_PER_MIN}
                         onElegir={() => openNewAppt(d, h.minutos, {
-                          serviceId: servicioId!,
+                          serviceId: h.serviceId,
                           providerId: h.providerId,
                           providerName: h.providerName,
                         })}

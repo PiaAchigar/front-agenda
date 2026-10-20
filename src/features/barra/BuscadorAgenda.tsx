@@ -1,18 +1,18 @@
 import { useId, useMemo, useState, type KeyboardEvent } from "react";
-import { X } from "lucide-react";
 import { useProviders, useServices } from "../../api/agenda";
-import { sugerencias, useBusquedaAgenda, type Busqueda } from "../../lib/busqueda-agenda";
+import { sugerencias, useBusquedaAgenda } from "../../lib/busqueda-agenda";
 
 type Elegible = { tipo: "prestadora" | "servicio"; id: string; name: string };
 
 /**
  * El buscador de la barra: se tipea el nombre de una prestadora o de un
- * servicio y la agenda se queda con eso. Elegido, muestra el nombre con una
- * x para quitar la búsqueda.
+ * servicio y se suma como filtro. El buscador nunca cambia: elegir no lo
+ * reemplaza por un chip, sigue vacío para sumar otro (los chips viven en
+ * `FiltrosAgenda`, la fila de abajo).
  */
 export function BuscadorAgenda() {
   const idBase = useId();
-  const [busqueda, elegir] = useBusquedaAgenda();
+  const { agregar } = useBusquedaAgenda();
   const { data: provs = [] } = useProviders();
   const { data: servs = [] } = useServices();
   const [texto, setTexto] = useState("");
@@ -43,7 +43,7 @@ export function BuscadorAgenda() {
   }
 
   function aceptar(o: Elegible) {
-    elegir({ tipo: o.tipo, id: o.id });
+    agregar(o.tipo, o.id);
     cerrar();
   }
 
@@ -61,24 +61,6 @@ export function BuscadorAgenda() {
     } else if (e.key === "Escape") {
       cerrar();
     }
-  }
-
-  if (busqueda) {
-    return (
-      <div className="flex items-center gap-1 rounded-lg border border-primary bg-white pl-3 pr-1 py-1 text-sm">
-        <span className="text-ink max-w-48 truncate">
-          {nombreDe(busqueda, prestadoras, servicios)}
-        </span>
-        <button
-          type="button"
-          onClick={() => elegir(null)}
-          aria-label="Quitar búsqueda"
-          className="rounded p-0.5 text-ink-soft hover:bg-surface-low hover:text-ink"
-        >
-          <X size={14} />
-        </button>
-      </div>
-    );
   }
 
   return (
@@ -144,13 +126,4 @@ export function BuscadorAgenda() {
       )}
     </div>
   );
-}
-
-function nombreDe(
-  b: NonNullable<Busqueda>,
-  prestadoras: { id: string; name: string }[],
-  servicios: { id: string; name: string }[],
-) {
-  const lista = b.tipo === "prestadora" ? prestadoras : servicios;
-  return lista.find((o) => o.id === b.id)?.name ?? "Búsqueda";
 }

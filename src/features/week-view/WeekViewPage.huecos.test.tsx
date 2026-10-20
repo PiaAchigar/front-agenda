@@ -17,8 +17,11 @@ vi.mock("../../api/agenda", async () => {
     useAppointmentsRange: real.useAppointmentsRange,
     useHuecosDeLaSemana: real.useHuecosDeLaSemana,
     useProviders: () => ({ data: PROVEEDORAS }),
-    useServices: () => ({ data: [{ id: "s1", name: "Limpieza facial" }] }),
-    useProvidersByService: () => ({ data: delServicio, isLoading: false }),
+    useServices: () => ({ data: [{ id: "s1", name: "Limpieza facial" }, { id: "s2", name: "Masaje" }] }),
+    useProvidersByServices: (ids: string[]) => ({
+      porServicio: new Map(ids.map((id) => [id, id === "s2" ? [PROVEEDORAS[1]!] : delServicio])),
+      cargando: false,
+    }),
     useCompanyConfig: () => ({ data: { openHours: [] } }),
   };
 });
@@ -26,6 +29,10 @@ vi.mock("../../api/client", () => ({
   api: vi.fn(async (url: string) => {
     if (url.startsWith("/api/agenda/appointments")) return [TURNO];
     if (fallar) throw new Error("boom");
+    const masaje = /availability\/s2\?date=([\d-]+)/.exec(url);
+    if (masaje && masaje[1] === "2026-10-21" && huecosDelMiercoles) {
+      return { date: masaje[1], serviceId: "s2", durationMinutes: 60, slots: [{ start: "12:00", end: "13:00", options: [{ providerId: "p2", providerName: "Tamara", machineId: null }] }] };
+    }
     const m = /availability\/s1\?date=([\d-]+)/.exec(url);
     if (m && m[1] === "2026-10-21" && huecosDelMiercoles) {
       return {
@@ -108,10 +115,39 @@ describe("WeekViewPage — dónde hay lugar", () => {
     );
   });
 
-  it("con ?con=p1 sólo los huecos de Romina", async () => {
-    montar("?date=2026-10-19&servicio=s1&con=p1");
+  it("con una prestadora elegida además, sólo los huecos de Romina", async () => {
+    montar("?date=2026-10-19&servicio=s1&prestadora=p1");
     await screen.findByRole("button", { name: "10:30 Romina" });
     expect(screen.queryByRole("button", { name: "10:30 Tamara" })).not.toBeInTheDocument();
+  });
+
+  it("con 2 servicios dibuja los huecos de cada uno y la etiqueta nombra el servicio", async () => {
+    montar("?date=2026-10-19&servicio=s1&servicio=s2");
+    expect(await screen.findByRole("button", { name: "10:30 Romina · Limpieza facial" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "10:30 Tamara · Limpieza facial" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "12:00 Tamara · Masaje" })).toBeInTheDocument();
+  });
+
+  it("tocar un hueco de uno de los servicios abre Nuevo turno con ESE servicio", async () => {
+    montar("?date=2026-10-19&servicio=s1&servicio=s2");
+    fireEvent.click(await screen.findByRole("button", { name: "12:00 Tamara · Masaje" }));
+    await screen.findByTestId("modal-nuevo");
+    expect(abrirNuevo).toHaveBeenLastCalledWith(
+      "2026-10-21",
+      expect.objectContaining({ serviceId: "s2", providerId: "p2", minutes: 720 }),
+    );
+  });
+
+  it("con 2 servicios y una prestadora elegida, sólo sus huecos", async () => {
+    montar("?date=2026-10-19&servicio=s1&servicio=s2&prestadora=p2");
+    await screen.findByRole("button", { name: "12:00 Tamara · Masaje" });
+    expect(screen.queryByRole("button", { name: /^\d\d:\d\d Romina/ })).not.toBeInTheDocument();
+  });
+
+  it("sin huecos con 2 servicios avisa en plural", async () => {
+    huecosDelMiercoles = false;
+    montar("?date=2026-10-19&servicio=s1&servicio=s2");
+    expect(await screen.findByText("No hay lugar para esos servicios esta semana.")).toBeInTheDocument();
   });
 
   it("sin huecos avisa y ofrece ver el mes", async () => {

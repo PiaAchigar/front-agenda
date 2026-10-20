@@ -1,41 +1,61 @@
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useProvidersByService } from "../api/agenda";
+import { useProvidersByServices } from "../api/agenda";
 
 /**
- * La búsqueda de la agenda: una prestadora o un servicio, nunca los dos.
- * Vive en la URL (`?prestadora=` / `?servicio=`) para que sobreviva al cambio
- * entre día, semana y mes, y a recargar.
+ * Los filtros de la agenda: de 0 a N prestadoras y de 0 a N servicios, a la
+ * vez. Viven en la URL (`?prestadora=a&prestadora=b&servicio=c`, parámetros
+ * repetidos) para que sobrevivan al cambio entre día, semana y mes, y a
+ * recargar. Arreglo vacío = sin filtro de ese tipo.
  */
-export type Busqueda =
-  | { tipo: "prestadora"; id: string }
-  | { tipo: "servicio"; id: string }
-  | null;
+export type Busqueda = { prestadoras: string[]; servicios: string[] };
+export type TipoDeFiltro = "prestadora" | "servicio";
 
 type Opcion = { id: string; name: string };
 
-/** Si están los dos parámetros, gana `servicio`. */
 export function leerBusqueda(params: URLSearchParams): Busqueda {
-  const servicio = params.get("servicio");
-  if (servicio) return { tipo: "servicio", id: servicio };
-  const prestadora = params.get("prestadora");
-  if (prestadora) return { tipo: "prestadora", id: prestadora };
-  return null;
+  return { prestadoras: params.getAll("prestadora"), servicios: params.getAll("servicio") };
 }
 
 /**
- * Devuelve una copia de `params` con la búsqueda puesta (o sacada, si es
- * null). Cambiar o limpiar la búsqueda también borra `con`: ese parámetro
- * (la prestadora elegida en "La hacen:") sólo tiene sentido dentro de la
- * búsqueda de servicio que la ofreció.
+ * Devuelve una copia de `params` con los filtros puestos. Pisa lo anterior y
+ * borra `con`: ese parámetro viejo ya no existe (ahora "La hacen:" suma la
+ * prestadora como un filtro más).
  */
 export function escribirBusqueda(params: URLSearchParams, b: Busqueda): URLSearchParams {
   const siguiente = new URLSearchParams(params);
   siguiente.delete("prestadora");
   siguiente.delete("servicio");
   siguiente.delete("con");
-  if (b) siguiente.set(b.tipo, b.id);
+  for (const id of b.prestadoras) siguiente.append("prestadora", id);
+  for (const id of b.servicios) siguiente.append("servicio", id);
   return siguiente;
+}
+
+const clave = (tipo: TipoDeFiltro) => (tipo === "prestadora" ? "prestadoras" : "servicios");
+
+/** Suma un filtro al final; si ya estaba, queda todo igual. */
+export function agregarAlFiltro(b: Busqueda, tipo: TipoDeFiltro, id: string): Busqueda {
+  const k = clave(tipo);
+  if (b[k].includes(id)) return b;
+  return { ...b, [k]: [...b[k], id] };
+}
+
+/** Saca sólo ese filtro. */
+export function quitarDelFiltro(b: Busqueda, tipo: TipoDeFiltro, id: string): Busqueda {
+  const k = clave(tipo);
+  return { ...b, [k]: b[k].filter((x) => x !== id) };
+}
+
+/**
+ * Qué prestadoras deja ver la búsqueda: las elegidas si hay; si no, las que
+ * hacen algún servicio elegido (`delosServicios`); si no hay filtro,
+ * `undefined` (todas).
+ */
+export function prestadorasVisibles(b: Busqueda, delosServicios: string[]): string[] | undefined {
+  if (b.prestadoras.length > 0) return b.prestadoras;
+  if (b.servicios.length > 0) return delosServicios;
+  return undefined;
 }
 
 const sinTildes = (s: string) =>
@@ -55,32 +75,34 @@ export function sugerencias(
   return { prestadoras: filtrar(prestadoras), servicios: filtrar(servicios) };
 }
 
-export function useBusquedaAgenda(): [Busqueda, (b: Busqueda) => void] {
+export function useBusquedaAgenda() {
   const [params, setParams] = useSearchParams();
+  // `params` cambia de identidad sólo cuando cambia la URL.
   const busqueda = useMemo(() => leerBusqueda(params), [params]);
-  const cambiar = useCallback(
-    (b: Busqueda) => setParams((actuales) => escribirBusqueda(actuales, b), { replace: true }),
+  const modificar = useCallback(
+    (cambio: (b: Busqueda) => Busqueda) =>
+      setParams((actuales) => escribirBusqueda(actuales, cambio(leerBusqueda(actuales))), { replace: true }),
     [setParams],
   );
-  return [busqueda, cambiar];
+  const agregar = useCallback(
+    (tipo: TipoDeFiltro, id: string) => modificar((b) => agregarAlFiltro(b, tipo, id)),
+    [modificar],
+  );
+  const quitar = useCallback(
+    (tipo: TipoDeFiltro, id: string) => modificar((b) => quitarDelFiltro(b, tipo, id)),
+    [modificar],
+  );
+  return { busqueda, agregar, quitar };
 }
 
 /**
- * Qué prestadoras deja ver la búsqueda actual: una sola, las de un servicio,
- * (o esa sola si vino `con`), o `undefined` si no hay búsqueda (todas). Mientras llegan las de un servicio
- * es `[]`: mejor nada que mostrar todas y que después desaparezcan.
+ * Qué prestadoras deja ver la búsqueda actual (ver `prestadorasVisibles`).
+ * Mientras llegan las de los servicios es `[]`: mejor nada que mostrar todas y
+ * que después desaparezcan.
  */
 export function usePrestadorasDeLaBusqueda(): string[] | undefined {
-  const [busqueda] = useBusquedaAgenda();
-  const [params] = useSearchParams();
-  const con = params.get("con");
-  const { data: delServicio } = useProvidersByService(
-    busqueda?.tipo === "servicio" ? busqueda.id : null,
-  );
-  return useMemo(() => {
-    if (!busqueda) return undefined;
-    if (busqueda.tipo === "prestadora") return [busqueda.id];
-    // `con` (la prestadora tocada en "La hacen:") deja a una sola.
-    return (delServicio ?? []).map((p) => p.id).filter((id) => !con || id === con);
-  }, [busqueda, delServicio, con]);
+  const { busqueda } = useBusquedaAgenda();
+  const { porServicio } = useProvidersByServices(busqueda.servicios);
+  const delosServicios = [...new Set(busqueda.servicios.flatMap((id) => (porServicio.get(id) ?? []).map((p) => p.id)))];
+  return prestadorasVisibles(busqueda, delosServicios);
 }

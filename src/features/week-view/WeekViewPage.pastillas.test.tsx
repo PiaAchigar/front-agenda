@@ -17,7 +17,7 @@ vi.mock("../../api/agenda", async () => {
     useProviders: () => ({ data: [{ id: "p1", fullName: "Romina Suárez", specialties: null }, { id: "p2", fullName: "Bea", specialties: null }] }),
     useCompanyConfig: () => ({ data: { openHours: [] } }),
     useServices: () => ({ data: [] }),
-    useProvidersByService: () => ({ data: undefined }),
+    useProvidersByServices: () => ({ porServicio: new Map(), cargando: false }),
   };
 });
 const apiMock = vi.fn().mockResolvedValue(TURNOS);

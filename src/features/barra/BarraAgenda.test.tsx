@@ -82,17 +82,16 @@ describe("BarraAgenda", () => {
     expect(ubicacion()).toBe("/dia");
   });
 
-  it("tocar Semana conserva prestadora, servicio, con y date", async () => {
+  it("tocar Semana conserva todas las prestadoras y servicios, y date", async () => {
     const user = userEvent.setup();
-    montar("dia", "/dia?servicio=s1&prestadora=p1&con=c1&date=2026-10-19&otra=x");
+    montar("dia", "/dia?servicio=s1&servicio=s2&prestadora=p1&prestadora=p3&date=2026-10-19&otra=x");
 
     await user.click(screen.getByRole("button", { name: "Semana" }));
 
     const url = new URL(ubicacion()!, "http://x");
     expect(url.pathname).toBe("/semana");
-    expect(url.searchParams.get("servicio")).toBe("s1");
-    expect(url.searchParams.get("prestadora")).toBe("p1");
-    expect(url.searchParams.get("con")).toBe("c1");
+    expect(url.searchParams.getAll("servicio")).toEqual(["s1", "s2"]);
+    expect(url.searchParams.getAll("prestadora")).toEqual(["p1", "p3"]);
     expect(url.searchParams.get("date")).toBe("2026-10-19");
     expect(url.searchParams.has("otra")).toBe(false);
   });

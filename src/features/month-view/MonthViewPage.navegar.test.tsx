@@ -9,7 +9,8 @@ vi.mock("../../api/agenda", async () => {
     useDiasConLugar: real.useDiasConLugar,
     useProviders: () => ({ data: [] }),
     useServices: () => ({ data: [] }),
-    useProvidersByService: () => ({ data: [], isLoading: false }),
+    useDiasQueAtienden: () => ({ dias: new Set<string>(), cargando: false }),
+    useProvidersByServices: () => ({ porServicio: new Map(), cargando: false }),
     useCompanyConfig: () => ({ data: { openHours: [] } }),
   };
 });

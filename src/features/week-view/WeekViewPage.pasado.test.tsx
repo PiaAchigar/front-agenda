@@ -9,7 +9,7 @@ vi.mock("../../api/agenda", async () => ({
   useHuecosDeLaSemana: (await vi.importActual<typeof import("../../api/agenda")>("../../api/agenda")).useHuecosDeLaSemana,
   useProviders: () => ({ data: [] }),
   useServices: () => ({ data: [] }),
-  useProvidersByService: () => ({ data: undefined }),
+  useProvidersByServices: () => ({ porServicio: new Map(), cargando: false }),
   useCompanyConfig: () => ({
     data: { openHours: [1, 2, 3, 4, 5, 6].map((d) => ({ dayOfWeek: d, openingTime: "08:00", closingTime: "20:00", isOpen: true })) },
   }),

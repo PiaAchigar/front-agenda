@@ -9,7 +9,11 @@ vi.mock("../../api/agenda", async () => {
     useDiasConLugar: real.useDiasConLugar,
     useProviders: () => ({ data: [{ id: "p1", fullName: "Romina", specialties: null }, { id: "p2", fullName: "Tamara", specialties: null }] }),
     useServices: () => ({ data: [{ id: "s1", name: "Limpieza facial" }] }),
-    useProvidersByService: () => ({ data: [{ id: "p1", fullName: "Romina" }, { id: "p2", fullName: "Tamara" }], isLoading: false }),
+    useDiasQueAtienden: () => ({ dias: new Set<string>(), cargando: false }),
+    useProvidersByServices: (ids: string[]) => ({
+      porServicio: new Map(ids.map((id) => [id, [{ id: "p1", fullName: "Romina" }, { id: "p2", fullName: "Tamara" }]])),
+      cargando: false,
+    }),
     useCompanyConfig: () => ({ data: { openHours: [] } }),
   };
 });
@@ -62,6 +66,18 @@ describe("MonthViewPage — dónde hay lugar", () => {
     expect(celda(21).className).not.toContain("bg-emerald-100");
     expect(celda(5)).not.toHaveAttribute("data-lugar", "si");
     expect(celda(21)).not.toHaveAttribute("data-lugar", "si");
+  });
+
+  it("con prestadoras elegidas, el lugar se mira sólo en ellas", async () => {
+    montar("?servicio=s1&prestadora=p2");
+    await vi.waitFor(() => expect(celda(23)).toHaveAttribute("data-lugar", "si"));
+    expect(celda(22)).not.toHaveAttribute("data-lugar", "si");
+  });
+
+  it("con dos servicios marca los días con lugar de cualquiera", async () => {
+    montar("?servicio=s1&servicio=s2&prestadora=p2");
+    await vi.waitFor(() => expect(celda(23)).toHaveAttribute("data-lugar", "si"));
+    expect(celda(22)).not.toHaveAttribute("data-lugar", "si");
   });
 
   it("tocar un día con lugar lleva a la semana de ese día", async () => {
