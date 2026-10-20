@@ -166,6 +166,8 @@ function invalidarLoQueAgendaLee(qc: ReturnType<typeof useQueryClient>) {
   // Mismas claves que `api/agenda.ts`.
   qc.invalidateQueries({ queryKey: ["appointments"] });
   qc.invalidateQueries({ queryKey: ["appointments-range"] });
+  // La card de la clase (agenda grupal) trae el "Debe $X" de cada anotada.
+  qc.invalidateQueries({ queryKey: ["classes"] });
 }
 
 export function useVender() {

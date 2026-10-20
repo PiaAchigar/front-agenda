@@ -80,8 +80,8 @@ export function DayViewPage() {
   const [selectedId, setSelectedId]         = useState<string | null>(null);
   const [avisoInsumos, setAvisoInsumos]     = useState<Consumo | null>(null);
   const [attendanceFor, setAttendanceFor]   = useState<AttendanceTarget | null>(null);
-  // Clase en la que se quiere anotar; por ahora sólo se recuerda (sin modal todavía).
   const [cobrandoEn, setCobrandoEn] = useState<{ o: ClassOccurrence; a: Anotada } | null>(null);
+  // Clase en la que se quiere anotar; por ahora sólo se recuerda (sin modal todavía).
   const [, setAnotarEn] = useState<ClassOccurrence | null>(null);
   // El prefill de "A agendar" que pide la ficha del CRM viaja CRM → dashboard
   // → la URL de este iframe (`lib/embed.ts`, `prefillDesdeUrl`). Se lee acá,

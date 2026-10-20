@@ -52,6 +52,7 @@ export function CobrarCuota({
   }
   return (
     <Formulario
+      key={cuota.data.debe}
       subscriptionId={subscriptionId}
       mes={mes}
       descripcion={descripcion}

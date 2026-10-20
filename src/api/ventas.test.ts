@@ -52,5 +52,6 @@ describe("cobrar relee lo que la agenda muestra", () => {
     await waitFor(() => expect(invalidar).toHaveBeenCalledWith({ queryKey: ["para-agendar"] }));
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ["appointments"] });
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ["appointments-range"] });
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["classes"] });
   });
 });
