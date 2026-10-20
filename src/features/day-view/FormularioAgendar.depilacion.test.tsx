@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DatosParaAgendar } from "../../api/types";
 
 const crear = vi.fn();
-const CLIENTA = { id: "cu1", name: "Sofía Herrera", dni: "30111222", creditBalance: 0 };
+const CLIENTA = { id: "cu1", name: "Sofía Herrera", dni: "30111222", phone: null, email: null, creditBalance: "0" };
 const PROVEEDORA = { id: "prov1", fullName: "Gabi", specialties: null };
 
 const datosDepilacion: DatosParaAgendar = {
@@ -95,9 +95,8 @@ function elegirHora() {
 function abrir() {
   render(
     <FormularioAgendar
-      date="2027-01-20"
-      prefill={{ customerId: "cu1", purchaseServiceId: "l1" }}
       onClose={() => {}}
+      encabezado={{ fecha: "2027-01-20", minutos: null, customer: CLIENTA, serviceId: null, purchaseServiceId: "l1", compraPreferidaId: null }}
     />,
   );
 }

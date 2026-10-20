@@ -60,7 +60,9 @@ export function NuevoTurnoModal({
 }) {
   const { data: catalogo, isLoading, error: errorCatalogo } = useCatalogoVendible();
 
-  const [fecha, setFecha] = useState(date);
+  // "A agendar" del CRM sin hueco arranca sin día: el cuerpo de Agendar
+  // elige el primer día libre y lo avisa para acá.
+  const [fecha, setFecha] = useState(prefill?.customerId && prefill.minutes == null ? "" : date);
   const [hora, setHora] = useState(prefill?.minutes != null ? aHora(prefill.minutes) : "");
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [area, setArea] = useState("");
@@ -111,7 +113,7 @@ export function NuevoTurnoModal({
     } else if (comprasQ.isError) {
       setPendiente(null);
     } else if (compras) {
-      setPendiente(null);
+      let encontrada = false;
       for (const a of areasDelTurno(catalogo)) {
         const opcion = gruposDeQue(catalogo, compras, a.clave, "")
           .find((g) => g.titulo === "Ya comprado")
@@ -125,9 +127,13 @@ export function NuevoTurnoModal({
         if (opcion) {
           setArea(a.clave);
           setEleccion(opcion);
+          encontrada = true;
           break;
         }
       }
+      // Recién vendida: la lista cacheada puede no traerla todavía. Mientras se
+      // vuelve a pedir, se espera; si ya no hay nada en camino, se suelta.
+      if (encontrada || !comprasQ.isFetching) setPendiente(null);
     }
   }
 
@@ -154,8 +160,12 @@ export function NuevoTurnoModal({
       : eleccion?.tipo === "servicio" ? eleccion.item.id : null;
   const prestadoraFija =
     modo === "agendar" && prestadora.providerId && idsSuyos && loQueSeAgenda && idsSuyos.includes(loQueSeAgenda)
-      ? prestadora
+      ? { providerId: prestadora.providerId, providerName: prestadora.providerName }
       : null;
+  // El cuerpo toma la prestadora fija al montar: no se monta hasta saber si la hay
+  // (si se remontara al resolverse, perdería lo que Laura ya escribió).
+  const prestadoraPorSaber = !!prestadora.providerId && (!!suyos.isLoading || (!!lineaDepi && !!ancla.isLoading));
+  const cuerpoDeAgendar = eleccion && modo === "agendar" && !prestadoraPorSaber ? eleccion : null;
 
   function cerrar() {
     // Después de vender, cerrar no puede ser silencioso: la compra existe.
@@ -210,22 +220,28 @@ export function NuevoTurnoModal({
     );
   }
 
-  const claveCuerpo = `${customer?.id ?? ""}|${eleccion ? claveDeEleccion(eleccion) : ""}|${fecha}|${prestadoraFija?.providerId ?? ""}`;
+  // El día, la hora y la prestadora fija NO van en la key: si no, el cuerpo se
+  // remontaría y perdería notas, zonas y seña.
+  const claveCuerpo = `${customer?.id ?? ""}|${eleccion ? claveDeEleccion(eleccion) : ""}`;
 
   return (
     <Modal open onClose={cerrar} title="Nuevo turno" altoFijo>
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <label className="block">
-            <span className={LABEL}>Día</span>
-            <input type="date" aria-label="Día" className={FIELD} value={fecha} onChange={(e) => setFecha(e.target.value)} />
-          </label>
-          <label className="block">
-            <span className={LABEL}>Hora</span>
-            <input type="time" aria-label="Hora" className={FIELD} value={hora} onChange={(e) => setHora(e.target.value)} />
-          </label>
-        </div>
-        {horarioPasado && <p className="text-xs text-red-700">{AVISO_HORARIO_PASADO}</p>}
+        {!cuerpoDeAgendar && (
+          <>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className={LABEL}>Día</span>
+              <input type="date" aria-label="Día" className={FIELD} value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            </label>
+            <label className="block">
+              <span className={LABEL}>Hora</span>
+              <input type="time" aria-label="Hora" className={FIELD} value={hora} onChange={(e) => setHora(e.target.value)} />
+            </label>
+          </div>
+          {horarioPasado && <p className="text-xs text-red-700">{AVISO_HORARIO_PASADO}</p>}
+          </>
+        )}
         {prestadora.providerName && <p className="text-xs text-ink-soft">Profesional: {prestadora.providerName}</p>}
 
         <div>
@@ -235,6 +251,7 @@ export function NuevoTurnoModal({
             onChange={(c) => {
               setCustomer(c);
               if (!servicioDelHueco) limpiarEleccion();
+              else setCuando("en-el-turno");
             }}
           />
         </div>
@@ -279,20 +296,23 @@ export function NuevoTurnoModal({
           />
         )}
 
-        {eleccion && modo === "agendar" && (
+        {cuerpoDeAgendar && (
           <FormularioAgendar
             key={claveCuerpo}
-            date={fecha}
-            prefill={prestadoraFija}
+            prestadoraFija={prestadoraFija}
             onClose={onClose}
+            onCambiarFechaHora={(f, m) => {
+              setFecha(f);
+              setHora(m === null ? "" : aHora(m));
+            }}
             encabezado={{
               fecha,
               minutos,
               customer,
-              serviceId: eleccion.tipo === "comprado" ? (eleccion.linea.esDepilacion ? null : eleccion.linea.serviceId) : eleccion.tipo === "servicio" ? eleccion.item.id : null,
-              purchaseServiceId: eleccion.tipo === "comprado" && eleccion.linea.esDepilacion ? eleccion.linea.purchaseServiceId : null,
-              compraPreferidaId: eleccion.tipo === "comprado" && !eleccion.linea.esDepilacion ? eleccion.linea.compraId : null,
-              compraId: eleccion.tipo === "comprado" ? eleccion.linea.compraId : null,
+              serviceId: cuerpoDeAgendar.tipo === "comprado" ? (cuerpoDeAgendar.linea.esDepilacion ? null : cuerpoDeAgendar.linea.serviceId) : cuerpoDeAgendar.tipo === "servicio" ? cuerpoDeAgendar.item.id : null,
+              purchaseServiceId: cuerpoDeAgendar.tipo === "comprado" && cuerpoDeAgendar.linea.esDepilacion ? cuerpoDeAgendar.linea.purchaseServiceId : null,
+              compraPreferidaId: cuerpoDeAgendar.tipo === "comprado" && !cuerpoDeAgendar.linea.esDepilacion ? cuerpoDeAgendar.linea.compraId : null,
+              compraId: cuerpoDeAgendar.tipo === "comprado" ? cuerpoDeAgendar.linea.compraId : null,
             }}
           />
         )}

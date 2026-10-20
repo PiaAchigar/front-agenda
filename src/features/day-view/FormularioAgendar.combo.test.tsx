@@ -9,7 +9,7 @@ const crear = vi.fn((_data: unknown, opts?: { onSuccess?: (r: unknown) => void }
 });
 const crearAsync = vi.fn().mockResolvedValue({ id: "appt-2" });
 
-const CLIENTA = { id: "cu1", name: "Sofía Herrera", dni: "30111222", creditBalance: 0 };
+const CLIENTA = { id: "cu1", name: "Sofía Herrera", dni: "30111222", phone: null, email: null, creditBalance: "0" };
 const PROVEEDORA = { id: "prov1", fullName: "Gabi", specialties: null };
 const SERVICIO = { id: "svc-a", name: "Limpieza facial", estimatedDurationMinutes: 30 };
 
@@ -80,12 +80,8 @@ afterEach(() => {
 
 
 async function confirmarPrimerTurno(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByPlaceholderText(/nombre, dni/i), "Sofía");
-  await user.click(await screen.findByText(/Sofía Herrera/));
-  const selects = screen.getAllByRole("combobox");
-  await user.selectOptions(selects[0]!, "svc-a");
   await user.selectOptions(screen.getByRole("combobox", { name: "Hora inicio" }), "10:00");
-  await user.click(screen.getByRole("button", { name: /confirmar turno/i }));
+  await user.click(screen.getByRole("button", { name: /^agendar$/i }));
 }
 
 describe("FormularioAgendar — V3c, combos que se hacen juntos", () => {
@@ -97,7 +93,7 @@ describe("FormularioAgendar — V3c, combos que se hacen juntos", () => {
       isError: false,
     };
     const onClose = vi.fn();
-    render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={onClose} />);
+    render(<FormularioAgendar onClose={onClose} encabezado={{ fecha: "2027-01-20", minutos: null, customer: CLIENTA, serviceId: "svc-a", purchaseServiceId: null, compraPreferidaId: null }} />);
     await confirmarPrimerTurno(user);
 
     expect(await screen.findByText(/este combo tiene 1 servicio más/i)).toBeInTheDocument();
@@ -111,14 +107,11 @@ describe("FormularioAgendar — V3c, combos que se hacen juntos", () => {
       isSuccess: true,
       isError: false,
     };
-    render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={vi.fn()} />);
-    await user.type(screen.getByPlaceholderText(/nombre, dni/i), "Sofía");
-    await user.click(await screen.findByText(/Sofía Herrera/));
-    await user.selectOptions(screen.getAllByRole("combobox")[0]!, "svc-a");
+    render(<FormularioAgendar onClose={vi.fn()} encabezado={{ fecha: "2027-01-20", minutos: null, customer: CLIENTA, serviceId: "svc-a", purchaseServiceId: null, compraPreferidaId: null }} />);
     await user.click(screen.getByRole("button", { name: "21" }));
     await user.selectOptions(screen.getByRole("combobox", { name: "Hora inicio" }), "10:00");
     diasPedidosPorElPanel.length = 0; // lo anterior es el selector de hora, no el panel
-    await user.click(screen.getByRole("button", { name: /confirmar turno/i }));
+    await user.click(screen.getByRole("button", { name: /^agendar$/i }));
 
     expect(await screen.findByText(/este combo tiene 1 servicio más/i)).toBeInTheDocument();
     expect(diasPedidosPorElPanel.length).toBeGreaterThan(0);
@@ -129,7 +122,7 @@ describe("FormularioAgendar — V3c, combos que se hacen juntos", () => {
     const user = userEvent.setup();
     respuestaComboPendientes = { data: { pendientes: [] }, isSuccess: true, isError: false };
     const onClose = vi.fn();
-    render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={onClose} />);
+    render(<FormularioAgendar onClose={onClose} encabezado={{ fecha: "2027-01-20", minutos: null, customer: CLIENTA, serviceId: "svc-a", purchaseServiceId: null, compraPreferidaId: null }} />);
     await confirmarPrimerTurno(user);
 
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
@@ -146,7 +139,7 @@ describe("FormularioAgendar — V3c, combos que se hacen juntos", () => {
       isError: false,
     };
     const onClose = vi.fn();
-    render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={onClose} />);
+    render(<FormularioAgendar onClose={onClose} encabezado={{ fecha: "2027-01-20", minutos: null, customer: CLIENTA, serviceId: "svc-a", purchaseServiceId: null, compraPreferidaId: null }} />);
     await confirmarPrimerTurno(user);
 
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
@@ -160,10 +153,10 @@ describe("FormularioAgendar — V3c, combos que se hacen juntos", () => {
   it("mientras se consulta el combo, el botón de confirmar queda apagado", async () => {
     const user = userEvent.setup();
     respuestaComboPendientes = { data: undefined, isSuccess: false, isError: false };
-    render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={vi.fn()} />);
+    render(<FormularioAgendar onClose={vi.fn()} encabezado={{ fecha: "2027-01-20", minutos: null, customer: CLIENTA, serviceId: "svc-a", purchaseServiceId: null, compraPreferidaId: null }} />);
     await confirmarPrimerTurno(user);
 
-    expect(screen.getByRole("button", { name: /confirmar turno/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^agendar$/i })).toBeDisabled();
   });
 
   // Hallazgo del reviewer de Task 4: el turno ya se creó bien cuando esta
@@ -174,7 +167,7 @@ describe("FormularioAgendar — V3c, combos que se hacen juntos", () => {
     const user = userEvent.setup();
     respuestaComboPendientes = { data: undefined, isSuccess: false, isError: true };
     const onClose = vi.fn();
-    render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={onClose} />);
+    render(<FormularioAgendar onClose={onClose} encabezado={{ fecha: "2027-01-20", minutos: null, customer: CLIENTA, serviceId: "svc-a", purchaseServiceId: null, compraPreferidaId: null }} />);
     await confirmarPrimerTurno(user);
 
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));

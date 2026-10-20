@@ -4,12 +4,10 @@ import {
   useConsumible,
   useCreateAppointment,
   useCreateCustomer,
-  useCustomer,
   useCustomerSearch,
   useParaAgendar,
   useProvidersByService,
   useServices,
-  useServicesByProvider,
   type Consumible,
 } from "../../api/agenda";
 import type { Customer, Sexo } from "../../api/types";
@@ -205,11 +203,7 @@ export type NewApptPrefill = {
   compraPreferidaId?: string;
 };
 
-type Props = {
-  date: string; // YYYY-MM-DD
-  prefill: NewApptPrefill | null;
-  onClose: () => void;
-};
+
 
 const EXPIRY_OPTIONS = [
   { value: 10,  label: "10 min" },
@@ -353,16 +347,17 @@ function DescuentoDePack({
 }
 
 /**
- * Lo que decide el orquestador cuando el formulario se maneja desde afuera
- * (la modal única "Nuevo turno": su encabezado es dueño de Día, Hora, Clienta,
- * Área y Qué). Con esto el formulario NO dibuja esos campos y usa estos valores.
+ * Lo que decide el orquestador (la modal única "Nuevo turno": su encabezado es
+ * dueño de Clienta, Área y Qué). Día y hora SÍ se editan acá adentro (calendario
+ * de días libres + horas libres) y se avisan hacia arriba con `onCambiarFechaHora`.
  *
- * `purchaseServiceId` (modo depilación) se lee en cada render, pero el estado
- * que arranca de él (`servicioElegido`) lo toma al montar: si el orquestador
- * cambia "Qué", tiene que remontar el cuerpo con una `key`.
+ * `fecha`/`minutos` y `purchaseServiceId` son sólo el valor inicial: el estado
+ * que arranca de ellos se toma al montar, así que si el orquestador cambia
+ * "Qué" o la clienta tiene que remontar el cuerpo con una `key` (sin el día ni
+ * la hora: esos los maneja el cuerpo).
  */
 export type EncabezadoControlado = {
-  fecha: string; // YYYY-MM-DD, "" si todavía no hay día
+  fecha: string; // YYYY-MM-DD, "" si todavía no hay día (arranca en el primer día libre)
   minutos: number | null; // minutos desde medianoche ART
   customer: Customer | null;
   serviceId: string | null;
@@ -372,41 +367,52 @@ export type EncabezadoControlado = {
   compraId?: string | null;
 };
 
-type PropsFormulario = Props & {
-  encabezado?: EncabezadoControlado;
+/** La prestadora que queda fija porque se llegó desde su columna. */
+export type PrestadoraFija = { providerId: string; providerName?: string };
+
+type PropsFormulario = {
+  onClose: () => void;
+  encabezado: EncabezadoControlado;
+  prestadoraFija?: PrestadoraFija | null;
+  /** Cada cambio de día u hora, para que el encabezado (y Vender) sigan en sincronía. */
+  onCambiarFechaHora?: (fecha: string, minutos: number | null) => void;
 };
 
 /** El cuerpo de Agendar: el contenido de la modal, sin el `<Modal>`. */
-export function FormularioAgendar({ date, prefill, onClose, encabezado }: PropsFormulario) {
+export function FormularioAgendar({ onClose, encabezado, prestadoraFija = null, onCambiarFechaHora }: PropsFormulario) {
   const { data: services = [] } = useServices();
 
   // Turno de depilación (Task 15): la línea del pack ya viene elegida desde
   // "A agendar" en la ficha, así que acá no hay selector de servicio — hay
   // un menú de zonas. Con `encabezado` la línea la dicta el orquestador.
-  const purchaseServiceId = encabezado
-    ? encabezado.purchaseServiceId
-    : (prefill?.purchaseServiceId ?? null);
+  const purchaseServiceId = encabezado.purchaseServiceId;
   const esDepilacion = Boolean(purchaseServiceId);
 
-  const [customerPropio,  setCustomer]   = useState<Customer | null>(null);
-  const [serviceIdPropio, setServiceId]  = useState(prefill?.serviceId ?? "");
-  const customer  = encabezado ? encabezado.customer : customerPropio;
+  const customer = encabezado.customer;
   // En depilación el servicio del encabezado puede venir vacío: el ancla
   // (ver `anclaServiceId`) se guarda en el estado propio.
-  const serviceId = encabezado ? (encabezado.serviceId || serviceIdPropio) : serviceIdPropio;
-  const [providerId,    setProviderId]   = useState(prefill?.providerId ?? "");
-  // El día se elige acá adentro (calendario de días libres). Desde "A agendar"
-  // sin hueco arranca vacío y se completa con el primer día libre.
-  const [fechaPropia,   setFecha]        = useState(
-    prefill?.customerId && prefill.minutes == null ? "" : date,
-  );
-  const [horaPropia,    setTimeStr]      = useState(
-    prefill?.minutes != null ? minToTimeStr(prefill.minutes) : "",
-  );
-  const fecha   = encabezado ? encabezado.fecha : fechaPropia;
-  const timeStr = encabezado
-    ? (encabezado.minutos != null ? minToTimeStr(encabezado.minutos) : "")
-    : horaPropia;
+  const [serviceIdPropio, setServiceId] = useState("");
+  const serviceId = encabezado.serviceId || serviceIdPropio;
+  const [providerId,    setProviderId]   = useState(prestadoraFija?.providerId ?? "");
+  // El día se elige acá adentro (calendario de días libres). Sin día (A agendar
+  // sin hueco) arranca vacío y se completa con el primer día libre.
+  const [fecha,   setFecha]   = useState(encabezado.fecha);
+  const [timeStr, setTimeStr] = useState(encabezado.minutos != null ? minToTimeStr(encabezado.minutos) : "");
+  // Lo último que se avisó: onSelectDay llama a cambiarFecha y cambiarHora en
+  // el mismo evento, y el segundo no puede leer el estado viejo.
+  const ultimo = useRef({ fecha: encabezado.fecha, hora: encabezado.minutos != null ? minToTimeStr(encabezado.minutos) : "" });
+  const avisar = () =>
+    onCambiarFechaHora?.(ultimo.current.fecha, ultimo.current.hora ? minutosDe(ultimo.current.hora) : null);
+  const cambiarFecha = (f: string) => {
+    ultimo.current.fecha = f;
+    setFecha(f);
+    avisar();
+  };
+  const cambiarHora = (h: string) => {
+    ultimo.current.hora = h;
+    setTimeStr(h);
+    avisar();
+  };
   const [priceMode,     setPriceMode]    = useState<"list" | "cash">("list");
   const [notes,         setNotes]        = useState("");
   const [apptStatus,    setApptStatus]   = useState<"scheduled" | "reserved">("scheduled");
@@ -441,20 +447,6 @@ export function FormularioAgendar({ date, prefill, onClose, encabezado }: PropsF
     setZonasElegidas([]);
   }
 
-  // La modal sólo recibe `customerId` (no la clienta completa) desde el
-  // prefill de "A agendar" (ficha del CRM) — de depilación o de un servicio
-  // normal, los dos mandan la clienta y a los dos hay que precargársela. Sin
-  // esto, Laura tenía que volver a buscarla a mano: justo lo que la pastilla
-  // existe para ahorrarle (Task 16, ronda de arreglos 2).
-  const { data: clienteDePrefill } = useCustomer(
-    encabezado ? null : (prefill?.customerId ?? null),
-  );
-  const [clientePrefillAplicado, setClientePrefillAplicado] = useState(false);
-  if (!clientePrefillAplicado && clienteDePrefill) {
-    setClientePrefillAplicado(true);
-    setCustomer(clienteDePrefill);
-  }
-
   // Saldo a favor del cliente elegido (viene de una seña de un turno que se
   // canceló antes de su horario). Se puede usar para pagar esta seña.
   const creditBalance = Number(customer?.creditBalance ?? 0);
@@ -468,9 +460,7 @@ export function FormularioAgendar({ date, prefill, onClose, encabezado }: PropsF
   // Alta desde la columna de una prestadora: queda fija y solo se ofrecen SUS
   // servicios. Desde "Nuevo turno" (sin prefill de prestadora) sigue el flujo
   // inverso: se elige el servicio y después quién lo presta.
-  const lockedProviderId = prefill?.providerId ?? null;
-  const { data: providerServices = [], isFetching: loadingProviderServices } =
-    useServicesByProvider(lockedProviderId);
+  const lockedProviderId = prestadoraFija?.providerId ?? null;
 
   const { data: providers = [], isFetching: loadingProviders } = useProvidersByService(
     serviceId || null,
@@ -543,7 +533,7 @@ export function FormularioAgendar({ date, prefill, onClose, encabezado }: PropsF
     setFirmaSincronizada(firmaConsumible);
     setServicioElegido(compraInicial(
       consumible,
-      (encabezado ? encabezado.compraPreferidaId : prefill?.compraPreferidaId) ?? null,
+      encabezado.compraPreferidaId,
     ));
   }
 
@@ -587,7 +577,7 @@ export function FormularioAgendar({ date, prefill, onClose, encabezado }: PropsF
   const providersSig = providers.map((p) => p.id).join(",");
   // Con `encabezado` el servicio ya puede venir elegido al montar: arranca vacío
   // para que la primera pasada elija prestadora.
-  const [syncedProvidersSig, setSyncedProvidersSig] = useState(encabezado ? "" : providersSig);
+  const [syncedProvidersSig, setSyncedProvidersSig] = useState("");
   if (!lockedProviderId && providersSig !== syncedProvidersSig) {
     setSyncedProvidersSig(providersSig);
     if (serviceId && providers.length > 0 && !providers.find((p) => p.id === providerId)) {
@@ -595,14 +585,11 @@ export function FormularioAgendar({ date, prefill, onClose, encabezado }: PropsF
     }
   }
 
-  // Opciones del selector de servicio según de dónde se abrió la modal
-  const serviceOptions = lockedProviderId ? providerServices : services;
-
   // Hora fin calculada automáticamente. En depilación NO sale del servicio
   // (el ancla no tiene una duración fija que sirva) sino de la suma de los
   // minutos de las zonas elegidas — el turno se arma con lo que de verdad
   // se usa, no con el presupuesto completo del pack.
-  const selectedService = serviceOptions.find((s) => s.id === serviceId);
+  const selectedService = services.find((s) => s.id === serviceId);
   const minutosPorZona = new Map(
     (datosDepilacion?.zonas ?? []).map((z) => [z.id, z.minutos]),
   );
@@ -706,31 +693,8 @@ export function FormularioAgendar({ date, prefill, onClose, encabezado }: PropsF
   const fieldClass =
     "w-full rounded-xl border border-surface-highest bg-white px-3 py-2 text-sm outline-none focus:border-primary disabled:bg-surface-low disabled:text-ink-soft";
 
-  const DAY_NAMES = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
-  const dow = fecha ? new Date(`${fecha}T12:00:00Z`).getUTCDay() : null;
-  const dateLabel = dow !== null
-    ? `${DAY_NAMES[dow]} ${fecha.split("-").reverse().join("/")}`
-    : "Elegí un día";
-
   return (
       <div className="space-y-4">
-        {/* Fecha y cliente: con `encabezado` los muestra el orquestador */}
-        {!encabezado && (
-          <>
-            {/* Fecha del turno */}
-            <div className="flex items-center gap-2 rounded-xl bg-primary/8 px-3 py-2">
-              <span className="text-base">📅</span>
-              <span className="text-sm font-medium text-primary">{dateLabel}</span>
-            </div>
-
-            {/* Cliente */}
-            <div>
-              <label className="mb-1 block text-xs font-medium text-ink-soft">Cliente</label>
-              <CustomerPicker value={customer} onChange={setCustomer} />
-            </div>
-          </>
-        )}
-
         {mostrarPendientes ? (
           <ComboPendientesPanel
             date={fecha}
@@ -765,33 +729,10 @@ export function FormularioAgendar({ date, prefill, onClose, encabezado }: PropsF
           </div>
         ) : (
           <div>
-            {!encabezado && (<>
-            <label className="mb-1 block text-xs font-medium text-ink-soft">Servicio</label>
-            <select
-              className={fieldClass}
-              value={serviceId}
-              onChange={(e) => setServiceId(e.target.value)}
-              disabled={Boolean(lockedProviderId) && loadingProviderServices}
-            >
-              <option value="">
-                {lockedProviderId && loadingProviderServices
-                  ? "Cargando servicios…"
-                  : lockedProviderId && serviceOptions.length === 0
-                    ? "Esta prestadora no tiene servicios asignados"
-                    : "Seleccioná un servicio…"}
-              </option>
-              {serviceOptions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                  {s.estimatedDurationMinutes ? ` (${s.estimatedDurationMinutes} min)` : ""}
-                </option>
-              ))}
-            </select>
-            </>)}
 
             {/* Contra qué se descuenta. Sólo aparece si tiene algo a favor. */}
             {customer && serviceId && (
-              <div className={encabezado ? undefined : "mt-2"}>
+              <div>
                 <DescuentoDePack
                   estado={consumible}
                   cargando={buscandoConsumible}
@@ -809,7 +750,7 @@ export function FormularioAgendar({ date, prefill, onClose, encabezado }: PropsF
           {lockedProviderId ? (
             // Fija: se llegó desde su columna en la grilla
             <select className={fieldClass} value={lockedProviderId} disabled>
-              <option value={lockedProviderId}>{prefill?.providerName ?? "Prestadora"}</option>
+              <option value={lockedProviderId}>{prestadoraFija?.providerName ?? "Prestadora"}</option>
             </select>
           ) : (
             <select
@@ -835,18 +776,16 @@ export function FormularioAgendar({ date, prefill, onClose, encabezado }: PropsF
         </div>
 
         {/* Día + Hora inicio (a todo el ancho) y Hora fin debajo */}
-        {!encabezado && (
-          <DiaYHoraDelTurno
-            serviceId={serviceId || null}
-            providerId={providerId || null}
-            fecha={fecha}
-            hora={timeStr}
-            horaLibre={esDepilacion}
-            elegirPrimerDiaLibre={!fecha}
-            onCambiarFecha={setFecha}
-            onCambiarHora={setTimeStr}
-          />
-        )}
+        <DiaYHoraDelTurno
+          serviceId={serviceId || null}
+          providerId={providerId || null}
+          fecha={fecha}
+          hora={timeStr}
+          horaLibre={esDepilacion}
+          elegirPrimerDiaLibre={!fecha}
+          onCambiarFecha={cambiarFecha}
+          onCambiarHora={cambiarHora}
+        />
         <div className="flex gap-3">
           <div className="flex-1">
             <label className="mb-1 block text-xs font-medium text-ink-soft">
@@ -1039,7 +978,7 @@ export function FormularioAgendar({ date, prefill, onClose, encabezado }: PropsF
               </p>
             )}
             {/* Salida de la puerta de pago (#18): cobrar ahí mismo lo que falta. */}
-            {datosDepilacion && !datosDepilacion.puerta.puedeAgendar && encabezado?.compraId && (
+            {datosDepilacion && !datosDepilacion.puerta.puedeAgendar && encabezado.compraId && (
               <CobrarLoQueFalta compraId={encabezado.compraId} descripcion={datosDepilacion.nombreDelPack} />
             )}
             <div className="flex justify-end gap-2 pt-1">
@@ -1067,7 +1006,7 @@ export function FormularioAgendar({ date, prefill, onClose, encabezado }: PropsF
               Cancelar
             </Button>
             <Button onClick={handleSubmit} disabled={!canSubmit}>
-              {create.isPending ? "Guardando…" : encabezado ? "Agendar" : "Confirmar turno"}
+              {create.isPending ? "Guardando…" : "Agendar"}
             </Button>
           </div>
         )}

@@ -50,13 +50,22 @@ const DATOS_DEPI: DatosParaAgendar = {
 };
 
 let errorDeCatalogo: Error | null = null;
+let diasLibres: string[] = ["2027-01-20", "2027-01-22"];
+let horariosLibres: string[] = ["09:00", "10:00", "11:00"];
+let suyosCargando = false;
+let comprasFetching = false;
+let ventaTardia = false;
+let compraDeLaVenta: Compra | null = null;
 let comprasPorClienta: Record<string, Compra[]> = {};
 let clientaPrefill: typeof CLIENTA | undefined;
 const vender = vi.fn((_i: unknown, o?: { onSuccess?: (r: unknown) => void }) => {
-  comprasPorClienta = {
-    ...comprasPorClienta,
-    cu1: [...(comprasPorClienta.cu1 ?? []), compra("pu9", "Pack Glow x4", "c1", [linea("ps9", 1)], { sessionsTotal: 4 })],
-  };
+  compraDeLaVenta = compra("pu9", "Pack Glow x4", "c1", [linea("ps9", 1)], { sessionsTotal: 4 });
+  if (ventaTardia) {
+    // La lista cacheada todavía no la trae: se está volviendo a pedir.
+    comprasFetching = true;
+  } else {
+    comprasPorClienta = { ...comprasPorClienta, cu1: [...(comprasPorClienta.cu1 ?? []), compraDeLaVenta] };
+  }
   o?.onSuccess?.({ id: "pu9" });
 });
 const despues = vi.fn();
@@ -64,7 +73,7 @@ const crear = vi.fn();
 
 vi.mock("../../api/ventas", () => ({
   useCatalogoVendible: () => (errorDeCatalogo ? { data: undefined, isLoading: false, error: errorDeCatalogo } : { data: CATALOGO, isLoading: false, error: null }),
-  useComprasDeCliente: (id: string | null) => ({ data: id ? (comprasPorClienta[id] ?? []) : undefined, isLoading: false }),
+  useComprasDeCliente: (id: string | null) => ({ data: id ? (comprasPorClienta[id] ?? []) : undefined, isLoading: false, isFetching: comprasFetching, isError: false }),
   useCotizacion: (p: unknown) => (p ? { data: COTIZACION, isFetching: false, error: null } : { data: undefined, isFetching: false, error: null }),
   useVender: () => ({ mutate: vender, isPending: false, error: null }),
 }));
@@ -78,9 +87,17 @@ vi.mock("../../api/agenda", () => ({
   useParaAgendar: (id: string | null) => ({ data: id ? DATOS_DEPI : undefined, isFetching: false }),
   useProvidersByService: (s: string | null) => ({ data: s ? [{ id: "prov1", fullName: "Gabi", specialties: null }] : [], isFetching: false }),
   useServices: () => ({ data: [{ id: "s1", name: "Limpieza facial", estimatedDurationMinutes: 30 }] }),
-  useServicesByProvider: () => ({ data: [{ id: "s1" }], isFetching: false, isError: false }),
-  useAvailability: () => ({ data: undefined, isFetching: false, isLoading: false }),
-  useMonthAvailability: () => ({ data: undefined, isFetching: false }),
+  useServicesByProvider: (id: string | null) => ({
+    data: id && !suyosCargando ? [{ id: "s1" }] : undefined, isFetching: false, isError: false, isLoading: !!id && suyosCargando,
+  }),
+  useAvailability: (serviceId: string | null, date: string | null) => ({
+    data: date
+      ? { date, serviceId, durationMinutes: 30, slots: horariosLibres.map((start) => ({ start, end: start, options: [] })) }
+      : undefined,
+    isFetching: false,
+    isLoading: false,
+  }),
+  useMonthAvailability: (_s: unknown, _p: unknown, month: string) => ({ data: { month, availableDays: diasLibres }, isFetching: false }),
 }));
 vi.mock("../vender/DespuesDeVender", () => ({
   DespuesDeVender: (props: { onAgendar: (t: unknown) => void; cobrarAhora?: boolean }) => {
@@ -102,6 +119,12 @@ const { NuevoTurnoModal } = await import("./NuevoTurnoModal");
 beforeEach(() => {
   comprasPorClienta = {};
   errorDeCatalogo = null;
+  diasLibres = ["2027-01-20", "2027-01-22"];
+  horariosLibres = ["09:00", "10:00", "11:00"];
+  suyosCargando = false;
+  comprasFetching = false;
+  ventaTardia = false;
+  compraDeLaVenta = null;
   clientaPrefill = undefined;
   vender.mockClear();
   despues.mockClear();
@@ -114,8 +137,9 @@ afterEach(() => vi.useRealTimers());
 const HUECO = { providerId: "prov1", providerName: "Gabi", minutes: 930 };
 function montar(prefill: Parameters<typeof NuevoTurnoModal>[0]["prefill"] = HUECO) {
   const onClose = vi.fn();
-  render(<NuevoTurnoModal date="2027-01-20" prefill={prefill} onClose={onClose} />);
-  return { onClose, user: userEvent.setup({ advanceTimers: vi.advanceTimersByTime }) };
+  const el = <NuevoTurnoModal date="2027-01-20" prefill={prefill} onClose={onClose} />;
+  const { rerender } = render(el);
+  return { onClose, user: userEvent.setup({ advanceTimers: vi.advanceTimersByTime }), refrescar: () => rerender(<NuevoTurnoModal date="2027-01-20" prefill={prefill} onClose={onClose} />) };
 }
 type U = ReturnType<typeof userEvent.setup>;
 async function elegirClienta(user: U) {
@@ -317,7 +341,7 @@ describe("NuevoTurnoModal — depilación y precargas", () => {
     montar({ serviceId: "s1", providerId: "prov1", providerName: "Gabi", minutes: 600 });
     expect(screen.getByLabelText("Área")).toHaveValue("a-est");
     expect(screen.getByLabelText("Qué")).toHaveValue("servicio:s1");
-    expect(screen.getByLabelText("Hora")).toHaveValue("10:00");
+    expect(select("Hora inicio").value).toBe("10:00");
   });
 
   it("la prestadora del hueco queda fija si hace el servicio", () => {
@@ -333,5 +357,154 @@ describe("NuevoTurnoModal — depilación y precargas", () => {
     expect(crear.mock.calls[0]![0]).toMatchObject({
       customerId: "cu1", serviceId: "s1", providerId: "prov1", start: "2027-01-20T10:00:00-03:00",
     });
+  });
+
+  it("al elegir un servicio para agendar, el día y la hora los dibuja el cuerpo (calendario + horas libres), no el encabezado", async () => {
+    const { user } = montar();
+    await elegirClienta(user);
+    await user.selectOptions(screen.getByLabelText("Área"), "a-est");
+    await user.selectOptions(screen.getByLabelText("Qué"), "servicio:s1");
+    expect(screen.queryByLabelText("Día")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Hora")).not.toBeInTheDocument();
+    expect(await screen.findByRole("combobox", { name: "Hora inicio" })).toBeInTheDocument();
+    // Y vender sí usa los campos simples del encabezado.
+    await user.click(screen.getByRole("radio", { name: "Ahora" }));
+    expect(screen.getByLabelText("Día")).toHaveValue("2027-01-20");
+    expect(screen.getByLabelText("Hora")).toBeInTheDocument();
+  });
+});
+
+const select = (nombre: string) => screen.getByRole("combobox", { name: nombre }) as HTMLSelectElement;
+const HUECO_S1 = { serviceId: "s1", providerId: "prov1", providerName: "Gabi", minutes: 600 };
+
+describe("NuevoTurnoModal — día y hora de Agendar (calendario de días libres)", () => {
+  it("desde un hueco arranca en ese día y hora, y crea el turno con el día elegido", async () => {
+    const { user } = montar(HUECO_S1);
+    await elegirClienta(user);
+    expect(await screen.findByRole("button", { name: "20" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "22" }));
+    expect(select("Hora inicio").value).toBe("");
+    await user.selectOptions(select("Hora inicio"), "11:00");
+    await user.click(screen.getByRole("button", { name: "Agendar" }));
+    expect(crear.mock.calls[0]![0].start).toBe("2027-01-22T11:00:00-03:00");
+  });
+
+  it("sin hora elegida, Agendar está apagado y 'Hora fin' queda vacía", async () => {
+    const { user } = montar({ ...HUECO_S1, minutes: undefined });
+    await elegirClienta(user);
+    expect(select("Hora inicio").value).toBe("");
+    expect(screen.getByRole("button", { name: "Agendar" })).toBeDisabled();
+    const horaFin = screen.getByText(/Hora fin/).parentElement!.querySelector("input") as HTMLInputElement;
+    expect(horaFin.value).toBe("");
+  });
+
+  it("'A agendar' del CRM (sin hora) arranca en el primer día libre y sin hora", async () => {
+    diasLibres = ["2026-10-22", "2026-10-25"]; // el primero libre es el 22
+    clientaPrefill = CLIENTA;
+    montar({ customerId: "cu1", serviceId: "s1" });
+    expect(await screen.findByRole("button", { name: "22" })).toHaveAttribute("aria-pressed", "true");
+    expect(select("Hora inicio").value).toBe("");
+    expect(screen.getByRole("button", { name: "Agendar" })).toBeDisabled();
+  });
+
+  it("la hora sólo ofrece horarios libres", async () => {
+    horariosLibres = ["10:00", "11:00"];
+    montar(HUECO_S1);
+    const horas = Array.from(select("Hora inicio").options).map((o) => o.value).filter(Boolean);
+    expect(horas).toEqual(["10:00", "11:00"]);
+  });
+
+  it("una hora del hueco que no está libre se descarta, avisa y apaga Agendar", async () => {
+    horariosLibres = ["11:00"];
+    montar(HUECO_S1);
+    expect(await screen.findByText("El horario 10:00 no está libre con esta prestadora. Elegí otro.")).toBeInTheDocument();
+    expect(select("Hora inicio").value).toBe("");
+    expect(screen.getByRole("button", { name: "Agendar" })).toBeDisabled();
+  });
+
+  it("una hora del hueco que sí está libre se conserva y deja agendar", async () => {
+    horariosLibres = ["10:00", "11:00"];
+    const { user } = montar(HUECO_S1);
+    await elegirClienta(user);
+    expect(select("Hora inicio").value).toBe("10:00");
+    expect(screen.getByRole("button", { name: "Agendar" })).toBeEnabled();
+  });
+
+  it("depilación con una hora pasada: avisa y apaga Agendar y Reservar 24 h", async () => {
+    diasLibres = ["2026-10-16", "2026-10-20"]; // hoy es 16/10, 09:30
+    comprasPorClienta = { cu1: [DEPI_COMPRADA] };
+    clientaPrefill = CLIENTA;
+    montar({ customerId: "cu1", purchaseServiceId: "ps-depi" });
+    await user_click_zona();
+    expect(await screen.findByRole("button", { name: "16" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.change(screen.getByLabelText("Hora inicio"), { target: { value: "09:00" } });
+    expect(await screen.findByText("Ese horario ya pasó. Elegí uno a partir de ahora.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^agendar$/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /reservar 24 h/i })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Hora inicio"), { target: { value: "10:00" } });
+    expect(screen.getByRole("button", { name: /reservar 24 h/i })).toBeEnabled();
+  });
+});
+
+async function user_click_zona() {
+  const u = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  await u.click(await screen.findByRole("checkbox", { name: /pierna entera/i }));
+}
+
+describe("NuevoTurnoModal — lo que no se pierde", () => {
+  it("la prestadora fija se resuelve antes de montar el cuerpo, y lo escrito sobrevive a un re-render", async () => {
+    suyosCargando = true;
+    const { user, refrescar } = montar(HUECO_S1);
+    await elegirClienta(user);
+    // Mientras no se sabe si la prestadora hace el servicio, el cuerpo no se monta.
+    expect(screen.queryByPlaceholderText("Indicaciones especiales…")).not.toBeInTheDocument();
+    suyosCargando = false;
+    refrescar();
+    const notas = await screen.findByPlaceholderText("Indicaciones especiales…");
+    await user.type(notas, "viene con alergia");
+    // La prestadora quedó fija desde el primer render del cuerpo y nada lo remonta.
+    expect(screen.getByRole("option", { name: "Gabi" }).closest("select")).toBeDisabled();
+    refrescar();
+    expect(screen.getByPlaceholderText("Indicaciones especiales…")).toHaveValue("viene con alergia");
+  });
+
+  it("después de vender, si la lista de compras todavía no trae la nueva, espera y la elige cuando aparece", async () => {
+    ventaTardia = true;
+    const { user, refrescar } = montar();
+    await elegirClienta(user);
+    await user.selectOptions(screen.getByLabelText("Área"), "a-est");
+    await user.selectOptions(screen.getByLabelText("Qué"), "combo:c1");
+    await user.click(screen.getByRole("button", { name: "Vender y agendar" }));
+    await user.click(await screen.findByText("simular agendar"));
+    expect(screen.getByLabelText("Qué")).toHaveValue("");
+    // Llega la segunda lectura, ahora con la compra nueva.
+    comprasPorClienta = { ...comprasPorClienta, cu1: [compraDeLaVenta!] };
+    comprasFetching = false;
+    refrescar();
+    expect(screen.getByLabelText("Qué")).toHaveValue("comprado:ps9");
+  });
+
+  it("si la lista ya no está en camino y la línea no aparece, suelta lo pendiente (no queda esperando)", async () => {
+    ventaTardia = true;
+    const { user, refrescar } = montar();
+    await elegirClienta(user);
+    await user.selectOptions(screen.getByLabelText("Área"), "a-est");
+    await user.selectOptions(screen.getByLabelText("Qué"), "combo:c1");
+    await user.click(screen.getByRole("button", { name: "Vender y agendar" }));
+    await user.click(await screen.findByText("simular agendar"));
+    comprasFetching = false; // terminó de pedir y no está
+    refrescar();
+    expect(screen.getByLabelText("Qué")).toHaveValue("");
+    comprasPorClienta = { ...comprasPorClienta, cu1: [compraDeLaVenta!] };
+    refrescar();
+    expect(screen.getByLabelText("Qué")).toHaveValue("");
+  });
+
+  it("elegir la clienta con el servicio del hueco puesto lo conserva, pero '¿Cuándo se cobra?' vuelve a 'En el turno'", async () => {
+    const { user } = montar({ serviceId: "s1", providerId: "prov1", providerName: "Gabi", minutes: 600 });
+    await user.click(screen.getByRole("radio", { name: "Ahora" }));
+    await elegirClienta(user);
+    expect(screen.getByLabelText("Qué")).toHaveValue("servicio:s1");
+    expect(screen.getByRole("radio", { name: "En el turno" })).toBeChecked();
   });
 });

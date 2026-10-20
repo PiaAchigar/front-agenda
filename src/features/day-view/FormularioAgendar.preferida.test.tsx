@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Consumible } from "../../api/agenda";
 
-const CLIENTA = { id: "cu1", name: "Sofía Herrera", dni: "30111222", creditBalance: 0 };
+const CLIENTA = { id: "cu1", name: "Sofía Herrera", dni: "30111222", phone: null, email: null, creditBalance: "0" };
 const opcion = (purchaseId: string, purchaseServiceId: string, descripcion: string) => ({
   purchaseId, purchaseServiceId, descripcion, disponibles: 1, venceEl: null,
 });
@@ -53,9 +53,8 @@ describe("FormularioAgendar — lo que agrega Vender desde el turno", () => {
   it("con compraPreferidaId, arranca elegida la compra recién vendida", async () => {
     render(
       <FormularioAgendar
-        date="2027-01-20"
-        prefill={{ customerId: "cu1", serviceId: "svc-a", compraPreferidaId: "pu-nueva", minutes: 600 }}
         onClose={() => {}}
+        encabezado={{ fecha: "2027-01-20", minutos: 600, customer: CLIENTA, serviceId: "svc-a", purchaseServiceId: null, compraPreferidaId: "pu-nueva" }}
       />,
     );
     expect(await screen.findByRole("radio", { name: /pack recién vendido/i })).toBeChecked();
@@ -64,7 +63,7 @@ describe("FormularioAgendar — lo que agrega Vender desde el turno", () => {
 
   it("sin compraPreferidaId, no arranca ninguna elegida (como hoy)", async () => {
     render(
-      <FormularioAgendar date="2027-01-20" prefill={{ customerId: "cu1", serviceId: "svc-a", minutes: 600 }} onClose={() => {}} />,
+      <FormularioAgendar onClose={() => {}} encabezado={{ fecha: "2027-01-20", minutos: 600, customer: CLIENTA, serviceId: "svc-a", purchaseServiceId: null, compraPreferidaId: null }} />,
     );
     expect(await screen.findByRole("radio", { name: /pack recién vendido/i })).not.toBeChecked();
     expect(screen.getByRole("radio", { name: /no descontar/i })).toBeChecked();
@@ -73,9 +72,9 @@ describe("FormularioAgendar — lo que agrega Vender desde el turno", () => {
   it("depilación con profesional de la columna: queda fija", () => {
     render(
       <FormularioAgendar
-        date="2027-01-20"
-        prefill={{ customerId: "cu1", purchaseServiceId: "ps-depi", providerId: "prov1", providerName: "Gabi", minutes: 600 }}
         onClose={() => {}}
+        prestadoraFija={{ providerId: "prov1", providerName: "Gabi" }}
+        encabezado={{ fecha: "2027-01-20", minutos: 600, customer: CLIENTA, serviceId: null, purchaseServiceId: "ps-depi", compraPreferidaId: null }}
       />,
     );
     const fija = screen.getByRole("option", { name: "Gabi" }).closest("select")!;

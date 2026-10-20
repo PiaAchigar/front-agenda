@@ -34,7 +34,13 @@ vi.mock("../../api/ventas", () => ({
   useCobrarCompra: () => ({ mutate: cobrar, isPending: false, error: null }),
 }));
 vi.mock("../../api/agenda", () => ({
-  useAvailability: () => ({ data: undefined, isFetching: false, isLoading: false }),
+  useAvailability: (serviceId: string | null, date: string | null) => ({
+    data: date
+      ? { date, serviceId, durationMinutes: 30, slots: ["09:00", "10:00", "11:00"].map((start) => ({ start, end: start, options: [] })) }
+      : undefined,
+    isFetching: false,
+    isLoading: false,
+  }),
   useMonthAvailability: (_s: unknown, _p: unknown, month: string) => ({
     data: { month, availableDays: [] },
     isFetching: false,
@@ -78,25 +84,30 @@ const ENCABEZADO = {
 };
 
 describe("FormularioAgendar con encabezado", () => {
-  it("no dibuja clienta, servicio ni día/hora: los muestra el orquestador", () => {
-    render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={() => {}} encabezado={ENCABEZADO} />);
+  it("no dibuja clienta ni servicio (los muestra el orquestador) pero sí el día y la hora", () => {
+    render(<FormularioAgendar onClose={() => {}} encabezado={ENCABEZADO} />);
     expect(screen.queryByText("Cliente")).not.toBeInTheDocument();
     expect(screen.queryByText("Servicio")).not.toBeInTheDocument();
     expect(screen.queryByText(/Seleccioná un servicio/)).not.toBeInTheDocument();
-    expect(screen.queryByText("Día")).not.toBeInTheDocument();
-    expect(screen.queryByText("Hora inicio")).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Hora inicio" })).toBeInTheDocument();
+  });
+
+  it("cada cambio de día u hora se avisa hacia arriba", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const avisar = vi.fn();
+    render(<FormularioAgendar onClose={() => {}} encabezado={{ ...ENCABEZADO, minutos: null }} onCambiarFechaHora={avisar} />);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Hora inicio" }), "10:00");
+    expect(avisar).toHaveBeenLastCalledWith("2027-01-20", 600);
   });
 
   it("con serviceId ofrece las prestadoras de ese servicio", () => {
-    render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={() => {}} encabezado={ENCABEZADO} />);
+    render(<FormularioAgendar onClose={() => {}} encabezado={ENCABEZADO} />);
     expect(screen.getByRole("option", { name: "Gabi" })).toBeInTheDocument();
   });
 
   it("con purchaseServiceId muestra el menú de zonas", () => {
     render(
       <FormularioAgendar
-        date="2027-01-20"
-        prefill={null}
         onClose={() => {}}
         encabezado={{ ...ENCABEZADO, serviceId: null, purchaseServiceId: "ps-depi", compraPreferidaId: null }}
       />,
@@ -106,7 +117,7 @@ describe("FormularioAgendar con encabezado", () => {
 
   it("Confirmar crea el turno con la fecha, la hora y la compra preferida", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={() => {}} encabezado={ENCABEZADO} />);
+    render(<FormularioAgendar onClose={() => {}} encabezado={ENCABEZADO} />);
     await user.click(await screen.findByRole("button", { name: /^agendar$/i }));
     expect(crear).toHaveBeenCalledTimes(1);
     expect(crear.mock.calls[0]![0]).toMatchObject({
@@ -121,8 +132,6 @@ describe("FormularioAgendar con encabezado", () => {
   it("sin hora elegida no deja confirmar", () => {
     render(
       <FormularioAgendar
-        date="2027-01-20"
-        prefill={null}
         onClose={() => {}}
         encabezado={{ ...ENCABEZADO, minutos: null }}
       />,
@@ -139,7 +148,7 @@ describe("FormularioAgendar — la puerta de pago de depilación (#18)", () => {
 
   it("si falta plata, ofrece 'Cobrar lo que falta' y Agendar sigue apagado", () => {
     sinPlata();
-    render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={() => {}} encabezado={ENCABEZADO_DEPI} />);
+    render(<FormularioAgendar onClose={() => {}} encabezado={ENCABEZADO_DEPI} />);
     expect(screen.getByRole("button", { name: "Cobrar lo que falta" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^agendar$/i })).toBeDisabled();
   });
@@ -147,7 +156,7 @@ describe("FormularioAgendar — la puerta de pago de depilación (#18)", () => {
   it("cobra sobre esa compra y, al cobrar, vuelve a leer la puerta", async () => {
     sinPlata();
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    const { rerender } = render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={() => {}} encabezado={ENCABEZADO_DEPI} />);
+    const { rerender } = render(<FormularioAgendar onClose={() => {}} encabezado={ENCABEZADO_DEPI} />);
     await user.click(screen.getByRole("button", { name: "Cobrar lo que falta" }));
     await user.click(screen.getByRole("button", { name: /^cobrar \$/i }));
     expect(cobrar).toHaveBeenCalledWith(
@@ -156,13 +165,13 @@ describe("FormularioAgendar — la puerta de pago de depilación (#18)", () => {
     );
     // El cobro invalida `para-agendar`: la puerta llega nueva y Agendar se habilita.
     datosDepilacion = { ...datosDepilacion, puerta: PUERTA_ORIGINAL };
-    rerender(<FormularioAgendar date="2027-01-20" prefill={null} onClose={() => {}} encabezado={ENCABEZADO_DEPI} />);
+    rerender(<FormularioAgendar onClose={() => {}} encabezado={ENCABEZADO_DEPI} />);
     expect(screen.queryByRole("button", { name: "Cobrar lo que falta" })).not.toBeInTheDocument();
   });
 
   it("sin compra conocida no ofrece cobrar", () => {
     sinPlata();
-    render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={() => {}} encabezado={{ ...ENCABEZADO_DEPI, compraId: null }} />);
+    render(<FormularioAgendar onClose={() => {}} encabezado={{ ...ENCABEZADO_DEPI, compraId: null }} />);
     expect(screen.queryByRole("button", { name: "Cobrar lo que falta" })).not.toBeInTheDocument();
   });
 });

@@ -10,7 +10,7 @@ const consumible: { data: Consumible | undefined; isFetching: boolean } = {
 };
 
 const SERVICIO = { id: "srv1", name: "Lifting de pestañas", estimatedDurationMinutes: 45 };
-const CLIENTA = { id: "cli1", name: "Sofía Herrera", dni: "30111222", creditBalance: 0 };
+const CLIENTA = { id: "cli1", name: "Sofía Herrera", dni: "30111222", phone: null, email: null, creditBalance: "0" };
 const PROVEEDORA = { id: "prov1", name: "Gabi" };
 
 vi.mock("../../api/agenda", () => ({
@@ -58,13 +58,9 @@ const { FormularioAgendar } = await import("./NewAppointmentModal");
 const frase = (re: RegExp) => (_: string, el: Element | null) =>
   !!el && re.test(el.textContent ?? "") && !Array.from(el.children).some((h) => re.test(h.textContent ?? ""));
 
-/** Abre la modal y deja elegida la clienta y el servicio. */
+/** Abre el cuerpo de Agendar con la clienta y el servicio ya elegidos arriba. */
 async function abrirConClientaYServicio(user: ReturnType<typeof userEvent.setup>) {
-  render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={() => {}} />);
-  await user.type(screen.getByPlaceholderText(/nombre, dni/i), "Sofía");
-  await user.click(await screen.findByText(/Sofía Herrera/));
-  const selects = screen.getAllByRole("combobox");
-  await user.selectOptions(selects[0]!, "srv1");
+  render(<FormularioAgendar onClose={() => {}} encabezado={{ fecha: "2027-01-20", minutos: null, customer: CLIENTA, serviceId: "srv1", purchaseServiceId: null, compraPreferidaId: null }} />);
   await user.selectOptions(screen.getByRole("combobox", { name: "Hora inicio" }), "10:00");
 }
 
@@ -120,7 +116,7 @@ describe("DescuentoDePack — una sola compra", () => {
     const user = userEvent.setup();
     await abrirConClientaYServicio(user);
     await screen.findByText(frase(/se descuenta de/i));
-    await user.click(screen.getByRole("button", { name: /confirmar turno/i }));
+    await user.click(screen.getByRole("button", { name: /^agendar$/i }));
 
     await waitFor(() => expect(crear).toHaveBeenCalled());
     expect(crear.mock.calls[0]![0].customerPurchaseServiceId).toBe("ses1");
@@ -132,7 +128,7 @@ describe("DescuentoDePack — una sola compra", () => {
     await user.click(await screen.findByRole("button", { name: /no descontar/i }));
 
     expect(screen.getByText(/este turno se cobra aparte/i)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /confirmar turno/i }));
+    await user.click(screen.getByRole("button", { name: /^agendar$/i }));
     await waitFor(() => expect(crear).toHaveBeenCalled());
     expect(crear.mock.calls[0]![0].customerPurchaseServiceId).toBeUndefined();
   });
@@ -216,7 +212,7 @@ describe("DescuentoDePack — varias compras", () => {
     await abrirConClientaYServicio(user);
     await screen.findByText(/de cuál se descuenta/i);
     await user.click(screen.getByLabelText(/Combo Facial/));
-    await user.click(screen.getByRole("button", { name: /confirmar turno/i }));
+    await user.click(screen.getByRole("button", { name: /^agendar$/i }));
 
     await waitFor(() => expect(crear).toHaveBeenCalled());
     expect(crear.mock.calls[0]![0].customerPurchaseServiceId).toBe("ses9");
