@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DatosParaAgendar } from "../../api/types";
@@ -405,6 +405,29 @@ describe("NuevoTurnoModal — día y hora de Agendar (calendario de días libres
     expect(await screen.findByRole("button", { name: "22" })).toHaveAttribute("aria-pressed", "true");
     expect(select("Hora inicio").value).toBe("");
     expect(screen.getByRole("button", { name: "Agendar" })).toBeDisabled();
+  });
+
+  it("'A agendar' del CRM de un servicio ya comprado (sólo customerId + serviceId) elige la sesión comprada, no vende de nuevo", async () => {
+    comprasPorClienta = { cu1: [PACK_COMPRADO] };
+    clientaPrefill = CLIENTA;
+    montar({ customerId: "cu1", serviceId: "s1" });
+    expect(await screen.findByText("Sofía Herrera")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("Qué")).toHaveValue("comprado:ps1"));
+    expect(screen.queryByText(/cuándo se cobra/i)).not.toBeInTheDocument();
+  });
+
+  it("'A agendar' del CRM sin nada comprado de ese servicio cae al servicio del catálogo", async () => {
+    comprasPorClienta = { cu1: [] };
+    clientaPrefill = CLIENTA;
+    montar({ customerId: "cu1", serviceId: "s1" });
+    await waitFor(() => expect(screen.getByLabelText("Qué")).toHaveValue("servicio:s1"));
+  });
+
+  it("'Profesional: X' sólo aparece si esa profesional hace lo elegido", async () => {
+    montar({ providerId: "prov1", providerName: "Gabi", minutes: 600 });
+    expect(screen.queryByText(/Profesional: Gabi/)).not.toBeInTheDocument();
+    montar({ serviceId: "s1", providerId: "prov1", providerName: "Gabi", minutes: 600 });
+    expect(screen.getByText(/Profesional: Gabi/)).toBeInTheDocument();
   });
 
   it("la hora sólo ofrece horarios libres", async () => {

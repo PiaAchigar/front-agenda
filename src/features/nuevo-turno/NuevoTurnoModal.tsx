@@ -27,6 +27,8 @@ const aHora = (min: number) => `${String(Math.floor(min / 60)).padStart(2, "0")}
 /** Lo que falta resolver contra el catálogo / las compras para dejar una elección puesta. */
 type Pendiente =
   | { tipo: "servicio"; serviceId: string }
+  /** CRM "A agendar": llega sólo clienta + servicio. Si ya lo compró, se agenda esa sesión (no se vende de nuevo). */
+  | { tipo: "servicio-de-clienta"; serviceId: string }
   | { tipo: "linea"; purchaseServiceId: string }
   | { tipo: "linea-de-compra"; compraId: string; serviceId: string };
 
@@ -34,6 +36,7 @@ function pendienteDe(p: NewApptPrefill | null): Pendiente | null {
   if (!p) return null;
   if (p.purchaseServiceId) return { tipo: "linea", purchaseServiceId: p.purchaseServiceId };
   if (p.serviceId && p.compraPreferidaId) return { tipo: "linea-de-compra", compraId: p.compraPreferidaId, serviceId: p.serviceId };
+  if (p.serviceId && p.customerId) return { tipo: "servicio-de-clienta", serviceId: p.serviceId };
   if (p.serviceId) return { tipo: "servicio", serviceId: p.serviceId };
   return null;
 }
@@ -101,20 +104,25 @@ export function NuevoTurnoModal({
   // Poner la elección que pidió el prefill (o el traspaso de una venta) apenas
   // se puede resolver; si no aparece, se suelta: nada queda esperando.
   if (pendiente && catalogo) {
-    if (pendiente.tipo === "servicio") {
-      setPendiente(null);
-      const item = catalogo.servicios.find((s) => s.id === pendiente.serviceId);
+    const ponerServicio = (serviceId: string) => {
+      const item = catalogo.servicios.find((s) => s.id === serviceId);
       const clave = item ? (item.area?.id ?? CLAVE_SIN_AREA) : null;
       if (item && clave && areasDelTurno(catalogo).some((a) => a.clave === clave)) {
         setArea(clave);
         setEleccion({ tipo: "servicio", item });
         setServicioDelHueco(true);
       }
+    };
+    if (pendiente.tipo === "servicio") {
+      setPendiente(null);
+      ponerServicio(pendiente.serviceId);
     } else if (comprasQ.isError) {
       setPendiente(null);
+      if (pendiente.tipo === "servicio-de-clienta") ponerServicio(pendiente.serviceId);
     } else if (compras) {
       let encontrada = false;
       for (const a of areasDelTurno(catalogo)) {
+        // Las sesiones vienen por vencimiento: la primera que coincide es la que usaría `consumible`.
         const opcion = gruposDeQue(catalogo, compras, a.clave, "")
           .find((g) => g.titulo === "Ya comprado")
           ?.opciones.find(
@@ -122,7 +130,9 @@ export function NuevoTurnoModal({
               o.tipo === "comprado" &&
               (pendiente.tipo === "linea"
                 ? o.linea.purchaseServiceId === pendiente.purchaseServiceId
-                : o.linea.compraId === pendiente.compraId && o.linea.serviceId === pendiente.serviceId),
+                : pendiente.tipo === "servicio-de-clienta"
+                  ? !o.linea.esDepilacion && o.linea.serviceId === pendiente.serviceId
+                  : o.linea.compraId === pendiente.compraId && o.linea.serviceId === pendiente.serviceId),
           );
         if (opcion) {
           setArea(a.clave);
@@ -133,7 +143,11 @@ export function NuevoTurnoModal({
       }
       // Recién vendida: la lista cacheada puede no traerla todavía. Mientras se
       // vuelve a pedir, se espera; si ya no hay nada en camino, se suelta.
-      if (encontrada || !comprasQ.isFetching) setPendiente(null);
+      if (encontrada || !comprasQ.isFetching) {
+        setPendiente(null);
+        // Sin sesión comprada de ese servicio, se ofrece como nuevo.
+        if (!encontrada && pendiente.tipo === "servicio-de-clienta") ponerServicio(pendiente.serviceId);
+      }
     }
   }
 
@@ -242,7 +256,7 @@ export function NuevoTurnoModal({
           {horarioPasado && <p className="text-xs text-red-700">{AVISO_HORARIO_PASADO}</p>}
           </>
         )}
-        {prestadora.providerName && <p className="text-xs text-ink-soft">Profesional: {prestadora.providerName}</p>}
+        {prestadora.providerName && (prestadoraFija || modo === "vender") && <p className="text-xs text-ink-soft">Profesional: {prestadora.providerName}</p>}
 
         <div>
           <span className={LABEL}>Cliente</span>
