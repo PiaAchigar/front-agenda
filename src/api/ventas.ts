@@ -80,6 +80,8 @@ export type LineaDeCompra = {
   serviceId: string | null;
   depilationComboId: string | null;
   serviceName: string | null;
+  /** Número de vuelta (1, 2, 3…); null en compras viejas. */
+  repeticion?: number | null;
   estado: EstadoSesion;
 };
 
@@ -87,6 +89,16 @@ export type LineaDeCompra = {
 export type Compra = {
   id: string;
   description: string | null;
+  /** Lo que la API manda además; opcionales para no obligar a los fixtures viejos. */
+  comboId?: string | null;
+  depilationComboId?: string | null;
+  serviceId?: string | null;
+  promotionId?: string | null;
+  sessionsTotal?: number;
+  /** ISO; null = no vence. */
+  expiresAt?: string | null;
+  /** ISO; no-null = compra cancelada. */
+  cancelledAt?: string | null;
   saldo: number;
   servicios: LineaDeCompra[];
 };
