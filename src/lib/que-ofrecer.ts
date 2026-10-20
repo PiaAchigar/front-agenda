@@ -21,7 +21,7 @@ export type LineaDisponible = {
 
 export type EleccionDeQue =
   | { tipo: "comprado"; linea: LineaDisponible }
-  | { tipo: "servicio" | "combo" | "pack" | "depilacion"; item: ItemDeCatalogo }
+  | { tipo: "servicio" | "combo" | "pack" | "depilacion" | "capacitacion"; item: ItemDeCatalogo }
   | { tipo: "promo"; promo: PromoVendible };
 
 export type GrupoDeQue = {

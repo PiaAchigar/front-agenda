@@ -139,3 +139,45 @@ export function useAnotarAClase() {
     onSuccess: () => invalidarClases(queryClient),
   });
 }
+
+export type OpcionesDeCapacitacion = {
+  compraId: string | null;
+  debe: number;
+  encuentrosAnotada: number;
+  encuentrosQueQuedan: number;
+};
+
+/** Si la clienta compró la capacitación y en cuántos de los encuentros que quedan está anotada. */
+export function useOpcionesDeCapacitacion(trainingId: string, customerId: string | null) {
+  return useQuery({
+    queryKey: ["opciones-capacitacion", trainingId, customerId],
+    queryFn: () =>
+      api<{ success: boolean; data: OpcionesDeCapacitacion }>(
+        `/api/agenda/classes/opciones-capacitacion?trainingId=${trainingId}&customerId=${customerId}`,
+      ).then((r) => r.data),
+    enabled: !!customerId,
+  });
+}
+
+export type AnotarACapacitacionResultado = {
+  anotada: number;
+  yaEstaba: number;
+  /** session_number de los encuentros sin lugar */
+  sinLugar: number[];
+};
+
+export function useAnotarACapacitacion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { trainingId: string; customerId: string }) =>
+      api<{ success: boolean; data: AnotarACapacitacionResultado }>("/api/agenda/classes/anotar-a-capacitacion", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["opciones-capacitacion"] });
+    },
+  });
+}

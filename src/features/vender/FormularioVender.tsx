@@ -39,6 +39,8 @@ export function FormularioVender({
   minutos,
   onVendido,
   onCancelar,
+  sinHorario = false,
+  etiqueta = "Vender y agendar",
 }: {
   /** `null` mientras no se elige nada: no cotiza y el botón queda apagado. */
   eleccion: EleccionVendible | null;
@@ -48,6 +50,10 @@ export function FormularioVender({
   minutos: number | null;
   onVendido: (v: { compraId: string; descripcion: string }) => void;
   onCancelar?: () => void;
+  /** Se vende sin agendar un horario (capacitaciones): no exige fecha ni hora. */
+  sinHorario?: boolean;
+  /** Texto del botón de vender. */
+  etiqueta?: string;
 }) {
   const { data: catalogo } = useCatalogoVendible();
   const vender = useVender();
@@ -67,7 +73,7 @@ export function FormularioVender({
   const item = !eleccion ? null : eleccion.tipo === "promo" ? (paquete ? null : itemDeLaPromo) : eleccion.item;
   const promotionId = promo ? (paquete ? null : promo.id) : promoDelItem;
 
-  const horarioPasado = Boolean(fecha) && minutos !== null && yaPaso(fecha, minutos);
+  const horarioPasado = !sinHorario && Boolean(fecha) && minutos !== null && yaPaso(fecha, minutos);
 
   const pedido = pedidoDeCotizacion({ customerId: customer?.id ?? null, paquete, item, sesiones, promotionId });
   const cotizacion = useCotizacion(pedido);
@@ -168,8 +174,8 @@ export function FormularioVender({
 
       <div className="flex justify-end gap-2 border-t border-surface-high pt-3">
         {onCancelar && <Button type="button" variant="secondary" onClick={onCancelar}>Cancelar</Button>}
-        <Button type="button" disabled={!q || !fecha || minutos === null || horarioPasado || vender.isPending} onClick={handleVender}>
-          {vender.isPending ? "Vendiendo…" : "Vender y agendar"}
+        <Button type="button" disabled={!q || (!sinHorario && (!fecha || minutos === null)) || horarioPasado || vender.isPending} onClick={handleVender}>
+          {vender.isPending ? "Vendiendo…" : etiqueta}
         </Button>
       </div>
     </div>

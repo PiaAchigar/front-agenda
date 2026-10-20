@@ -34,6 +34,7 @@ import { debeDelTurno } from "../../lib/deuda-del-turno";
 import { ClassesView } from "./ClassesView";
 import { CobrarCuota, mesEnLetras } from "../grupal/CobrarCuota";
 import { AnotarEnClaseModal } from "../grupal/AnotarEnClaseModal";
+import { AnotarEnCapacitacionModal } from "../grupal/AnotarEnCapacitacionModal";
 
 import { saveView } from "../../components/ViewTabs";
 import { isEmbedded, prefillDesdeUrl, requestCheckoutHandoff } from "../../lib/embed";
@@ -311,6 +312,10 @@ export function DayViewPage() {
       {/* ── Anotar en una clase de actividad (capacitaciones: Task 6) ── */}
       {anotarEn?.kind === "activity" && (
         <AnotarEnClaseModal key={anotarEn.occurrenceId} occurrence={anotarEn} onClose={() => setAnotarEn(null)} />
+      )}
+
+      {anotarEn?.kind === "training" && (
+        <AnotarEnCapacitacionModal key={anotarEn.occurrenceId} occurrence={anotarEn} onClose={() => setAnotarEn(null)} />
       )}
 
       {/* ── Cobrar desde la clase: cuota (actividad) o deuda (capacitación) ── */}
