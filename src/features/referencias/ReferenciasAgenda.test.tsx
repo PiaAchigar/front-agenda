@@ -17,7 +17,7 @@ describe("ReferenciasAgenda", () => {
     render(<ReferenciasAgenda />);
     await user.click(boton());
     expect(boton()).toHaveAttribute("aria-expanded", "true");
-    for (const nombre of ["Libre", "Ya pasó", "No atiende", "Local cerrado", "Agendado", "Completado", "Ausente", "Reserva"]) {
+    for (const nombre of ["Libre", "Ya pasó", "No atiende", "Local cerrado", "Agendado", "Completado", "Ausente", "Reserva", "Debe $X"]) {
       expect(screen.getByText(nombre)).toBeInTheDocument();
     }
   });

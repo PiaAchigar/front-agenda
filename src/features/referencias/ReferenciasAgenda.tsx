@@ -119,6 +119,11 @@ export function ReferenciasAgenda() {
                 </span>
               }
             />
+            <Item
+              nombre="Debe $X"
+              texto="Falta cobrar algo de la compra de ese turno (de toda la compra, no sólo de ese turno). Se cobra desde el detalle."
+              muestra={<span className="flex h-6 w-10 items-center justify-center rounded-md border border-surface-high bg-white text-[10px] font-semibold text-red-700">Debe</span>}
+            />
           </Grupo>
         </div>
       )}

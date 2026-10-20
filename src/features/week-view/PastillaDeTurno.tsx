@@ -2,6 +2,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { Appointment } from "../../api/types";
 import { STATUS_BORDER_COLOR, type ProviderColor } from "../../lib/colors";
 import { formatTime } from "../../lib/format";
+import { debeDelTurno } from "../../lib/deuda-del-turno";
+import { pesos } from "../../lib/vender";
 
 type Props = {
   turno: Appointment;
@@ -58,6 +60,7 @@ export function PastillaDeTurno({ turno, color, carril, total, top, alto, onAbri
 
   const reservada = turno.status === "reserved";
   const faltan = reservada && turno.reservationExpiresAt ? minutosRestantes(turno.reservationExpiresAt) : null;
+  const debe = debeDelTurno(turno);
   const urgente = faltan !== null && faltan <= 10;
   const borde = STATUS_BORDER_COLOR[turno.status ?? "scheduled"] ?? STATUS_BORDER_COLOR.scheduled;
 
@@ -111,6 +114,7 @@ export function PastillaDeTurno({ turno, color, carril, total, top, alto, onAbri
           <p>{turno.providerName}</p>
           <p>{turno.customerName ?? "Cliente"}</p>
           <p className="text-ink-soft">{turno.serviceName}</p>
+          {debe !== null && <p className="font-semibold text-red-600">Debe {pesos(debe)}</p>}
           {reservada && faltan !== null && (
             <p className={urgente ? "text-red-600" : "text-amber-700"}>Reserva: expira en {faltan} min</p>
           )}

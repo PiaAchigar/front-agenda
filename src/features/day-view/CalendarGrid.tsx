@@ -5,6 +5,8 @@ import { buildProviderColorMap, STATUS_BORDER_COLOR } from "../../lib/colors";
 import { formatTime, isoToLocalMinutes } from "../../lib/format";
 import { yaPaso } from "../../lib/horario";
 import { FONDO_DEL_HUECO, tipoDeHueco } from "../../lib/fondo-del-hueco";
+import { debeDelTurno } from "../../lib/deuda-del-turno";
+import { pesos } from "../../lib/vender";
 
 /** Reservas expiradas se tratan como canceladas hasta que el cron las limpie. */
 function isVisible(appt: Appointment): boolean {
@@ -272,6 +274,8 @@ export function CalendarGrid({
                   // card queda con la línea de abajo vacía.
                   const cardSubtext = appt.serviceName ?? appt.activityName;
 
+                  const debe = debeDelTurno(appt);
+
                   const isReserved = appt.status === "reserved";
                   const minsLeft   = isReserved && appt.reservationExpiresAt
                     ? minutesLeft(appt.reservationExpiresAt)
@@ -307,6 +311,9 @@ export function CalendarGrid({
                           {appt.customerName ?? "Cliente"}
                         </span>
                       </p>
+                      {debe !== null && (
+                        <p className="truncate font-semibold text-red-700">Debe {pesos(debe)}</p>
+                      )}
                       {height >= 44 && (
                         <p className="truncate opacity-80">
                           {isReserved && minsLeft !== null

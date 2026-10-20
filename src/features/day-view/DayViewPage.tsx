@@ -28,6 +28,8 @@ import {
   sePuedeCobrar,
 } from "../../lib/acciones-del-turno";
 import { AttendanceModal, type AttendanceTarget } from "./AttendanceModal";
+import { CobrarDeudaDelTurno } from "./CobrarDeudaDelTurno";
+import { debeDelTurno } from "../../lib/deuda-del-turno";
 import { ClassesView } from "./ClassesView";
 
 import { saveView } from "../../components/ViewTabs";
@@ -366,6 +368,15 @@ export function DayViewPage() {
                 >
                   Cobrar
                 </Button>
+              )}
+              {/* La deuda es de la compra entera: se cobra sobre la compra. El
+                  "Cobrar" común sigue bloqueado para estos turnos (sePuedeCobrar). */}
+              {selected.customerPurchaseId && debeDelTurno(selected) !== null && (
+                <CobrarDeudaDelTurno
+                  compraId={selected.customerPurchaseId}
+                  deuda={debeDelTurno(selected)!}
+                  descripcion={selected.serviceName ?? "Compra"}
+                />
               )}
               {selected.status !== "completed" && (
                 <Button
