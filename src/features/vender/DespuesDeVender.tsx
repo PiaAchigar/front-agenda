@@ -21,6 +21,8 @@ export type DespuesDeVenderProps = {
   descripcion: string;
   fecha: string;
   hueco: Hueco;
+  /** `false`: ya se cobró (o se cobra en el turno), arranca en "¿qué va en este turno?". */
+  cobrarAhora?: boolean;
   onAgendar: (t: TraspasoAAgendar) => void;
   onCerrar: () => void;
 };
@@ -42,7 +44,8 @@ export function DespuesDeVender(p: DespuesDeVenderProps) {
   const cargandoSuyos = !!hueco.providerId && serviciosDeElla === undefined;
   const suyos = hueco.providerId ? (serviciosDeElla ?? []).map((s) => s.id) : null;
 
-  const [paso, setPaso] = useState<Paso | null>(null);
+  const cobrarAhora = p.cobrarAhora ?? true;
+  const [paso, setPaso] = useState<Paso | null>(cobrarAhora ? null : "que-va");
   const [deuda, setDeuda] = useState(0);
   const [elegida, setElegida] = useState<string | null>(null);
 
@@ -86,9 +89,10 @@ export function DespuesDeVender(p: DespuesDeVenderProps) {
   }, [unica]);
 
   const compraNoAparece = compra.isSuccess && compra.data === null;
-  if (estado.error || compra.error || compraNoAparece) {
-    const mensaje = estado.error || compra.error
-      ? `La venta quedó hecha, pero no se pudo seguir: ${((estado.error ?? compra.error) as Error).message}`
+  const falloEstado = cobrarAhora ? estado.error : null;
+  if (falloEstado || compra.error || compraNoAparece) {
+    const mensaje = falloEstado || compra.error
+      ? `La venta quedó hecha, pero no se pudo seguir: ${((falloEstado ?? compra.error) as Error).message}`
       : "Todavía no aparece la compra recién vendida. Probá de nuevo en unos segundos.";
     return (
       <div className="space-y-3">

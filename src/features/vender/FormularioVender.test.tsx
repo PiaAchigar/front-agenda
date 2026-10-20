@@ -1,0 +1,85 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Catalogo, ItemDeCatalogo, PromoVendible } from "../../api/ventas";
+
+const CLIENTA = { id: "cu1", name: "Sofía Herrera", dni: "30111222", creditBalance: null, phone: null, email: null };
+const it_ = (p: Partial<ItemDeCatalogo> & Pick<ItemDeCatalogo, "origen" | "id" | "nombre">): ItemDeCatalogo => ({
+  packSesiones: null, packDescuentoPct: null, precioDesde: 10000, descripcion: null, desglose: [], area: null, ...p,
+});
+const SERVICIO = it_({ origen: "servicio", id: "s1", nombre: "Limpieza facial" });
+const PACK = it_({ origen: "combo", id: "c1", nombre: "Pack Glow x4", packSesiones: 4 });
+const PROMO_PAQUETE: PromoVendible = { id: "pp", name: "Paquete Verano", discountPercentage: null, discountAmount: null, promotionType: "paquete", precioDelPaquete: 50000, destinos: [] };
+const PROMO_DESCUENTO: PromoVendible = { id: "p1", name: "Octubre 20%", discountPercentage: 20, discountAmount: null, promotionType: "descuento", precioDelPaquete: null, destinos: [{ tipo: "servicio", id: "s1", cantidad: 1 }] };
+const CATALOGO: Catalogo = { servicios: [SERVICIO], combos: [PACK], depilacion: [], capacitaciones: [], promociones: [PROMO_PAQUETE, PROMO_DESCUENTO] };
+const COTIZACION = {
+  description: "Pack Glow x4", sessionsTotal: 4, baseAmount: 40000, discountedAmount: 40000, finalAmount: 40000,
+  promotionId: null, expiresAt: null, comboId: "c1", depilationComboId: null, serviceId: null, trainingId: null,
+};
+
+const pedidos: unknown[] = [];
+const vender = vi.fn((_i: unknown, o?: { onSuccess?: (r: unknown) => void }) => o?.onSuccess?.({ id: "pu9" }));
+
+vi.mock("../../api/ventas", () => ({
+  useCatalogoVendible: () => ({ data: CATALOGO, isLoading: false, error: null }),
+  useCotizacion: (p: unknown) => {
+    pedidos.push(p);
+    return p ? { data: COTIZACION, isFetching: false, error: null } : { data: undefined, isFetching: false, error: null };
+  },
+  useVender: () => ({ mutate: vender, isPending: false, error: null }),
+}));
+
+const { FormularioVender } = await import("./VenderYAgendar");
+
+type Eleccion = Parameters<typeof FormularioVender>[0]["eleccion"];
+function montar(eleccion: Eleccion, cuando: "ahora" | "en-el-turno" = "ahora") {
+  const onVendido = vi.fn();
+  render(
+    <FormularioVender eleccion={eleccion} customer={CLIENTA} fecha="2099-01-20" minutos={930}
+      hueco={{ providerId: "prov1", minutes: 930 }} cuando={cuando} onVendido={onVendido} />,
+  );
+  return { onVendido };
+}
+
+beforeEach(() => {
+  pedidos.length = 0;
+  vender.mockClear();
+});
+
+describe("FormularioVender", () => {
+  it("con un pack elegido cotiza y al vender avisa con onVendido", async () => {
+    const { onVendido } = montar({ tipo: "pack", item: PACK });
+    expect(pedidos.at(-1)).toEqual({ origen: "combo", id: "c1", sessions: 1, promotionId: null, customerId: "cu1" });
+    await userEvent.click(screen.getByRole("button", { name: "Vender y agendar" }));
+    expect(vender).toHaveBeenCalledWith({ ...COTIZACION, customerId: "cu1", usarSaldo: 0 }, expect.anything());
+    expect(onVendido).toHaveBeenCalledWith({ compraId: "pu9", descripcion: "Pack Glow x4" });
+  });
+
+  it("con un servicio y cuando=ahora vende ese servicio como compra, con sesiones editables", async () => {
+    const { onVendido } = montar({ tipo: "servicio", item: SERVICIO }, "ahora");
+    expect(screen.getByLabelText("Sesiones")).toBeInTheDocument();
+    expect(pedidos.at(-1)).toEqual({ origen: "servicio", id: "s1", sessions: 1, promotionId: null, customerId: "cu1" });
+    await userEvent.click(screen.getByRole("button", { name: "Vender y agendar" }));
+    expect(onVendido).toHaveBeenCalledTimes(1);
+  });
+
+  it("una promo paquete se vende como la promo misma", () => {
+    montar({ tipo: "promo", promo: PROMO_PAQUETE });
+    expect(pedidos.at(-1)).toEqual({ origen: "paquete", promotionId: "pp", customerId: "cu1" });
+  });
+
+  it("una promo de descuento pide a qué se le aplica y cotiza ese item con la promo", async () => {
+    montar({ tipo: "promo", promo: PROMO_DESCUENTO });
+    expect(pedidos.at(-1)).toBeNull();
+    expect(screen.getByRole("button", { name: "Vender y agendar" })).toBeDisabled();
+    await userEvent.selectOptions(screen.getByLabelText("¿A qué se le aplica?"), "servicio:s1");
+    expect(pedidos.at(-1)).toEqual({ origen: "servicio", id: "s1", sessions: 1, promotionId: "p1", customerId: "cu1" });
+  });
+
+  it("sin clienta no cotiza ni deja vender", () => {
+    render(<FormularioVender eleccion={{ tipo: "servicio", item: SERVICIO }} customer={null} fecha="2099-01-20" minutos={930}
+      hueco={{}} cuando="ahora" onVendido={vi.fn()} />);
+    expect(pedidos.at(-1)).toBeNull();
+    expect(screen.getByRole("button", { name: "Vender y agendar" })).toBeDisabled();
+  });
+});

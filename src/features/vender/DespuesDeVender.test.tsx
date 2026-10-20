@@ -211,3 +211,16 @@ describe("DespuesDeVender", () => {
     expect(onCerrar).toHaveBeenCalled();
   });
 });
+
+describe("DespuesDeVender — cobrarAhora", () => {
+  it("con cobrarAhora=false no hay paso de cobro: arranca en qué va en este turno", () => {
+    compra = { data: DOS, error: null, refetch: vi.fn() };
+    const onAgendar = vi.fn();
+    render(
+      <DespuesDeVender compraId="pu9" customerId="cu1" customerName="Sofía" descripcion="Combo Glow" fecha="2027-01-21"
+        hueco={{ providerId: "prov1", providerName: "Gabi", minutes: 930 }} cobrarAhora={false} onAgendar={onAgendar} onCerrar={vi.fn()} />,
+    );
+    expect(screen.queryByRole("button", { name: /cobrar/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "¿Qué va en este turno?" })).toBeInTheDocument();
+  });
+});
