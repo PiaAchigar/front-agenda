@@ -368,7 +368,7 @@ export function DayViewPage() {
                       activityId: selected.activityId!,
                       activityName: selected.activityName,
                       startsAt: selected.appointmentStart,
-                      machineId: null,
+                      machineId: selected.machineId ?? null,
                     });
                     setSelectedId(null);
                   }}

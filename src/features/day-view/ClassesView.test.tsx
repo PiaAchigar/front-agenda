@@ -110,6 +110,14 @@ describe("sacar de la clase", () => {
     );
   });
 
+  it("muestra el error si el PATCH falla", async () => {
+    window.confirm = vi.fn(() => true);
+    apiMock.mockRejectedValue(new Error("No se pudo sacar a la clienta"));
+    montar();
+    await userEvent.click(screen.getByLabelText("Sacar a Clienta 1 de esta clase"));
+    expect(await screen.findByText("No se pudo sacar a la clienta")).toBeInTheDocument();
+  });
+
   it("si no acepta, no llama nada", async () => {
     window.confirm = vi.fn(() => false);
     montar();

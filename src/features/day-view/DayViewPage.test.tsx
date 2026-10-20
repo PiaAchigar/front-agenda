@@ -13,6 +13,7 @@ import type { DatosParaAgendar } from "../../api/types";
  */
 
 const crear = vi.fn();
+const pedirRoster = vi.fn();
 const pedirMes = vi.fn(() => ({ data: undefined, isFetching: false }));
 const CLIENTA = { id: "cu1", name: "Sofía Herrera", dni: "30111222", creditBalance: 0 };
 const PROVEEDORA = { id: "prov1", fullName: "Gabi", specialties: null };
@@ -109,7 +110,7 @@ vi.mock("../../api/agenda", () => ({
   // `AttendanceModal`, `ReagendarTurnoModal` y `AvisoInsumosModal` se montan
   // SIEMPRE (se apagan por prop, no por `&&`), así que sus hooks corren en
   // cada render aunque el modal esté cerrado.
-  useClassRoster: () => ({ data: SIN_DATOS, isLoading: false }),
+  useClassRoster: (...a: unknown[]) => { pedirRoster(...a); return { data: SIN_DATOS, isLoading: false }; },
   useMarkAttendance: () => SIN_MUTAR,
   useRescheduleAppointment: () => SIN_MUTAR_CON_ERROR,
   useReschedules: () => ({ data: SIN_DATOS }),
@@ -142,6 +143,9 @@ vi.mock("./CalendarGrid", () => ({
       </button>
       <button onClick={() => abrir({ ...TURNO_COMPLETADO, status: "scheduled" })}>
         abrir un turno agendado
+      </button>
+      <button onClick={() => abrir({ ...TURNO_COMPLETADO, status: "scheduled", activityId: "act1", machineId: "m1" })}>
+        abrir uno de máquina agendado
       </button>
       <button onClick={() => abrir({ ...TURNO_COMPLETADO, status: "cancelled" })}>
         abrir un individual cancelado
@@ -418,5 +422,14 @@ describe("DayViewPage — un turno de clase cancelado no se restaura", () => {
     montar();
     await userEvent.click(screen.getByText("abrir un individual cancelado"));
     expect(await screen.findByRole("button", { name: "Restaurar" })).toBeInTheDocument();
+  });
+});
+
+describe("DayViewPage — Asistencias de un turno de máquina", () => {
+  it("pide el roster con el machineId del turno", async () => {
+    montar();
+    await userEvent.click(screen.getByText("abrir uno de máquina agendado"));
+    await userEvent.click(await screen.findByRole("button", { name: "Asistencias" }));
+    expect(pedirRoster).toHaveBeenCalledWith("act1", "2026-09-29T11:00:00.000Z", "m1");
   });
 });

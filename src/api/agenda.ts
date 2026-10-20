@@ -201,7 +201,7 @@ export function useClassRoster(
     queryKey: ["class-roster", activityId, startsAt, machineId],
     queryFn: () =>
       api<{ success: boolean; data: ClassRosterEntry[] }>(
-        `/api/class-attendance?activityId=${activityId}&startsAt=${encodeURIComponent(startsAt!)}${machineId ? `&machineId=${machineId}` : ""}`,
+        `/api/class-attendance?activityId=${activityId}&startsAt=${encodeURIComponent(startsAt!)}${machineId ? `&machineId=${encodeURIComponent(machineId)}` : ""}`,
       ).then((r) => r.data),
     enabled: Boolean(activityId && startsAt),
   });

@@ -54,6 +54,7 @@ export type Appointment = {
   serviceName: string | null;
   providerId: string | null;
   providerName: string | null;
+  machineId: string | null;
   machineName: string | null;
   /** No nulo cuando el turno es de una ACTIVIDAD (Pilates, Thermo Bike...) */
   activityId: string | null;

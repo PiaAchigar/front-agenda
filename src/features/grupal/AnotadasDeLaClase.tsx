@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Badge } from "../../components/ui";
+import { Badge, ErrorNote } from "../../components/ui";
 import { useSacarDeClase } from "../../api/grupal";
 import { pesos } from "../../lib/vender";
 import type { Anotada } from "../../api/types";
@@ -78,6 +78,7 @@ export function AnotadasDeLaClase({
           </li>
         )}
       </ul>
+      {sacar.error && <ErrorNote message={(sacar.error as Error).message} />}
     </div>
   );
 }
