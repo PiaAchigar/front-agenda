@@ -7,6 +7,7 @@ const PROVEEDORAS = [{ id: "p1", fullName: "Romina", specialties: null }, { id: 
 let delServicio: typeof PROVEEDORAS = PROVEEDORAS;
 let huecosDelMiercoles = true;
 let fallar = false;
+let slotsCada15 = false;
 
 const TURNO = { id: "a1", providerId: "p1", providerName: "Romina", customerName: "Clienta tomada", serviceName: "Rostro", status: "scheduled", reservationExpiresAt: null, appointmentStart: "2026-10-21T13:00:00.000Z", appointmentEnd: "2026-10-21T14:00:00.000Z", durationMinutes: 60 };
 
@@ -29,7 +30,7 @@ vi.mock("../../api/client", () => ({
     if (m && m[1] === "2026-10-21" && huecosDelMiercoles) {
       return {
         date: m[1], serviceId: "s1", durationMinutes: 60,
-        slots: [{ start: "10:30", end: "11:30", options: [
+        slots: [...(slotsCada15 ? [{ start: "10:45", end: "11:45", options: [{ providerId: "p1", providerName: "Romina", machineId: null }] }] : []), { start: "10:30", end: "11:30", options: [
           { providerId: "p1", providerName: "Romina", machineId: null },
           { providerId: "p2", providerName: "Tamara", machineId: null },
         ] }],
@@ -73,6 +74,7 @@ describe("WeekViewPage — dónde hay lugar", () => {
     delServicio = PROVEEDORAS;
     huecosDelMiercoles = true;
     fallar = false;
+    slotsCada15 = false;
     abrirNuevo.mockClear();
   });
   afterEach(() => vi.useRealTimers());
@@ -83,6 +85,17 @@ describe("WeekViewPage — dónde hay lugar", () => {
     expect(screen.getByRole("button", { name: "10:30 Tamara" })).toBeInTheDocument();
     expect(screen.getByText("La hacen:")).toBeInTheDocument();
     expect(screen.getByTestId("turnos-2026-10-21")).toHaveStyle({ opacity: "0.35" });
+  });
+
+  it("los huecos de la API van de a 15 min: cada caja mide 15 min y no se pisa con la siguiente", async () => {
+    slotsCada15 = true;
+    montar("?date=2026-10-19&servicio=s1");
+    const a = await screen.findByRole("button", { name: "10:30 Romina" });
+    const b = await screen.findByRole("button", { name: "10:45 Romina" });
+    const alto = (el: HTMLElement) => parseFloat(el.style.height);
+    const top = (el: HTMLElement) => parseFloat(el.style.top);
+    expect(top(b) - top(a)).toBe(30); // 15 min a 2 px por minuto
+    expect(alto(a)).toBeLessThanOrEqual(top(b) - top(a));
   });
 
   it("tocar un hueco abre Nuevo turno con servicio, prestadora y hora", async () => {

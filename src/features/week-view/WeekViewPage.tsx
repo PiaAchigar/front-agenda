@@ -32,6 +32,8 @@ const PX_PER_MIN       = 2;
 const START_MIN        = 8  * 60;   // 480
 const END_MIN          = 22 * 60;   // 1320
 const SLOT_MIN         = 30;
+// La API ofrece huecos cada 15 min (availability.service): la caja mide eso, no un renglón.
+const PASO_HUECO_MIN   = 15;
 const SLOT_PX          = SLOT_MIN * PX_PER_MIN;          // 60 px
 const TOTAL_PX         = (END_MIN - START_MIN) * PX_PER_MIN; // 1680 px
 const TIME_COL_W       = 64;
@@ -347,7 +349,7 @@ export function WeekViewPage() {
                         carril={Math.max(idsConHuecos.indexOf(h.providerId), 0)}
                         total={Math.max(idsConHuecos.length, 1)}
                         top={top}
-                        alto={SLOT_PX}
+                        alto={PASO_HUECO_MIN * PX_PER_MIN}
                         onElegir={() => openNewAppt(d, h.minutos, {
                           serviceId: servicioId!,
                           providerId: h.providerId,
