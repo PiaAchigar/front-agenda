@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { rutaConservando } from "../../lib/ruta-agenda";
 import { useQueries } from "@tanstack/react-query";
@@ -29,8 +29,11 @@ const MAX_DOTS = 4;
 
 export function MonthViewPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const [anchorDate, setAnchorDate] = useState(() => searchParams.get("date") ?? todayLocal());
+  const [searchParams, setSearchParams] = useSearchParams();
+  // El mes vive en la URL (como en Día y Semana): recargar o pasar a Semana lo conserva.
+  const anchorDate = searchParams.get("date") ?? todayLocal();
+  const setAnchorDate = (fecha: string) =>
+    setSearchParams((params) => { params.set("date", fecha); return params; }, { replace: true });
   const today = todayLocal();
 
   useEffect(() => { saveView("mes"); }, []);
