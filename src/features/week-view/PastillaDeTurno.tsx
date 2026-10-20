@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Appointment } from "../../api/types";
 import { STATUS_BORDER_COLOR, type ProviderColor } from "../../lib/colors";
 import { formatTime } from "../../lib/format";
@@ -14,6 +15,10 @@ type Props = {
   alto: number;
   onAbrir: (turno: Appointment) => void;
 };
+
+const ANCHO_FICHA = 208; // w-52
+const ALTO_FICHA_ESTIMADO = 120;
+const MARGEN = 4;
 
 function minutosRestantes(expiraEn: string): number {
   return Math.floor((new Date(expiraEn).getTime() - Date.now()) / 60_000);
@@ -33,6 +38,31 @@ export function PastillaDeTurno({ turno, color, carril, total, top, alto, onAbri
   const contenedor = useRef<HTMLDivElement>(null);
   const fichaId = useId();
   const ficha = verFicha || armada;
+  const fichaEl = useRef<HTMLDivElement>(null);
+  const [posFicha, setPosFicha] = useState<{ top: number; left: number } | null>(null);
+
+  // La ficha se dibuja fija sobre la pantalla (en un portal): dentro de la
+  // grilla la cortaban el borde de la última columna y el pie del scroll.
+  // Se ancla a la pastilla, pero se corre para que entre.
+  useLayoutEffect(() => {
+    if (!ficha) { setPosFicha(null); return; }
+    function acomodar() {
+      const r = contenedor.current?.getBoundingClientRect();
+      if (!r) return;
+      const alto = fichaEl.current?.offsetHeight || ALTO_FICHA_ESTIMADO;
+      const left = Math.max(MARGEN, Math.min(r.left, window.innerWidth - ANCHO_FICHA - MARGEN));
+      const abajo = r.bottom + MARGEN;
+      const top = abajo + alto > window.innerHeight ? Math.max(MARGEN, r.top - MARGEN - alto) : abajo;
+      setPosFicha({ top, left });
+    }
+    acomodar();
+    window.addEventListener("scroll", acomodar, true);
+    window.addEventListener("resize", acomodar);
+    return () => {
+      window.removeEventListener("scroll", acomodar, true);
+      window.removeEventListener("resize", acomodar);
+    };
+  }, [ficha]);
 
   useEffect(() => {
     if (!armada) return;
@@ -102,11 +132,13 @@ export function PastillaDeTurno({ turno, color, carril, total, top, alto, onAbri
         </span>
       </button>
 
-      {ficha && (
+      {ficha && createPortal(
         <div
+          ref={fichaEl}
           id={fichaId}
           role="tooltip"
-          className="pointer-events-none absolute left-0 top-full z-50 mt-1 w-52 rounded-lg border border-surface-high bg-white p-2 text-xs text-ink shadow-lg"
+          className="pointer-events-none fixed z-50 w-52 rounded-lg border border-surface-high bg-white p-2 text-xs text-ink shadow-lg"
+          style={{ top: posFicha?.top ?? -9999, left: posFicha?.left ?? 0 }}
         >
           <p className="font-semibold">
             {formatTime(turno.appointmentStart)}–{formatTime(turno.appointmentEnd)}
@@ -118,7 +150,8 @@ export function PastillaDeTurno({ turno, color, carril, total, top, alto, onAbri
           {reservada && faltan !== null && (
             <p className={urgente ? "text-red-600" : "text-amber-700"}>Reserva: expira en {faltan} min</p>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

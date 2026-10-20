@@ -107,3 +107,44 @@ describe("PastillaDeTurno", () => {
     expect(onAbrir).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("PastillaDeTurno — la ficha no se corta contra los bordes", () => {
+  function rectDe(r: Partial<DOMRect>) {
+    const base = { x: 0, y: 0, width: 80, height: 60, top: 0, left: 0, right: 80, bottom: 60, toJSON: () => ({}) };
+    return () => ({ ...base, ...r }) as DOMRect;
+  }
+  function conRect(r: Partial<DOMRect>) {
+    const original = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = rectDe(r);
+    return () => { HTMLElement.prototype.getBoundingClientRect = original; };
+  }
+
+  it("en la última columna se corre a la izquierda para entrar en la pantalla", () => {
+    const restaurar = conRect({ left: window.innerWidth - 60, right: window.innerWidth + 20, top: 100, bottom: 160 });
+    try {
+      montar();
+      fireEvent.mouseEnter(screen.getByRole("button").parentElement!);
+      const izq = parseFloat(screen.getByRole("tooltip").style.left);
+      expect(izq + 208).toBeLessThanOrEqual(window.innerWidth);
+    } finally { restaurar(); }
+  });
+
+  it("al pie de la pantalla se abre hacia arriba de la pastilla", () => {
+    const restaurar = conRect({ left: 100, right: 180, top: window.innerHeight - 40, bottom: window.innerHeight - 5 });
+    try {
+      montar();
+      fireEvent.mouseEnter(screen.getByRole("button").parentElement!);
+      const top = parseFloat(screen.getByRole("tooltip").style.top);
+      expect(top).toBeLessThan(window.innerHeight - 40);
+    } finally { restaurar(); }
+  });
+
+  it("lejos de los bordes queda debajo de la pastilla", () => {
+    const restaurar = conRect({ left: 100, right: 180, top: 100, bottom: 160 });
+    try {
+      montar();
+      fireEvent.mouseEnter(screen.getByRole("button").parentElement!);
+      expect(parseFloat(screen.getByRole("tooltip").style.top)).toBeGreaterThanOrEqual(160);
+    } finally { restaurar(); }
+  });
+});
