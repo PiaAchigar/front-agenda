@@ -106,14 +106,14 @@ export function WeekViewPage() {
   const soloDe = searchParams.get("con");
   const { data: servicios = [] } = useServices();
   const { data: queLoHacen } = useProvidersByService(servicioId);
-  const { huecos, cargando: cargandoHuecos } = useHuecosDeLaSemana(servicioId, weekDates, soloDe);
+  const { huecos, cargando: cargandoHuecos, fallo: falloHuecos } = useHuecosDeLaSemana(servicioId, weekDates, soloDe);
   const nombreDelServicio = servicios.find((s) => s.id === servicioId)?.name ?? "este servicio";
   // Los carriles de los huecos son fijos en toda la semana: una prestadora cae siempre en el mismo.
   const idsConHuecos = useMemo(
     () => (queLoHacen ?? []).map((p) => p.id).filter((id) => !soloDe || id === soloDe),
     [queLoHacen, soloDe],
   );
-  const sinLugar = Boolean(servicioId) && !cargandoHuecos && (queLoHacen?.length ?? 0) > 0 && huecos.length === 0;
+  const sinLugar = Boolean(servicioId) && !cargandoHuecos && !falloHuecos && (queLoHacen?.length ?? 0) > 0 && huecos.length === 0;
 
   // Sólo turnos de servicio: las inscripciones a clases y capacitaciones viven
   // en la vista "Clases" (6 inscriptas al mismo Pilates serían 6 pastillas).
@@ -177,6 +177,7 @@ export function WeekViewPage() {
       />
 
       {servicioId && <QuienesLoHacen serviceId={servicioId} />}
+      {falloHuecos && <p className="shrink-0 text-sm text-red-700">No se pudo consultar la disponibilidad. Probá de nuevo.</p>}
       {sinLugar && (
         <div className="flex shrink-0 items-center gap-3 text-sm text-ink-soft">
           <span>No hay lugar para {nombreDelServicio} esta semana.</span>

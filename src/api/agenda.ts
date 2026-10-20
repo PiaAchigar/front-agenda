@@ -75,7 +75,7 @@ export function useHuecosDeLaSemana(
   serviceId: string | null,
   dias: string[],
   soloDe: string | null,
-): { huecos: HuecoLibre[]; cargando: boolean } {
+): { huecos: HuecoLibre[]; cargando: boolean; fallo: boolean } {
   const resultados = useQueries({
     queries: dias.map((dia) => ({
       queryKey: ["availability", serviceId, dia, null, null],
@@ -87,7 +87,7 @@ export function useHuecosDeLaSemana(
   resultados.forEach((r, i) => {
     if (r.data) huecos.push(...huecosDelDia(r.data, dias[i]!, soloDe));
   });
-  return { huecos, cargando: Boolean(serviceId) && resultados.some((r) => r.isLoading) };
+  return { huecos, cargando: Boolean(serviceId) && resultados.some((r) => r.isLoading), fallo: resultados.some((r) => r.isError) };
 }
 
 /** Días del mes (sin los pasados) en que alguna de las prestadoras tiene lugar para el servicio. */
@@ -95,7 +95,7 @@ export function useDiasConLugar(
   serviceId: string | null,
   providerIds: string[],
   mes: string,
-): { dias: Set<string>; cargando: boolean } {
+): { dias: Set<string>; cargando: boolean; fallo: boolean } {
   const resultados = useQueries({
     queries: providerIds.map((providerId) => ({
       queryKey: ["availability-month", serviceId, providerId, mes, null],
@@ -106,7 +106,7 @@ export function useDiasConLugar(
   const hoy = ahoraEnArgentina().fecha;
   const dias = new Set<string>();
   for (const r of resultados) for (const d of r.data?.availableDays ?? []) if (d >= hoy) dias.add(d);
-  return { dias, cargando: Boolean(serviceId) && resultados.some((r) => r.isLoading) };
+  return { dias, cargando: Boolean(serviceId) && resultados.some((r) => r.isLoading), fallo: resultados.some((r) => r.isError) };
 }
 
 export type ProviderWindow = { start: number; end: number };

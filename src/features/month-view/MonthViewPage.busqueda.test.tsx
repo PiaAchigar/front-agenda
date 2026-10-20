@@ -58,12 +58,12 @@ describe("MonthViewPage — la búsqueda", () => {
   });
 
   it("tocar un día lleva al día conservando la búsqueda", async () => {
-    montar("?servicio=s1&con=c9");
+    montar("?servicio=s1&con=p2");
     fireEvent.click((await screen.findAllByText("1 turno"))[0]!);
     const url = screen.getByTestId("ubicacion").textContent!;
     expect(url).toMatch(/^\/dia\?/);
     expect(url).toContain("date=");
     expect(url).toContain("servicio=s1");
-    expect(url).toContain("con=c9");
+    expect(url).toContain("con=p2");
   });
 });

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const PROVEEDORAS = [{ id: "p1", fullName: "Romina", specialties: null }, { id: "p2", fullName: "Tamara", specialties: null }];
 let delServicio: typeof PROVEEDORAS = PROVEEDORAS;
 let huecosDelMiercoles = true;
+let fallar = false;
 
 const TURNO = { id: "a1", providerId: "p1", providerName: "Romina", customerName: "Clienta tomada", serviceName: "Rostro", status: "scheduled", reservationExpiresAt: null, appointmentStart: "2026-10-21T13:00:00.000Z", appointmentEnd: "2026-10-21T14:00:00.000Z", durationMinutes: 60 };
 
@@ -23,6 +24,7 @@ vi.mock("../../api/agenda", async () => {
 vi.mock("../../api/client", () => ({
   api: vi.fn(async (url: string) => {
     if (url.startsWith("/api/agenda/appointments")) return [TURNO];
+    if (fallar) throw new Error("boom");
     const m = /availability\/s1\?date=([\d-]+)/.exec(url);
     if (m && m[1] === "2026-10-21" && huecosDelMiercoles) {
       return {
@@ -53,7 +55,7 @@ function Ubicacion() {
 
 function montar(search: string) {
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <MemoryRouter initialEntries={[`/semana${search}`]}>
         <Routes>
           <Route path="/semana" element={<WeekViewPage />} />
@@ -70,6 +72,7 @@ describe("WeekViewPage — dónde hay lugar", () => {
     vi.setSystemTime(new Date("2026-10-16T12:30:00Z"));
     delServicio = PROVEEDORAS;
     huecosDelMiercoles = true;
+    fallar = false;
     abrirNuevo.mockClear();
   });
   afterEach(() => vi.useRealTimers());
@@ -106,6 +109,14 @@ describe("WeekViewPage — dónde hay lugar", () => {
     const url = screen.getByTestId("ubicacion").textContent!;
     expect(url).toMatch(/^\/mes\?/);
     expect(url).toContain("servicio=s1");
+  });
+
+  it("si falla la consulta lo avisa y no dice que no hay lugar", async () => {
+    fallar = true;
+    // La API no devuelve turnos de la semana si todo falla; alcanza con las disponibilidades.
+    montar("?date=2026-10-19&servicio=s1");
+    expect(await screen.findByText("No se pudo consultar la disponibilidad. Probá de nuevo.")).toBeInTheDocument();
+    expect(screen.queryByText(/No hay lugar para/)).not.toBeInTheDocument();
   });
 
   it("un servicio sin prestadoras avisa que nadie lo tiene", async () => {

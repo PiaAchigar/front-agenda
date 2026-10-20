@@ -26,7 +26,8 @@ export function leerBusqueda(params: URLSearchParams): Busqueda {
 /**
  * Devuelve una copia de `params` con la búsqueda puesta (o sacada, si es
  * null). Cambiar o limpiar la búsqueda también borra `con`: ese parámetro
- * (la clienta/combo con la que se venía) no tiene sentido con otra búsqueda.
+ * (la prestadora elegida en "La hacen:") sólo tiene sentido dentro de la
+ * búsqueda de servicio que la ofreció.
  */
 export function escribirBusqueda(params: URLSearchParams, b: Busqueda): URLSearchParams {
   const siguiente = new URLSearchParams(params);
@@ -66,17 +67,20 @@ export function useBusquedaAgenda(): [Busqueda, (b: Busqueda) => void] {
 
 /**
  * Qué prestadoras deja ver la búsqueda actual: una sola, las de un servicio,
- * o `undefined` si no hay búsqueda (todas). Mientras llegan las de un servicio
+ * (o esa sola si vino `con`), o `undefined` si no hay búsqueda (todas). Mientras llegan las de un servicio
  * es `[]`: mejor nada que mostrar todas y que después desaparezcan.
  */
 export function usePrestadorasDeLaBusqueda(): string[] | undefined {
   const [busqueda] = useBusquedaAgenda();
+  const [params] = useSearchParams();
+  const con = params.get("con");
   const { data: delServicio } = useProvidersByService(
     busqueda?.tipo === "servicio" ? busqueda.id : null,
   );
   return useMemo(() => {
     if (!busqueda) return undefined;
     if (busqueda.tipo === "prestadora") return [busqueda.id];
-    return (delServicio ?? []).map((p) => p.id);
-  }, [busqueda, delServicio]);
+    // `con` (la prestadora tocada en "La hacen:") deja a una sola.
+    return (delServicio ?? []).map((p) => p.id).filter((id) => !con || id === con);
+  }, [busqueda, delServicio, con]);
 }

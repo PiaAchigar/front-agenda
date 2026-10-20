@@ -33,7 +33,7 @@ vi.mock("../../api/agenda", () => ({
   useCustomerSearch: () => ({ data: SIN_DATOS, isFetching: false }),
   useParaAgendar: () => ({ data: undefined, isFetching: false }),
   useProvidersByService: (serviceId: string | null) => ({
-    data: serviceId ? [PRESTADORAS[0]] : undefined,
+    data: serviceId === "s2" ? [PRESTADORAS[0], PRESTADORAS[1]] : serviceId ? [PRESTADORAS[0]] : undefined,
     isFetching: false,
   }),
   useServices: () => ({ data: SERVICIOS }),
@@ -83,5 +83,10 @@ describe("DayViewPage — la búsqueda filtra las columnas", () => {
 
   it("?servicio=s1 deja sólo las prestadoras de ese servicio", () => {
     expect(montar("?date=2026-10-19&servicio=s1")).toEqual(["p1"]);
+  });
+
+  it("?servicio=s2&con=p2 deja sólo la columna de la prestadora elegida en 'La hacen:'", () => {
+    expect(montar("?date=2026-10-19&servicio=s2")).toEqual(["p1", "p2"]);
+    expect(montar("?date=2026-10-19&servicio=s2&con=p2")).toEqual(["p2"]);
   });
 });

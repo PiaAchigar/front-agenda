@@ -71,7 +71,7 @@ export function MonthViewPage() {
     () => (queLoHacen ?? []).map((p) => p.id).filter((id) => !soloDe || id === soloDe),
     [queLoHacen, soloDe],
   );
-  const { dias: diasConLugar, cargando: cargandoLugar } = useDiasConLugar(
+  const { dias: diasConLugar, cargando: cargandoLugar, fallo: falloLugar } = useDiasConLugar(
     servicioId,
     idsQueLoHacen,
     ymd(year, month0, 1).slice(0, 7),
@@ -134,6 +134,7 @@ export function MonthViewPage() {
       />
 
       {servicioId && <QuienesLoHacen serviceId={servicioId} />}
+      {falloLugar && <p className="shrink-0 text-sm text-red-700">No se pudo consultar la disponibilidad. Probá de nuevo.</p>}
 
       {/* ── Calendario ── */}
       <div className="modal-scroll flex-1 min-h-0 overflow-auto rounded-xl border border-surface-high">
@@ -171,10 +172,9 @@ export function MonthViewPage() {
                 data-lugar={conLugar ? "si" : undefined}
                 onClick={() => navigate(rutaConservando(conLugar ? "/semana" : "/dia", searchParams, { date: d }))}
                 className={[
-                  "relative flex flex-col items-start gap-1 border-b border-l border-surface-high p-1.5 text-left transition-colors hover:bg-surface-low",
-                  closed ? "bg-surface-high/50" : "bg-white",
+                  "relative flex flex-col items-start gap-1 border-b border-l border-surface-high p-1.5 text-left transition-colors",
+                  conLugar ? "bg-emerald-100 hover:bg-emerald-200" : closed ? "bg-surface-high/50 hover:bg-surface-low" : "bg-white hover:bg-surface-low",
                   inMonth ? "" : "opacity-40",
-                  conLugar ? "ring-2 ring-inset ring-primary/60" : "",
                 ].join(" ")}
               >
                 {/* Número de día */}

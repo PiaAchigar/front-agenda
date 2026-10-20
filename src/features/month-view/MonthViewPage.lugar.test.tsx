@@ -16,11 +16,13 @@ vi.mock("../../api/agenda", async () => {
 vi.mock("../../api/client", () => ({
   api: vi.fn(async (url: string) => {
     if (url.startsWith("/api/agenda/appointments")) return [];
+    if (fallar && url.includes("/month")) throw new Error("boom");
     if (url.includes("providerId=p1")) return { month: "2026-10", availableDays: ["2026-10-22", "2026-10-05"] };
     return { month: "2026-10", availableDays: ["2026-10-23"] };
   }),
 }));
 
+let fallar = false;
 const { MonthViewPage } = await import("./MonthViewPage");
 
 function Ubicacion() {
@@ -30,7 +32,7 @@ function Ubicacion() {
 
 function montar(search: string) {
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <MemoryRouter initialEntries={[`/mes${search}`]}>
         <Routes>
           <Route path="/mes" element={<MonthViewPage />} />
@@ -45,6 +47,7 @@ const celda = (n: number) => screen.getAllByRole("button").find((b) => b.getAttr
 
 describe("MonthViewPage — dónde hay lugar", () => {
   beforeEach(() => {
+    fallar = false;
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.setSystemTime(new Date("2026-10-16T12:30:00Z"));
   });
@@ -55,6 +58,8 @@ describe("MonthViewPage — dónde hay lugar", () => {
     await screen.findByText("La hacen:");
     await vi.waitFor(() => expect(celda(22)).toHaveAttribute("data-lugar", "si"));
     expect(celda(23)).toHaveAttribute("data-lugar", "si");
+    expect(celda(22).className).toContain("bg-emerald-100");
+    expect(celda(21).className).not.toContain("bg-emerald-100");
     expect(celda(5)).not.toHaveAttribute("data-lugar", "si");
     expect(celda(21)).not.toHaveAttribute("data-lugar", "si");
   });
@@ -68,6 +73,13 @@ describe("MonthViewPage — dónde hay lugar", () => {
     expect(url).toMatch(/^\/semana\?/);
     expect(url).toContain("date=2026-10-22");
     expect(url).toContain("servicio=s1");
+  });
+
+  it("si falla la consulta de disponibilidad lo avisa", async () => {
+    fallar = true;
+    montar("?servicio=s1");
+    expect(await screen.findByText("No se pudo consultar la disponibilidad. Probá de nuevo.")).toBeInTheDocument();
+    fallar = false;
   });
 
   it("sin servicio buscado no marca nada", async () => {
