@@ -12,6 +12,8 @@ export type AttendanceTarget = {
   activityName: string | null;
   /** Instante UTC de inicio de la clase (ISO) */
   startsAt: string;
+  /** Clase de máquina: la asistencia es de esa máquina y no de otra a la misma hora */
+  machineId: string | null;
 };
 
 /**
@@ -33,7 +35,7 @@ export function AttendanceModal({
   const activityId = target?.activityId ?? null;
   const startsAt = target?.startsAt ?? null;
 
-  const roster = useClassRoster(activityId, startsAt);
+  const roster = useClassRoster(activityId, startsAt, target?.machineId ?? null);
   const markAttendance = useMarkAttendance();
 
   // Estado local de los tildes: arranca del roster del servidor y se sincroniza
@@ -62,6 +64,7 @@ export function AttendanceModal({
     await markAttendance.mutateAsync({
       activityId,
       startsAt,
+      machineId: target?.machineId ?? null,
       entries: markable.map((r) => ({
         subscriptionId: r.subscriptionId!,
         attended: checked[r.subscriptionId!] ?? false,

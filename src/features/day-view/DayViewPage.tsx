@@ -7,7 +7,7 @@ import {
   useProviders,
   useUpdateAppointment,
 } from "../../api/agenda";
-import type { Appointment, Consumo } from "../../api/types";
+import type { Appointment, ClassOccurrence, Consumo } from "../../api/types";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge, Button, ErrorNote, Modal } from "../../components/ui";
 import { addDays, formatDate, formatTime, todayLocal } from "../../lib/format";
@@ -79,6 +79,8 @@ export function DayViewPage() {
   const [selectedId, setSelectedId]         = useState<string | null>(null);
   const [avisoInsumos, setAvisoInsumos]     = useState<Consumo | null>(null);
   const [attendanceFor, setAttendanceFor]   = useState<AttendanceTarget | null>(null);
+  // Clase en la que se quiere anotar; por ahora sólo se recuerda (sin modal todavía).
+  const [, setAnotarEn] = useState<ClassOccurrence | null>(null);
   // El prefill de "A agendar" que pide la ficha del CRM viaja CRM → dashboard
   // → la URL de este iframe (`lib/embed.ts`, `prefillDesdeUrl`). Se lee acá,
   // en el estado inicial y no en un efecto: así el modal ya nace abierto en
@@ -294,8 +296,12 @@ export function DayViewPage() {
               activityId: occurrence.subjectId,
               activityName: occurrence.name,
               startsAt: occurrence.startsAt,
+              machineId: occurrence.machineId,
             })
           }
+          // Las Tasks 4-6 conectan los modales de anotar y cobrar.
+          onAnotar={setAnotarEn}
+          onCobrar={() => {}}
         />
       )}
 
@@ -362,6 +368,7 @@ export function DayViewPage() {
                       activityId: selected.activityId!,
                       activityName: selected.activityName,
                       startsAt: selected.appointmentStart,
+                      machineId: null,
                     });
                     setSelectedId(null);
                   }}
@@ -416,7 +423,9 @@ export function DayViewPage() {
                   Cancelar turno
                 </Button>
               )}
+              {/* Un turno de clase cancelado no se restaura: se vuelve a anotar con "Anotar". */}
               {sePuedeCambiarEstado(selected) &&
+                !(selected.status === "cancelled" && (selected.activityId || selected.trainingSessionId)) &&
                 selected.status !== "scheduled" &&
                 selected.status !== "reserved" && (
                 <Button

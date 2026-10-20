@@ -1,6 +1,7 @@
 import { Badge, Button, ErrorNote } from "../../components/ui";
 import { useClasses } from "../../api/agenda";
-import type { ClassOccurrence } from "../../api/types";
+import type { Anotada, ClassOccurrence } from "../../api/types";
+import { AnotadasDeLaClase } from "../grupal/AnotadasDeLaClase";
 
 /**
  * Agenda de clases y capacitaciones.
@@ -17,10 +18,14 @@ import type { ClassOccurrence } from "../../api/types";
 export function ClassesView({
   date,
   onOpenAttendance,
+  onAnotar,
+  onCobrar,
   className = "",
 }: {
   date: string;
   onOpenAttendance: (occurrence: ClassOccurrence) => void;
+  onAnotar: (occurrence: ClassOccurrence) => void;
+  onCobrar: (occurrence: ClassOccurrence, anotada: Anotada) => void;
   className?: string;
 }) {
   const { data: classes, isLoading, error } = useClasses(date);
@@ -43,6 +48,8 @@ export function ClassesView({
             key={occurrence.occurrenceId}
             occurrence={occurrence}
             onOpenAttendance={onOpenAttendance}
+            onAnotar={onAnotar}
+            onCobrar={onCobrar}
           />
         ))}
       </ul>
@@ -53,9 +60,13 @@ export function ClassesView({
 function ClassCard({
   occurrence,
   onOpenAttendance,
+  onAnotar,
+  onCobrar,
 }: {
   occurrence: ClassOccurrence;
   onOpenAttendance: (occurrence: ClassOccurrence) => void;
+  onAnotar: (occurrence: ClassOccurrence) => void;
+  onCobrar: (occurrence: ClassOccurrence, anotada: Anotada) => void;
 }) {
   const isTraining = occurrence.kind === "training";
   const { capacity, enrolledCount } = occurrence;
@@ -110,6 +121,14 @@ function ClassCard({
               ? `${enrolledCount} inscriptas`
               : `${enrolledCount}/${capacity} inscriptas`}
           </Badge>
+          <Button
+            variant="secondary"
+            onClick={() => onAnotar(occurrence)}
+            disabled={isPast || isFull}
+            title={isPast ? "La clase ya pasó" : isFull ? "La clase está llena" : undefined}
+          >
+            Anotar
+          </Button>
           {canMarkAttendance && (
             <Button
               variant="secondary"
@@ -123,6 +142,12 @@ function ClassCard({
           )}
         </div>
       </div>
+
+      <AnotadasDeLaClase
+        anotadas={occurrence.anotadas ?? []}
+        puedeSacar={!isPast}
+        onCobrar={(a) => onCobrar(occurrence, a)}
+      />
 
       {capacity !== null && (
         <div

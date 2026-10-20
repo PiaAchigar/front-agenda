@@ -143,6 +143,15 @@ vi.mock("./CalendarGrid", () => ({
       <button onClick={() => abrir({ ...TURNO_COMPLETADO, status: "scheduled" })}>
         abrir un turno agendado
       </button>
+      <button onClick={() => abrir({ ...TURNO_COMPLETADO, status: "cancelled" })}>
+        abrir un individual cancelado
+      </button>
+      <button onClick={() => abrir({ ...TURNO_COMPLETADO, status: "cancelled", activityId: "act1" })}>
+        abrir uno de actividad cancelado
+      </button>
+      <button onClick={() => abrir({ ...TURNO_COMPLETADO, status: "cancelled", trainingSessionId: "ts1" })}>
+        abrir uno de capacitación cancelado
+      </button>
       {/* Fechas deliberadamente lejanas: así el cartel de la seña no depende
           del reloj de la máquina que corre la suite. */}
       <button
@@ -390,5 +399,24 @@ describe("DayViewPage — ?turno=<id> (viene de la semana)", () => {
       expect(window.location.search).not.toContain("turno");
     });
     expect(screen.queryByText(/ya está cerrado/)).not.toBeInTheDocument();
+  });
+});
+
+describe("DayViewPage — un turno de clase cancelado no se restaura", () => {
+  // Ruling R8: a la clase se vuelve a anotar con "Anotar", no resucitando el turno.
+  it.each(["abrir uno de actividad cancelado", "abrir uno de capacitación cancelado"])(
+    "%s: sin Restaurar",
+    async (boton) => {
+      montar();
+      await userEvent.click(screen.getByText(boton));
+      await screen.findByRole("button", { name: "Realizado" });
+      expect(screen.queryByRole("button", { name: "Restaurar" })).not.toBeInTheDocument();
+    },
+  );
+
+  it("un turno individual cancelado sí lo ofrece", async () => {
+    montar();
+    await userEvent.click(screen.getByText("abrir un individual cancelado"));
+    expect(await screen.findByRole("button", { name: "Restaurar" })).toBeInTheDocument();
   });
 });

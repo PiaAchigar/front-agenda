@@ -192,12 +192,16 @@ export function useClasses(date: string) {
  * mismo appointment_start, así que la clase se identifica por ese par y no por
  * el id de un turno puntual.
  */
-export function useClassRoster(activityId: string | null, startsAt: string | null) {
+export function useClassRoster(
+  activityId: string | null,
+  startsAt: string | null,
+  machineId: string | null = null,
+) {
   return useQuery({
-    queryKey: ["class-roster", activityId, startsAt],
+    queryKey: ["class-roster", activityId, startsAt, machineId],
     queryFn: () =>
       api<{ success: boolean; data: ClassRosterEntry[] }>(
-        `/api/class-attendance?activityId=${activityId}&startsAt=${encodeURIComponent(startsAt!)}`,
+        `/api/class-attendance?activityId=${activityId}&startsAt=${encodeURIComponent(startsAt!)}${machineId ? `&machineId=${machineId}` : ""}`,
       ).then((r) => r.data),
     enabled: Boolean(activityId && startsAt),
   });
@@ -207,6 +211,7 @@ export type MarkAttendanceInput = {
   activityId: string;
   startsAt: string;
   entries: { subscriptionId: string; attended: boolean }[];
+  machineId?: string | null;
 };
 
 export function useMarkAttendance() {

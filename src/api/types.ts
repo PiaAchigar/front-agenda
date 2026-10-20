@@ -82,8 +82,22 @@ export type Appointment = {
  * Une dos orígenes con el mismo shape: actividades (patrón semanal de
  * activity_schedules) y capacitaciones (training_sessions, fechas concretas).
  */
+export type Anotada = {
+  appointmentId: string;
+  customerId: string | null;
+  nombre: string | null;
+  prueba: boolean;
+  debe: number;
+  subscriptionId: string | null;
+  compraId: string | null;
+};
+
 export type ClassOccurrence = {
   occurrenceId: string;
+  /** YYYY-MM-DD de la clase */
+  date: string;
+  scheduleId: string | null;
+  anotadas: Anotada[];
   kind: "activity" | "training";
   /** activity_id o training_id según kind */
   subjectId: string;
