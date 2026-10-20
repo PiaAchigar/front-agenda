@@ -14,7 +14,7 @@ const consumible: Consumible = {
   tipo: "elige_laura",
   opciones: [opcion("pu-vieja", "ps-vieja", "Pack viejo"), opcion("pu-nueva", "ps-nueva", "Pack recién vendido")],
 };
-const datosDepilacion: DatosParaAgendar = {
+let datosDepilacion: DatosParaAgendar = {
   nombreDelPack: "Cuerpo Full",
   sesion: 1,
   sesionesTotales: 3,
@@ -28,6 +28,11 @@ const datosDepilacion: DatosParaAgendar = {
   serviceId: "svc-ancla",
 };
 
+const cobrar = vi.fn((_i: unknown, o?: { onSuccess?: (r: unknown) => void }) => o?.onSuccess?.({ pendiente: 0 }));
+vi.mock("../../api/ventas", () => ({
+  useEstadoDeCobro: () => ({ data: { pendiente: 4000, minimo: 1600, sugerido: 4000, faltaElMinimo: false }, error: null }),
+  useCobrarCompra: () => ({ mutate: cobrar, isPending: false, error: null }),
+}));
 vi.mock("../../api/agenda", () => ({
   useAvailability: () => ({ data: undefined, isFetching: false, isLoading: false }),
   useMonthAvailability: (_s: unknown, _p: unknown, month: string) => ({
@@ -51,7 +56,10 @@ vi.mock("../../api/agenda", () => ({
 
 const { FormularioAgendar } = await import("./NewAppointmentModal");
 
+const PUERTA_ORIGINAL = datosDepilacion.puerta;
 beforeEach(() => {
+  datosDepilacion = { ...datosDepilacion, puerta: PUERTA_ORIGINAL };
+  cobrar.mockClear();
   crear.mockClear();
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(new Date("2026-10-16T12:30:00Z"));
@@ -99,7 +107,7 @@ describe("FormularioAgendar con encabezado", () => {
   it("Confirmar crea el turno con la fecha, la hora y la compra preferida", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={() => {}} encabezado={ENCABEZADO} />);
-    await user.click(await screen.findByRole("button", { name: /confirmar turno/i }));
+    await user.click(await screen.findByRole("button", { name: /^agendar$/i }));
     expect(crear).toHaveBeenCalledTimes(1);
     expect(crear.mock.calls[0]![0]).toMatchObject({
       customerId: "cu1",
@@ -119,6 +127,42 @@ describe("FormularioAgendar con encabezado", () => {
         encabezado={{ ...ENCABEZADO, minutos: null }}
       />,
     );
-    expect(screen.getByRole("button", { name: /confirmar turno/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^agendar$/i })).toBeDisabled();
+  });
+});
+
+describe("FormularioAgendar — la puerta de pago de depilación (#18)", () => {
+  const ENCABEZADO_DEPI = { ...ENCABEZADO, serviceId: null, purchaseServiceId: "ps-depi", compraPreferidaId: null, compraId: "pu-depi" };
+  const sinPlata = () => {
+    datosDepilacion = { ...datosDepilacion, puerta: { puedeAgendar: false, puedeReservar: true, motivo: "Falta el 40%", faltaCobrar: 4000 } };
+  };
+
+  it("si falta plata, ofrece 'Cobrar lo que falta' y Agendar sigue apagado", () => {
+    sinPlata();
+    render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={() => {}} encabezado={ENCABEZADO_DEPI} />);
+    expect(screen.getByRole("button", { name: "Cobrar lo que falta" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^agendar$/i })).toBeDisabled();
+  });
+
+  it("cobra sobre esa compra y, al cobrar, vuelve a leer la puerta", async () => {
+    sinPlata();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const { rerender } = render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={() => {}} encabezado={ENCABEZADO_DEPI} />);
+    await user.click(screen.getByRole("button", { name: "Cobrar lo que falta" }));
+    await user.click(screen.getByRole("button", { name: /^cobrar \$/i }));
+    expect(cobrar).toHaveBeenCalledWith(
+      { id: "pu-depi", amount: 4000, method: "cash", wantsInvoice: false },
+      expect.anything(),
+    );
+    // El cobro invalida `para-agendar`: la puerta llega nueva y Agendar se habilita.
+    datosDepilacion = { ...datosDepilacion, puerta: PUERTA_ORIGINAL };
+    rerender(<FormularioAgendar date="2027-01-20" prefill={null} onClose={() => {}} encabezado={ENCABEZADO_DEPI} />);
+    expect(screen.queryByRole("button", { name: "Cobrar lo que falta" })).not.toBeInTheDocument();
+  });
+
+  it("sin compra conocida no ofrece cobrar", () => {
+    sinPlata();
+    render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={() => {}} encabezado={{ ...ENCABEZADO_DEPI, compraId: null }} />);
+    expect(screen.queryByRole("button", { name: "Cobrar lo que falta" })).not.toBeInTheDocument();
   });
 });

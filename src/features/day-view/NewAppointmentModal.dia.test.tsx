@@ -58,7 +58,7 @@ vi.mock("../../api/agenda", async () => {
   };
 });
 
-const { NewAppointmentModal } = await import("./NewAppointmentModal");
+const { FormularioAgendar } = await import("./NewAppointmentModal");
 
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -80,12 +80,11 @@ async function elegirClientaYServicio(user: ReturnType<typeof userEvent.setup>) 
   await user.selectOptions(screen.getAllByRole("combobox")[0]!, "svc-a");
 }
 
-describe("NewAppointmentModal — día y hora en Agendar", () => {
+describe("FormularioAgendar — día y hora en Agendar", () => {
   it("desde un hueco arranca en ese día y hora, y crea el turno con el día elegido", async () => {
     const user = usuario();
     render(
-      <NewAppointmentModal
-        open
+      <FormularioAgendar
         date="2026-10-20"
         prefill={{ providerId: "prov1", providerName: "Gabi", minutes: 600 }}
         onClose={() => {}}
@@ -106,7 +105,7 @@ describe("NewAppointmentModal — día y hora en Agendar", () => {
 
   it("desde '+ Nuevo turno' no hay hora elegida y Confirmar turno está apagado", async () => {
     const user = usuario();
-    render(<NewAppointmentModal open date="2026-10-20" prefill={null} onClose={() => {}} />);
+    render(<FormularioAgendar date="2026-10-20" prefill={null} onClose={() => {}} />);
     await elegirClientaYServicio(user);
     expect(select("Hora inicio").value).toBe("");
     expect(screen.getByRole("button", { name: /confirmar turno/i })).toBeDisabled();
@@ -114,7 +113,7 @@ describe("NewAppointmentModal — día y hora en Agendar", () => {
 
   it("sin hora elegida, 'Hora fin' queda vacía (no 01:00)", async () => {
     const user = usuario();
-    render(<NewAppointmentModal open date="2026-10-20" prefill={null} onClose={() => {}} />);
+    render(<FormularioAgendar date="2026-10-20" prefill={null} onClose={() => {}} />);
     await elegirClientaYServicio(user);
     expect(select("Hora inicio").value).toBe("");
     const horaFin = screen.getByText(/Hora fin/).parentElement!.querySelector("input") as HTMLInputElement;
@@ -125,8 +124,7 @@ describe("NewAppointmentModal — día y hora en Agendar", () => {
     // El primer día libre es el 22, no el 20 que trae la grilla.
     diasLibres = ["2026-10-22", "2026-10-25"];
     render(
-      <NewAppointmentModal
-        open
+      <FormularioAgendar
         date="2026-10-20"
         prefill={{ customerId: "cu1", serviceId: "svc-a" }}
         onClose={() => {}}
@@ -141,8 +139,7 @@ describe("NewAppointmentModal — día y hora en Agendar", () => {
     const user = usuario();
     diasLibres = ["2026-10-16", "2026-10-20"];
     render(
-      <NewAppointmentModal
-        open
+      <FormularioAgendar
         date="2026-10-20"
         prefill={{ customerId: "cu1", purchaseServiceId: "l1", providerId: "prov1", providerName: "Gabi" }}
         onClose={() => {}}
@@ -163,8 +160,7 @@ describe("NewAppointmentModal — día y hora en Agendar", () => {
     const user = usuario();
     horariosLibres = ["11:00"];
     render(
-      <NewAppointmentModal
-        open
+      <FormularioAgendar
         date="2026-10-20"
         prefill={{ providerId: "prov1", providerName: "Gabi", minutes: 600 }}
         onClose={() => {}}
@@ -180,8 +176,7 @@ describe("NewAppointmentModal — día y hora en Agendar", () => {
     const user = usuario();
     horariosLibres = ["10:00", "11:00"];
     render(
-      <NewAppointmentModal
-        open
+      <FormularioAgendar
         date="2026-10-20"
         prefill={{ providerId: "prov1", providerName: "Gabi", minutes: 600 }}
         onClose={() => {}}

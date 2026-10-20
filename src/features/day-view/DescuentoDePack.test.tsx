@@ -47,7 +47,7 @@ vi.mock("../../api/agenda", () => ({
   useServicesByProvider: () => ({ data: [SERVICIO], isFetching: false }),
 }));
 
-const { NewAppointmentModal } = await import("./NewAppointmentModal");
+const { FormularioAgendar } = await import("./NewAppointmentModal");
 
 /**
  * Busca por el texto COMPLETO del nodo.
@@ -60,7 +60,7 @@ const frase = (re: RegExp) => (_: string, el: Element | null) =>
 
 /** Abre la modal y deja elegida la clienta y el servicio. */
 async function abrirConClientaYServicio(user: ReturnType<typeof userEvent.setup>) {
-  render(<NewAppointmentModal open date="2027-01-20" prefill={null} onClose={() => {}} />);
+  render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={() => {}} />);
   await user.type(screen.getByPlaceholderText(/nombre, dni/i), "Sofía");
   await user.click(await screen.findByText(/Sofía Herrera/));
   const selects = screen.getAllByRole("combobox");

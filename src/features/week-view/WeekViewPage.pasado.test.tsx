@@ -15,8 +15,8 @@ vi.mock("../../api/agenda", async () => ({
   }),
 }));
 vi.mock("../../api/client", () => ({ api: vi.fn().mockResolvedValue([]) }));
-vi.mock("../day-view/NewAppointmentModal", () => ({
-  NewAppointmentModal: ({ date, prefill }: { date: string; prefill: { minutes?: number } | null }) => (
+vi.mock("../nuevo-turno/NuevoTurnoModal", () => ({
+  NuevoTurnoModal: ({ date, prefill }: { date: string; prefill: { minutes?: number } | null }) => (
     <div data-testid="modal-nuevo">{`${date} ${prefill?.minutes}`}</div>
   ),
 }));

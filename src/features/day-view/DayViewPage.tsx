@@ -17,9 +17,8 @@ import { BuscadorAgenda } from "../barra/BuscadorAgenda";
 import { useBusquedaAgenda, usePrestadorasDeLaBusqueda } from "../../lib/busqueda-agenda";
 import { QuienesLoHacen } from "../barra/QuienesLoHacen";
 import { useModoAgenda } from "../../lib/modo-agenda";
-import { NewAppointmentModal, type NewApptPrefill } from "./NewAppointmentModal";
-import { type ModoNuevoTurno, SolapasNuevoTurno } from "../vender/SolapasNuevoTurno";
-import { type TraspasoAAgendar, VenderYAgendar } from "../vender/VenderYAgendar";
+import type { NewApptPrefill } from "./NewAppointmentModal";
+import { NuevoTurnoModal } from "../nuevo-turno/NuevoTurnoModal";
 import { ReagendarTurnoModal } from "./ReagendarTurnoModal";
 import { AvisoInsumosModal } from "./AvisoInsumosModal";
 import { hayQueAvisar } from "../../lib/aviso-insumos";
@@ -82,10 +81,8 @@ export function DayViewPage() {
   // dentro de un efecto.
   const [newApptOpen, setNewApptOpen]       = useState(() => prefillDesdeUrl() !== null);
   const [newApptPrefill, setNewApptPrefill] = useState<NewApptPrefill | null>(() => prefillDesdeUrl());
-  // Vender desde el turno (spec 2026-10-16): qué solapa de Nuevo turno está
-  // abierta, y un contador de aperturas para que cada una monte el modal de
-  // cero (el reset de sus campos lo da el montaje, ver NewAppointmentModal).
-  const [modoNuevo, setModoNuevo] = useState<ModoNuevoTurno>("agendar");
+  // Un contador de aperturas para que cada una monte el Nuevo turno de cero
+  // (el reset de sus campos lo da el montaje, ver NuevoTurnoModal).
   const [aperturaNuevo, setAperturaNuevo] = useState(0);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [rescheduleAppt, setRescheduleAppt] = useState<Appointment | null>(null);
@@ -106,17 +103,8 @@ export function DayViewPage() {
 
   function openNewAppt(prefill: NewApptPrefill | null = null) {
     setNewApptPrefill(prefill);
-    setModoNuevo("agendar");
     setAperturaNuevo((n) => n + 1);
     setNewApptOpen(true);
-  }
-
-  /** Lo vendido pasa a la solapa Agendar, en el día que eligió Laura. */
-  function agendarLoVendido(t: TraspasoAAgendar) {
-    if (t.date !== date) setDate(t.date);
-    setNewApptPrefill(t.prefill);
-    setModoNuevo("agendar");
-    setAperturaNuevo((n) => n + 1);
   }
 
   // Sacar el prefill de la URL apenas se usó para abrir el modal de arriba:
@@ -302,31 +290,16 @@ export function DayViewPage() {
         />
       )}
 
-      {/* ── Nuevo turno: Agendar | Vender y agendar (se monta de cero en cada apertura) ── */}
-      {newApptOpen &&
-        (modoNuevo === "vender" ? (
-          <VenderYAgendar
-            key={`vender-${aperturaNuevo}`}
-            date={date}
-            hueco={{
-              providerId: newApptPrefill?.providerId,
-              providerName: newApptPrefill?.providerName,
-              minutes: newApptPrefill?.minutes,
-            }}
-            solapas={<SolapasNuevoTurno modo={modoNuevo} onCambiar={setModoNuevo} />}
-            onClose={() => setNewApptOpen(false)}
-            onAgendar={agendarLoVendido}
-          />
-        ) : (
-          <NewAppointmentModal
-            key={`agendar-${aperturaNuevo}`}
-            open
-            date={date}
-            prefill={newApptPrefill}
-            solapas={<SolapasNuevoTurno modo={modoNuevo} onCambiar={setModoNuevo} />}
-            onClose={() => setNewApptOpen(false)}
-          />
-        ))}
+      {/* ── Nuevo turno (se monta de cero en cada apertura) ── */}
+      {newApptOpen && (
+        <NuevoTurnoModal
+          key={`nuevo-${aperturaNuevo}`}
+          date={date}
+          prefill={newApptPrefill}
+          onClose={() => setNewApptOpen(false)}
+          onCambiarDia={setDate}
+        />
+      )}
 
       {/* ── Modal de detalle / cambio de estado ── */}
       <Modal

@@ -202,3 +202,13 @@ export function useCompraDeCliente(customerId: string | null, compraId: string |
     select: (compras) => compras.find((c) => c.id === compraId) ?? null,
   });
 }
+
+/** Todas las compras de la clienta (la ficha del CRM las lee de acá). `null` = todavía no hay clienta. */
+export function useComprasDeCliente(customerId: string | null) {
+  return useQuery({
+    queryKey: ["ventas", "compras", customerId],
+    queryFn: () => fetchComprasDeCliente(customerId!),
+    enabled: !!customerId,
+    staleTime: 0,
+  });
+}

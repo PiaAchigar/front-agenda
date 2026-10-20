@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   useComboPendientes,
   useConsumible,
@@ -13,13 +13,14 @@ import {
   type Consumible,
 } from "../../api/agenda";
 import type { Customer, Sexo } from "../../api/types";
-import { Button, ErrorNote, Input, Modal } from "../../components/ui";
+import { Button, ErrorNote, Input } from "../../components/ui";
 import { compraInicial } from "../../lib/compra-preferida";
 import { yaPaso } from "../../lib/horario";
 import { minutosDe } from "../../lib/vender";
 import { DiaYHoraDelTurno } from "./DiaYHoraDelTurno";
 import { ComboPendientesPanel } from "./ComboPendientesPanel";
 import { ZonasDelTurno } from "./ZonasDelTurno";
+import { CobrarLoQueFalta } from "../vender/CobrarLoQueFalta";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -205,12 +206,9 @@ export type NewApptPrefill = {
 };
 
 type Props = {
-  open: boolean;
   date: string; // YYYY-MM-DD
   prefill: NewApptPrefill | null;
   onClose: () => void;
-  /** Las solapas Agendar | Vender y agendar. Sin ellas, el modal es el de siempre. */
-  solapas?: ReactNode;
 };
 
 const EXPIRY_OPTIONS = [
@@ -370,20 +368,13 @@ export type EncabezadoControlado = {
   serviceId: string | null;
   purchaseServiceId: string | null;
   compraPreferidaId: string | null;
+  /** La compra de la sesión de depilación elegida: habilita "Cobrar lo que falta" en la puerta de pago. */
+  compraId?: string | null;
 };
 
-type PropsFormulario = Omit<Props, "open" | "solapas"> & {
+type PropsFormulario = Props & {
   encabezado?: EncabezadoControlado;
 };
-
-export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: Props) {
-  return (
-    <Modal open={open} onClose={onClose} title="Nuevo turno" altoFijo={solapas !== undefined}>
-      {solapas}
-      <FormularioAgendar date={date} prefill={prefill} onClose={onClose} />
-    </Modal>
-  );
-}
 
 /** El cuerpo de Agendar: el contenido de la modal, sin el `<Modal>`. */
 export function FormularioAgendar({ date, prefill, onClose, encabezado }: PropsFormulario) {
@@ -1047,6 +1038,10 @@ export function FormularioAgendar({ date, prefill, onClose, encabezado }: PropsF
                 {datosDepilacion.puerta.faltaCobrar.toLocaleString("es-AR")}).
               </p>
             )}
+            {/* Salida de la puerta de pago (#18): cobrar ahí mismo lo que falta. */}
+            {datosDepilacion && !datosDepilacion.puerta.puedeAgendar && encabezado?.compraId && (
+              <CobrarLoQueFalta compraId={encabezado.compraId} descripcion={datosDepilacion.nombreDelPack} />
+            )}
             <div className="flex justify-end gap-2 pt-1">
               <Button variant="secondary" onClick={onClose} disabled={create.isPending}>
                 Cancelar
@@ -1072,7 +1067,7 @@ export function FormularioAgendar({ date, prefill, onClose, encabezado }: PropsF
               Cancelar
             </Button>
             <Button onClick={handleSubmit} disabled={!canSubmit}>
-              {create.isPending ? "Guardando…" : "Confirmar turno"}
+              {create.isPending ? "Guardando…" : encabezado ? "Agendar" : "Confirmar turno"}
             </Button>
           </div>
         )}

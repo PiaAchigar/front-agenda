@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BrowserRouter } from "react-router-dom";
@@ -40,28 +39,16 @@ vi.mock("./CalendarGrid", () => ({
     <button onClick={() => onSlotClick("prov1", 930)}>hueco de Gabi a las 15:30</button>
   ),
 }));
-// Los dos modales se reemplazan por espías: lo que se prueba acá es el
+// El Nuevo turno se reemplaza por un espía: lo que se prueba acá es el
 // CABLEADO de DayViewPage (qué se abre, con qué día y qué prefill).
-vi.mock("./NewAppointmentModal", () => ({
-  NewAppointmentModal: ({ date, prefill, solapas }: { date: string; prefill: unknown; solapas?: ReactNode }) => (
-    <div>
-      {solapas}
-      <p>AGENDAR {date}</p>
-      <pre data-testid="prefill">{JSON.stringify(prefill)}</pre>
-    </div>
-  ),
-}));
-vi.mock("../vender/VenderYAgendar", () => ({
-  VenderYAgendar: ({ date, hueco, solapas, onAgendar }: {
-    date: string; hueco: unknown; solapas: ReactNode;
-    onAgendar: (t: { date: string; prefill: unknown }) => void;
+vi.mock("../nuevo-turno/NuevoTurnoModal", () => ({
+  NuevoTurnoModal: ({ date, prefill, onCambiarDia }: {
+    date: string; prefill: unknown; onCambiarDia?: (d: string) => void;
   }) => (
     <div>
-      {solapas}
-      <p>VENDER {date} {JSON.stringify(hueco)}</p>
-      <button onClick={() => onAgendar({ date: "2027-02-03", prefill: { customerId: "cu1", serviceId: "svc-a", compraPreferidaId: "pu9", minutes: 600 } })}>
-        simular venta en otro día
-      </button>
+      <p>NUEVO TURNO {date}</p>
+      <pre data-testid="prefill">{JSON.stringify(prefill)}</pre>
+      <button onClick={() => onCambiarDia?.("2027-02-03")}>simular venta en otro día</button>
     </div>
   ),
 }));
@@ -75,35 +62,22 @@ function montar(search = "?date=2027-01-20") {
   render(<BrowserRouter><DayViewPage /></BrowserRouter>);
 }
 
-describe("DayViewPage — Vender y agendar", () => {
-  it("el hueco abre Agendar, como hoy, con las dos solapas", async () => {
+describe("DayViewPage — Nuevo turno", () => {
+  it("el hueco abre el Nuevo turno único, con el día y la prestadora del hueco", async () => {
     const user = userEvent.setup();
     montar();
     await user.click(screen.getByText(/hueco de gabi/i));
-    expect(screen.getByText("AGENDAR 2027-01-20")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Agendar" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: "Vender y agendar" })).toBeInTheDocument();
+    expect(screen.getByText("NUEVO TURNO 2027-01-20")).toBeInTheDocument();
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+    expect(JSON.parse(screen.getByTestId("prefill").textContent!)).toMatchObject({ providerId: "prov1", minutes: 930 });
   });
 
-  it("la solapa Vender y agendar recibe el hueco (profesional y hora)", async () => {
+  it("si se vende para otro día, la grilla se mueve a ese día", async () => {
     const user = userEvent.setup();
     montar();
     await user.click(screen.getByText(/hueco de gabi/i));
-    await user.click(screen.getByRole("tab", { name: "Vender y agendar" }));
-    expect(screen.getByText(/VENDER 2027-01-20/)).toHaveTextContent('"providerId":"prov1"');
-    expect(screen.getByText(/VENDER 2027-01-20/)).toHaveTextContent('"minutes":930');
-  });
-
-  it("al vender en otro día, la grilla se mueve a ese día y Agendar abre con la compra", async () => {
-    const user = userEvent.setup();
-    montar();
-    await user.click(screen.getByText(/hueco de gabi/i));
-    await user.click(screen.getByRole("tab", { name: "Vender y agendar" }));
     await user.click(screen.getByText(/simular venta en otro día/i));
-    expect(await screen.findByText("AGENDAR 2027-02-03")).toBeInTheDocument();
     expect(new URLSearchParams(window.location.search).get("date")).toBe("2027-02-03");
-    expect(JSON.parse(screen.getByTestId("prefill").textContent!)).toEqual({
-      customerId: "cu1", serviceId: "svc-a", compraPreferidaId: "pu9", minutes: 600,
-    });
+    expect(await screen.findByText("NUEVO TURNO 2027-02-03")).toBeInTheDocument();
   });
 });

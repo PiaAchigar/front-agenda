@@ -39,8 +39,8 @@ vi.mock("../../api/client", () => ({
   }),
 }));
 const abrirNuevo = vi.fn();
-vi.mock("../day-view/NewAppointmentModal", () => ({
-  NewAppointmentModal: (p: { date: string; prefill: unknown }) => {
+vi.mock("../nuevo-turno/NuevoTurnoModal", () => ({
+  NuevoTurnoModal: (p: { date: string; prefill: unknown }) => {
     abrirNuevo(p.date, p.prefill);
     return <div data-testid="modal-nuevo" />;
   },

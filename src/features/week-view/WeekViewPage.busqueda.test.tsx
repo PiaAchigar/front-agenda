@@ -22,7 +22,7 @@ vi.mock("../../api/client", () => ({
   api: vi.fn(async (url: string) =>
     url.includes("/availability/") ? { date: "x", serviceId: "s1", durationMinutes: 60, slots: [] } : TURNOS),
 }));
-vi.mock("../day-view/NewAppointmentModal", () => ({ NewAppointmentModal: () => null }));
+vi.mock("../nuevo-turno/NuevoTurnoModal", () => ({ NuevoTurnoModal: () => null }));
 
 const { WeekViewPage } = await import("./WeekViewPage");
 

@@ -37,7 +37,7 @@ vi.mock("../../api/agenda", () => ({
   useServicesByProvider: () => ({ data: [{ id: "svc-a", name: "Limpieza facial", estimatedDurationMinutes: 30 }], isFetching: false }),
 }));
 
-const { NewAppointmentModal } = await import("./NewAppointmentModal");
+const { FormularioAgendar } = await import("./NewAppointmentModal");
 
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -49,11 +49,10 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("NewAppointmentModal — lo que agrega Vender desde el turno", () => {
+describe("FormularioAgendar — lo que agrega Vender desde el turno", () => {
   it("con compraPreferidaId, arranca elegida la compra recién vendida", async () => {
     render(
-      <NewAppointmentModal
-        open
+      <FormularioAgendar
         date="2027-01-20"
         prefill={{ customerId: "cu1", serviceId: "svc-a", compraPreferidaId: "pu-nueva", minutes: 600 }}
         onClose={() => {}}
@@ -65,37 +64,15 @@ describe("NewAppointmentModal — lo que agrega Vender desde el turno", () => {
 
   it("sin compraPreferidaId, no arranca ninguna elegida (como hoy)", async () => {
     render(
-      <NewAppointmentModal open date="2027-01-20" prefill={{ customerId: "cu1", serviceId: "svc-a", minutes: 600 }} onClose={() => {}} />,
+      <FormularioAgendar date="2027-01-20" prefill={{ customerId: "cu1", serviceId: "svc-a", minutes: 600 }} onClose={() => {}} />,
     );
     expect(await screen.findByRole("radio", { name: /pack recién vendido/i })).not.toBeChecked();
     expect(screen.getByRole("radio", { name: /no descontar/i })).toBeChecked();
   });
 
-  it("dibuja las solapas que le pasan, arriba de todo", () => {
-    render(
-      <NewAppointmentModal open date="2027-01-20" prefill={null} onClose={() => {}} solapas={<div>SOLAPAS</div>} />,
-    );
-    expect(screen.getByText("SOLAPAS")).toBeInTheDocument();
-  });
-
-  it("con solapas, el alto queda fijo: no salta al pasar a Vender y agendar", () => {
-    render(
-      <NewAppointmentModal open date="2027-01-20" prefill={null} onClose={() => {}} solapas={<div>SOLAPAS</div>} />,
-    );
-    const panel = screen.getByRole("heading", { name: "Nuevo turno" }).parentElement!.parentElement!;
-    expect(panel).toHaveClass("h-[90vh]");
-  });
-
-  it("sin solapas, el modal es el de siempre", () => {
-    render(<NewAppointmentModal open date="2027-01-20" prefill={null} onClose={() => {}} />);
-    const panel = screen.getByRole("heading", { name: "Nuevo turno" }).parentElement!.parentElement!;
-    expect(panel).not.toHaveClass("h-[90vh]");
-  });
-
   it("depilación con profesional de la columna: queda fija", () => {
     render(
-      <NewAppointmentModal
-        open
+      <FormularioAgendar
         date="2027-01-20"
         prefill={{ customerId: "cu1", purchaseServiceId: "ps-depi", providerId: "prov1", providerName: "Gabi", minutes: 600 }}
         onClose={() => {}}

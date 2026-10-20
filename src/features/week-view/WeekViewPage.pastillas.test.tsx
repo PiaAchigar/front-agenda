@@ -22,7 +22,7 @@ vi.mock("../../api/agenda", async () => {
 });
 const apiMock = vi.fn().mockResolvedValue(TURNOS);
 vi.mock("../../api/client", () => ({ api: (...a: unknown[]) => apiMock(...a) }));
-vi.mock("../day-view/NewAppointmentModal", () => ({ NewAppointmentModal: () => null }));
+vi.mock("../nuevo-turno/NuevoTurnoModal", () => ({ NuevoTurnoModal: () => null }));
 
 const { WeekViewPage } = await import("./WeekViewPage");
 

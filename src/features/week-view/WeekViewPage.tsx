@@ -24,7 +24,8 @@ import { useBusquedaAgenda, usePrestadorasDeLaBusqueda } from "../../lib/busqued
 import { QuienesLoHacen } from "../barra/QuienesLoHacen";
 import { HuecoLibre } from "./HuecoLibre";
 import { PastillaDeTurno } from "./PastillaDeTurno";
-import { NewAppointmentModal, type NewApptPrefill } from "../day-view/NewAppointmentModal";
+import type { NewApptPrefill } from "../day-view/NewAppointmentModal";
+import { NuevoTurnoModal } from "../nuevo-turno/NuevoTurnoModal";
 
 // ── Constantes del grid ──────────────────────────────────────────────────────
 const PX_PER_MIN       = 2;
@@ -362,8 +363,7 @@ export function WeekViewPage() {
         </div>
       </div>
       {newApptOpen && (
-        <NewAppointmentModal
-          open
+        <NuevoTurnoModal
           date={newApptDate}
           prefill={newApptPrefill}
           onClose={() => setNewApptOpen(false)}

@@ -72,7 +72,7 @@ vi.mock("../../api/agenda", () => ({
   useServicesByProvider: () => ({ data: [], isFetching: false }),
 }));
 
-const { NewAppointmentModal } = await import("./NewAppointmentModal");
+const { FormularioAgendar } = await import("./NewAppointmentModal");
 
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -94,8 +94,7 @@ function elegirHora() {
 
 function abrir() {
   render(
-    <NewAppointmentModal
-      open
+    <FormularioAgendar
       date="2027-01-20"
       prefill={{ customerId: "cu1", purchaseServiceId: "l1" }}
       onClose={() => {}}
@@ -103,7 +102,7 @@ function abrir() {
   );
 }
 
-describe("NewAppointmentModal — turno de depilación", () => {
+describe("FormularioAgendar — turno de depilación", () => {
   it('dice de qué pack y sesión se trata, y muestra el menú en vez del selector de servicio', async () => {
     abrir();
     expect(await screen.findByText(/cuerpo full.*sesión 1 de 3/i)).toBeInTheDocument();
@@ -162,7 +161,7 @@ describe("NewAppointmentModal — turno de depilación", () => {
  *   lado — un 404 dejaba el modal en blanco, sin mensaje y con los botones
  *   apagados.
  */
-describe("NewAppointmentModal — depilación, ronda de arreglos 3", () => {
+describe("FormularioAgendar — depilación, ronda de arreglos 3", () => {
   const datosHombre: DatosParaAgendar = {
     ...datosDepilacion,
     sexo: "hombre",

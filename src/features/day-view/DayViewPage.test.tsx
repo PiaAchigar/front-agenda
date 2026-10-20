@@ -7,7 +7,7 @@ import type { DatosParaAgendar } from "../../api/types";
 /**
  * Prueba de integración de "A agendar" (Task 16, ronda 2): el prefill que el
  * CRM le pide al dashboard llega acá por la URL de este mismo iframe
- * (`lib/embed.ts`, `prefillDesdeUrl`). No mockeamos `NewAppointmentModal` ni
+ * (`lib/embed.ts`, `prefillDesdeUrl`). No mockeamos `NuevoTurnoModal` ni
  * `../../api/agenda`'s hooks de depilación: si el cableado de `DayViewPage`
  * estuviera mal, esto se ve porque el menú de zonas nunca aparece.
  */
@@ -64,6 +64,27 @@ const TURNO_COMPLETADO = {
   customerPurchaseServiceId: "cps1",
   notes: null,
 };
+
+// El Nuevo turno lee el catálogo y las compras de la clienta.
+const AREA = { id: "a1", nombre: "Estética" };
+const ITEM = { packSesiones: null, packDescuentoPct: null, precioDesde: 1000, descripcion: null, desglose: [], area: AREA };
+const CATALOGO_NT = {
+  servicios: [{ ...ITEM, origen: "servicio", id: "svc-full", nombre: "Full face" }],
+  combos: [],
+  depilacion: [{ ...ITEM, origen: "depilacion", id: "d1", nombre: "Cuerpo Full", packSesiones: 3 }],
+  capacitaciones: [],
+  promociones: [],
+};
+const COMPRAS_NT = [{
+  id: "pu1", description: "Cuerpo Full", depilationComboId: "d1", sessionsTotal: 3, saldo: 0,
+  servicios: [{ id: "cps-depi-1", serviceId: null, depilationComboId: "d1", serviceName: null, repeticion: 1, estado: "disponible" }],
+}];
+vi.mock("../../api/ventas", () => ({
+  useCatalogoVendible: () => ({ data: CATALOGO_NT, isLoading: false, error: null }),
+  useComprasDeCliente: () => ({ data: COMPRAS_NT, isLoading: false }),
+  useCotizacion: () => ({ data: undefined, isFetching: false, error: null }),
+  useVender: () => ({ mutate: vi.fn(), isPending: false, error: null }),
+}));
 
 vi.mock("../../api/agenda", () => ({
   useAppointments: () => ({ data: turnosDelDia, isLoading: false, error: null }),
@@ -174,8 +195,9 @@ describe("DayViewPage — el prefill de \"A agendar\" llega por la URL", () => {
     conUrl("?embed=1&customerId=cu1&purchaseServiceId=cps-depi-1");
     montar();
 
-    expect(await screen.findByText(/cuerpo full.*sesión 1 de 3/i)).toBeInTheDocument();
-    expect(screen.queryByText("Servicio")).not.toBeInTheDocument();
+    expect((await screen.findAllByText(/cuerpo full.*sesión 1 de 3/i)).length).toBeGreaterThan(0);
+    // La línea de la sesión queda elegida en "Ya comprado", dentro de su área.
+    expect(screen.getByLabelText("Qué")).toHaveValue("comprado:cps-depi-1");
   });
 
   it("con serviceId en la URL (servicio normal), abre el turno nuevo CON LA CLIENTA puesta", async () => {
@@ -189,7 +211,7 @@ describe("DayViewPage — el prefill de \"A agendar\" llega por la URL", () => {
     conUrl("?embed=1&customerId=cu1&serviceId=svc-full");
     montar();
 
-    expect(await screen.findByText("Servicio")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Qué")).toHaveValue("servicio:svc-full");
     expect(await screen.findByText("Sofía Herrera")).toBeInTheDocument();
     // Con la clienta ya puesta, el buscador de clientes no debería ofrecerse.
     expect(screen.queryByPlaceholderText(/nombre, dni o teléfono/i)).not.toBeInTheDocument();
@@ -199,7 +221,7 @@ describe("DayViewPage — el prefill de \"A agendar\" llega por la URL", () => {
     conUrl("?embed=1&customerId=cu1&purchaseServiceId=cps-depi-1");
     montar();
 
-    await screen.findByText(/cuerpo full.*sesión 1 de 3/i);
+    await screen.findAllByText(/cuerpo full.*sesión 1 de 3/i);
     await waitFor(() => {
       expect(window.location.search).not.toContain("purchaseServiceId");
       expect(window.location.search).not.toContain("customerId");
@@ -232,12 +254,12 @@ describe("DayViewPage — el prefill de \"A agendar\" llega por la URL", () => {
     const user = userEvent.setup();
     montar();
 
-    await screen.findByText(/cuerpo full.*sesión 1 de 3/i);
+    await screen.findAllByText(/cuerpo full.*sesión 1 de 3/i);
     await user.click(screen.getByRole("button", { name: /^cancelar$/i }));
     expect(screen.queryByText(/sesión \d+ de \d+/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /abrir un slot cualquiera/i }));
-    expect(await screen.findByText("Servicio")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Qué")).toHaveValue("");
     expect(screen.queryByText(/sesión \d+ de \d+/i)).not.toBeInTheDocument();
   });
 });

@@ -12,7 +12,7 @@ import {
 } from "../../lib/que-va-en-el-turno";
 import { pesos } from "../../lib/vender";
 import { CobrarPaso } from "./CobrarPaso";
-import type { TraspasoAAgendar } from "./VenderYAgendar";
+import type { TraspasoAAgendar } from "./FormularioVender";
 
 export type DespuesDeVenderProps = {
   compraId: string;

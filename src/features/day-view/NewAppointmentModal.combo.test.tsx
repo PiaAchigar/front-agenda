@@ -57,7 +57,7 @@ vi.mock("../../api/agenda", () => ({
   useServicesByProvider: () => ({ data: [], isFetching: false }),
 }));
 
-const { NewAppointmentModal } = await import("./NewAppointmentModal");
+const { FormularioAgendar } = await import("./NewAppointmentModal");
 
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -88,7 +88,7 @@ async function confirmarPrimerTurno(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: /confirmar turno/i }));
 }
 
-describe("NewAppointmentModal — V3c, combos que se hacen juntos", () => {
+describe("FormularioAgendar — V3c, combos que se hacen juntos", () => {
   it("con hermanos pendientes, muestra el panel en vez de cerrar", async () => {
     const user = userEvent.setup();
     respuestaComboPendientes = {
@@ -97,7 +97,7 @@ describe("NewAppointmentModal — V3c, combos que se hacen juntos", () => {
       isError: false,
     };
     const onClose = vi.fn();
-    render(<NewAppointmentModal open date="2027-01-20" prefill={null} onClose={onClose} />);
+    render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={onClose} />);
     await confirmarPrimerTurno(user);
 
     expect(await screen.findByText(/este combo tiene 1 servicio más/i)).toBeInTheDocument();
@@ -111,7 +111,7 @@ describe("NewAppointmentModal — V3c, combos que se hacen juntos", () => {
       isSuccess: true,
       isError: false,
     };
-    render(<NewAppointmentModal open date="2027-01-20" prefill={null} onClose={vi.fn()} />);
+    render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={vi.fn()} />);
     await user.type(screen.getByPlaceholderText(/nombre, dni/i), "Sofía");
     await user.click(await screen.findByText(/Sofía Herrera/));
     await user.selectOptions(screen.getAllByRole("combobox")[0]!, "svc-a");
@@ -129,7 +129,7 @@ describe("NewAppointmentModal — V3c, combos que se hacen juntos", () => {
     const user = userEvent.setup();
     respuestaComboPendientes = { data: { pendientes: [] }, isSuccess: true, isError: false };
     const onClose = vi.fn();
-    render(<NewAppointmentModal open date="2027-01-20" prefill={null} onClose={onClose} />);
+    render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={onClose} />);
     await confirmarPrimerTurno(user);
 
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
@@ -146,7 +146,7 @@ describe("NewAppointmentModal — V3c, combos que se hacen juntos", () => {
       isError: false,
     };
     const onClose = vi.fn();
-    render(<NewAppointmentModal open date="2027-01-20" prefill={null} onClose={onClose} />);
+    render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={onClose} />);
     await confirmarPrimerTurno(user);
 
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
@@ -160,7 +160,7 @@ describe("NewAppointmentModal — V3c, combos que se hacen juntos", () => {
   it("mientras se consulta el combo, el botón de confirmar queda apagado", async () => {
     const user = userEvent.setup();
     respuestaComboPendientes = { data: undefined, isSuccess: false, isError: false };
-    render(<NewAppointmentModal open date="2027-01-20" prefill={null} onClose={vi.fn()} />);
+    render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={vi.fn()} />);
     await confirmarPrimerTurno(user);
 
     expect(screen.getByRole("button", { name: /confirmar turno/i })).toBeDisabled();
@@ -174,7 +174,7 @@ describe("NewAppointmentModal — V3c, combos que se hacen juntos", () => {
     const user = userEvent.setup();
     respuestaComboPendientes = { data: undefined, isSuccess: false, isError: true };
     const onClose = vi.fn();
-    render(<NewAppointmentModal open date="2027-01-20" prefill={null} onClose={onClose} />);
+    render(<FormularioAgendar date="2027-01-20" prefill={null} onClose={onClose} />);
     await confirmarPrimerTurno(user);
 
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
