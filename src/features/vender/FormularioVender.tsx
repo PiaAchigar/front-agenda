@@ -3,7 +3,6 @@ import type { Customer } from "../../api/types";
 import { type ItemDeCatalogo, useCatalogoVendible, useCotizacion, useVender } from "../../api/ventas";
 import { Button, ErrorNote } from "../../components/ui";
 import type { NewApptPrefill } from "../day-view/NewAppointmentModal";
-import type { Hueco } from "../../lib/que-va-en-el-turno";
 import type { EleccionDeQue } from "../../lib/que-ofrecer";
 import {
   claveDeItem,
@@ -31,8 +30,7 @@ export type EleccionVendible = Exclude<EleccionDeQue, { tipo: "comprado" }>;
  * área y qué) lo dibuja quien lo usa. Guarda estado propio de lo elegido:
  * si `eleccion` o la clienta cambian, quien lo usa lo remonta con una `key`.
  *
- * `hueco` y `cuando` no cambian nada acá: `cuando` sólo decide qué pasa DESPUÉS
- * de vender (cobrar o no), y eso lo resuelve quien recibe `onVendido`.
+ * Qué pasa DESPUÉS de vender (cobrar o no) lo resuelve quien recibe `onVendido`.
  */
 export function FormularioVender({
   eleccion,
@@ -48,8 +46,6 @@ export function FormularioVender({
   fecha: string;
   /** Minutos desde medianoche, `null` si todavía no hay hora. */
   minutos: number | null;
-  hueco: Hueco;
-  cuando: "ahora" | "en-el-turno";
   onVendido: (v: { compraId: string; descripcion: string }) => void;
   onCancelar?: () => void;
 }) {

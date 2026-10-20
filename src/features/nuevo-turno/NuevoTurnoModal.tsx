@@ -4,7 +4,6 @@ import type { Customer } from "../../api/types";
 import { useCatalogoVendible, useComprasDeCliente } from "../../api/ventas";
 import { Button, ErrorNote, Modal } from "../../components/ui";
 import { AVISO_HORARIO_PASADO, yaPaso } from "../../lib/horario";
-import type { Hueco } from "../../lib/que-va-en-el-turno";
 import {
   type EleccionDeQue,
   type LineaDisponible,
@@ -153,7 +152,6 @@ export function NuevoTurnoModal({
 
   const minutos = hora ? minutosDe(hora) : null;
   const horarioPasado = Boolean(fecha) && minutos !== null && yaPaso(fecha, minutos);
-  const hueco: Hueco = { ...prestadora, minutes: minutos ?? undefined };
 
   const grupos = useMemo(
     () => (catalogo && area ? gruposDeQue(catalogo, compras, area, busqueda) : []),
@@ -303,8 +301,6 @@ export function NuevoTurnoModal({
             customer={customer}
             fecha={fecha}
             minutos={minutos}
-            hueco={hueco}
-            cuando={cuando}
             onVendido={setVendida}
             onCancelar={onClose}
           />

@@ -36,11 +36,10 @@ vi.mock("../../api/ventas", () => ({
 const { FormularioVender } = await import("./FormularioVender");
 
 type Eleccion = Parameters<typeof FormularioVender>[0]["eleccion"];
-function montar(eleccion: Eleccion, cuando: "ahora" | "en-el-turno" = "ahora") {
+function montar(eleccion: Eleccion) {
   const onVendido = vi.fn();
   render(
-    <FormularioVender eleccion={eleccion} customer={CLIENTA} fecha="2099-01-20" minutos={930}
-      hueco={{ providerId: "prov1", minutes: 930 }} cuando={cuando} onVendido={onVendido} />,
+    <FormularioVender eleccion={eleccion} customer={CLIENTA} fecha="2099-01-20" minutos={930} onVendido={onVendido} />,
   );
   return { onVendido };
 }
@@ -61,7 +60,7 @@ describe("FormularioVender", () => {
   });
 
   it("con un servicio y cuando=ahora vende ese servicio como compra, con sesiones editables", async () => {
-    const { onVendido } = montar({ tipo: "servicio", item: SERVICIO }, "ahora");
+    const { onVendido } = montar({ tipo: "servicio", item: SERVICIO });
     expect(screen.getByLabelText("Sesiones")).toBeInTheDocument();
     expect(pedidos.at(-1)).toEqual({ origen: "servicio", id: "s1", sessions: 1, promotionId: null, customerId: "cu1" });
     await userEvent.click(screen.getByRole("button", { name: "Vender y agendar" }));
@@ -83,7 +82,7 @@ describe("FormularioVender", () => {
 
   it("sin clienta no cotiza ni deja vender", () => {
     render(<FormularioVender eleccion={{ tipo: "servicio", item: SERVICIO }} customer={null} fecha="2099-01-20" minutos={930}
-      hueco={{}} cuando="ahora" onVendido={vi.fn()} />);
+      onVendido={vi.fn()} />);
     expect(pedidos.at(-1)).toBeNull();
     expect(screen.getByRole("button", { name: "Vender y agendar" })).toBeDisabled();
   });
@@ -92,7 +91,8 @@ describe("FormularioVender", () => {
 
   it("usar el saldo a favor manda cuánto entra", async () => {
     render(<FormularioVender eleccion={{ tipo: "servicio", item: SERVICIO }} customer={{ ...CLIENTA, creditBalance: "20000.00" }}
-      fecha="2099-01-20" minutos={930} hueco={{}} cuando="ahora" onVendido={vi.fn()} />);
+      fecha="2099-01-20" minutos={930}
+      onVendido={vi.fn()} />);
     await userEvent.click(screen.getByLabelText(/usar saldo a favor/i));
     await userEvent.click(screen.getByRole("button", { name: "Vender y agendar" }));
     expect(vender).toHaveBeenCalledWith(expect.objectContaining({ usarSaldo: 20000 }), expect.anything());
@@ -107,7 +107,7 @@ describe("FormularioVender", () => {
 
   it("con un horario que ya pasó no deja vender", () => {
     render(<FormularioVender eleccion={{ tipo: "servicio", item: SERVICIO }} customer={CLIENTA} fecha="2020-01-20" minutos={600}
-      hueco={{}} cuando="ahora" onVendido={vi.fn()} />);
+      onVendido={vi.fn()} />);
     expect(screen.getByRole("button", { name: "Vender y agendar" })).toBeDisabled();
   });
 

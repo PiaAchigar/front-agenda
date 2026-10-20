@@ -20,6 +20,10 @@ import { ComboPendientesPanel } from "./ComboPendientesPanel";
 import { ZonasDelTurno } from "./ZonasDelTurno";
 import { CobrarLoQueFalta } from "../vender/CobrarLoQueFalta";
 
+// Este archivo ya no es el modal: hospeda `FormularioAgendar` (el cuerpo de
+// Agendar), `CustomerPicker` y `NewApptPrefill`. El modal en sí es
+// `features/nuevo-turno/NuevoTurnoModal`.
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function useDebounced(value: string, ms = 300): string {
