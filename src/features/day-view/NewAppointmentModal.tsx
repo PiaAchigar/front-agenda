@@ -354,26 +354,68 @@ function DescuentoDePack({
   );
 }
 
+/**
+ * Lo que decide el orquestador cuando el formulario se maneja desde afuera
+ * (la modal única "Nuevo turno": su encabezado es dueño de Día, Hora, Clienta,
+ * Área y Qué). Con esto el formulario NO dibuja esos campos y usa estos valores.
+ *
+ * `purchaseServiceId` (modo depilación) se lee en cada render, pero el estado
+ * que arranca de él (`servicioElegido`) lo toma al montar: si el orquestador
+ * cambia "Qué", tiene que remontar el cuerpo con una `key`.
+ */
+export type EncabezadoControlado = {
+  fecha: string; // YYYY-MM-DD, "" si todavía no hay día
+  minutos: number | null; // minutos desde medianoche ART
+  customer: Customer | null;
+  serviceId: string | null;
+  purchaseServiceId: string | null;
+  compraPreferidaId: string | null;
+};
+
+type PropsFormulario = Omit<Props, "open" | "solapas"> & {
+  encabezado?: EncabezadoControlado;
+};
+
 export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: Props) {
+  return (
+    <Modal open={open} onClose={onClose} title="Nuevo turno" altoFijo={solapas !== undefined}>
+      {solapas}
+      <FormularioAgendar date={date} prefill={prefill} onClose={onClose} />
+    </Modal>
+  );
+}
+
+/** El cuerpo de Agendar: el contenido de la modal, sin el `<Modal>`. */
+export function FormularioAgendar({ date, prefill, onClose, encabezado }: PropsFormulario) {
   const { data: services = [] } = useServices();
 
   // Turno de depilación (Task 15): la línea del pack ya viene elegida desde
   // "A agendar" en la ficha, así que acá no hay selector de servicio — hay
-  // un menú de zonas.
-  const purchaseServiceId = prefill?.purchaseServiceId ?? null;
+  // un menú de zonas. Con `encabezado` la línea la dicta el orquestador.
+  const purchaseServiceId = encabezado
+    ? encabezado.purchaseServiceId
+    : (prefill?.purchaseServiceId ?? null);
   const esDepilacion = Boolean(purchaseServiceId);
 
-  const [customer,      setCustomer]     = useState<Customer | null>(null);
-  const [serviceId,     setServiceId]    = useState(prefill?.serviceId ?? "");
+  const [customerPropio,  setCustomer]   = useState<Customer | null>(null);
+  const [serviceIdPropio, setServiceId]  = useState(prefill?.serviceId ?? "");
+  const customer  = encabezado ? encabezado.customer : customerPropio;
+  // En depilación el servicio del encabezado puede venir vacío: el ancla
+  // (ver `anclaServiceId`) se guarda en el estado propio.
+  const serviceId = encabezado ? (encabezado.serviceId || serviceIdPropio) : serviceIdPropio;
   const [providerId,    setProviderId]   = useState(prefill?.providerId ?? "");
   // El día se elige acá adentro (calendario de días libres). Desde "A agendar"
   // sin hueco arranca vacío y se completa con el primer día libre.
-  const [fecha,         setFecha]        = useState(
+  const [fechaPropia,   setFecha]        = useState(
     prefill?.customerId && prefill.minutes == null ? "" : date,
   );
-  const [timeStr,       setTimeStr]      = useState(
+  const [horaPropia,    setTimeStr]      = useState(
     prefill?.minutes != null ? minToTimeStr(prefill.minutes) : "",
   );
+  const fecha   = encabezado ? encabezado.fecha : fechaPropia;
+  const timeStr = encabezado
+    ? (encabezado.minutos != null ? minToTimeStr(encabezado.minutos) : "")
+    : horaPropia;
   const [priceMode,     setPriceMode]    = useState<"list" | "cash">("list");
   const [notes,         setNotes]        = useState("");
   const [apptStatus,    setApptStatus]   = useState<"scheduled" | "reserved">("scheduled");
@@ -413,7 +455,9 @@ export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: P
   // normal, los dos mandan la clienta y a los dos hay que precargársela. Sin
   // esto, Laura tenía que volver a buscarla a mano: justo lo que la pastilla
   // existe para ahorrarle (Task 16, ronda de arreglos 2).
-  const { data: clienteDePrefill } = useCustomer(prefill?.customerId ?? null);
+  const { data: clienteDePrefill } = useCustomer(
+    encabezado ? null : (prefill?.customerId ?? null),
+  );
   const [clientePrefillAplicado, setClientePrefillAplicado] = useState(false);
   if (!clientePrefillAplicado && clienteDePrefill) {
     setClientePrefillAplicado(true);
@@ -506,7 +550,10 @@ export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: P
   const [firmaSincronizada, setFirmaSincronizada] = useState<string | null>(null);
   if (!esDepilacion && firmaConsumible !== firmaSincronizada) {
     setFirmaSincronizada(firmaConsumible);
-    setServicioElegido(compraInicial(consumible, prefill?.compraPreferidaId ?? null));
+    setServicioElegido(compraInicial(
+      consumible,
+      (encabezado ? encabezado.compraPreferidaId : prefill?.compraPreferidaId) ?? null,
+    ));
   }
 
   // El servicio ancla de depilación: `datosParaAgendar` lo trae resuelto
@@ -547,7 +594,9 @@ export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: P
   // Con la prestadora fija no se reasigna nunca (la eligió el usuario al clickear
   // su columna); los servicios que se ofrecen ya son los de ella.
   const providersSig = providers.map((p) => p.id).join(",");
-  const [syncedProvidersSig, setSyncedProvidersSig] = useState(providersSig);
+  // Con `encabezado` el servicio ya puede venir elegido al montar: arranca vacío
+  // para que la primera pasada elija prestadora.
+  const [syncedProvidersSig, setSyncedProvidersSig] = useState(encabezado ? "" : providersSig);
   if (!lockedProviderId && providersSig !== syncedProvidersSig) {
     setSyncedProvidersSig(providersSig);
     if (serviceId && providers.length > 0 && !providers.find((p) => p.id === providerId)) {
@@ -673,20 +722,23 @@ export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: P
     : "Elegí un día";
 
   return (
-    <Modal open={open} onClose={onClose} title="Nuevo turno" altoFijo={solapas !== undefined}>
-      {solapas}
       <div className="space-y-4">
-        {/* Fecha del turno */}
-        <div className="flex items-center gap-2 rounded-xl bg-primary/8 px-3 py-2">
-          <span className="text-base">📅</span>
-          <span className="text-sm font-medium text-primary">{dateLabel}</span>
-        </div>
+        {/* Fecha y cliente: con `encabezado` los muestra el orquestador */}
+        {!encabezado && (
+          <>
+            {/* Fecha del turno */}
+            <div className="flex items-center gap-2 rounded-xl bg-primary/8 px-3 py-2">
+              <span className="text-base">📅</span>
+              <span className="text-sm font-medium text-primary">{dateLabel}</span>
+            </div>
 
-        {/* Cliente */}
-        <div>
-          <label className="mb-1 block text-xs font-medium text-ink-soft">Cliente</label>
-          <CustomerPicker value={customer} onChange={setCustomer} />
-        </div>
+            {/* Cliente */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-ink-soft">Cliente</label>
+              <CustomerPicker value={customer} onChange={setCustomer} />
+            </div>
+          </>
+        )}
 
         {mostrarPendientes ? (
           <ComboPendientesPanel
@@ -722,6 +774,7 @@ export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: P
           </div>
         ) : (
           <div>
+            {!encabezado && (<>
             <label className="mb-1 block text-xs font-medium text-ink-soft">Servicio</label>
             <select
               className={fieldClass}
@@ -743,10 +796,11 @@ export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: P
                 </option>
               ))}
             </select>
+            </>)}
 
             {/* Contra qué se descuenta. Sólo aparece si tiene algo a favor. */}
             {customer && serviceId && (
-              <div className="mt-2">
+              <div className={encabezado ? undefined : "mt-2"}>
                 <DescuentoDePack
                   estado={consumible}
                   cargando={buscandoConsumible}
@@ -790,16 +844,18 @@ export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: P
         </div>
 
         {/* Día + Hora inicio (a todo el ancho) y Hora fin debajo */}
-        <DiaYHoraDelTurno
-          serviceId={serviceId || null}
-          providerId={providerId || null}
-          fecha={fecha}
-          hora={timeStr}
-          horaLibre={esDepilacion}
-          elegirPrimerDiaLibre={!fecha}
-          onCambiarFecha={setFecha}
-          onCambiarHora={setTimeStr}
-        />
+        {!encabezado && (
+          <DiaYHoraDelTurno
+            serviceId={serviceId || null}
+            providerId={providerId || null}
+            fecha={fecha}
+            hora={timeStr}
+            horaLibre={esDepilacion}
+            elegirPrimerDiaLibre={!fecha}
+            onCambiarFecha={setFecha}
+            onCambiarHora={setTimeStr}
+          />
+        )}
         <div className="flex gap-3">
           <div className="flex-1">
             <label className="mb-1 block text-xs font-medium text-ink-soft">
@@ -1023,6 +1079,5 @@ export function NewAppointmentModal({ open, date, prefill, onClose, solapas }: P
           </>
         )}
       </div>
-    </Modal>
   );
 }
