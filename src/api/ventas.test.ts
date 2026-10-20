@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cobrarCompra, cotizarVenta, venderCompra } from "./ventas";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderHook, waitFor } from "@testing-library/react";
+import { createElement, type ReactNode } from "react";
+import { cobrarCompra, cotizarVenta, useCobrarCompra, venderCompra } from "./ventas";
 
 function fetchQueDevuelve(body: unknown) {
   const f = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(body) });
@@ -35,5 +38,19 @@ describe("rutas de venta — las mismas que usa el CRM", () => {
     await cobrarCompra("pu1", { amount: 100, method: "cash", wantsInvoice: false });
     expect(f.mock.calls[0]![0]).toMatch(/\/api\/crm\/purchases\/pu1\/checkout$/);
     expect(JSON.parse(f.mock.calls[0]![1].body)).toEqual({ amount: 100, method: "cash", wantsInvoice: false });
+  });
+});
+
+describe("cobrar relee lo que la agenda muestra", () => {
+  it("useCobrarCompra invalida los turnos (el 'Debe $X' no queda viejo) y la puerta de depilación", async () => {
+    fetchQueDevuelve({ pendiente: 0, minimo: 0, sugerido: 0, faltaElMinimo: false });
+    const qc = new QueryClient();
+    const invalidar = vi.spyOn(qc, "invalidateQueries");
+    const wrapper = ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client: qc }, children);
+    const { result } = renderHook(() => useCobrarCompra(), { wrapper });
+    result.current.mutate({ id: "pu1", amount: 100, method: "cash", wantsInvoice: false });
+    await waitFor(() => expect(invalidar).toHaveBeenCalledWith({ queryKey: ["para-agendar"] }));
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["appointments"] });
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["appointments-range"] });
   });
 });

@@ -156,13 +156,16 @@ export function useCotizacion(pedido: PedidoDeCotizacion | null) {
 
 /**
  * Lo que queda viejo en la AGENDA cuando se vende o se cobra: lo que la
- * clienta tiene a favor (`consumible`) y la puerta de pago de depilación
- * (`para-agendar`). Sin esto, la solapa Agendar no vería la compra nueva.
+ * clienta tiene a favor (`consumible`), la puerta de pago de depilación
+ * (`para-agendar`) y los turnos, que traen el "Debe $X" de su compra.
  */
 function invalidarLoQueAgendaLee(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["consumible"] });
   qc.invalidateQueries({ queryKey: ["para-agendar"] });
   qc.invalidateQueries({ queryKey: ["ventas", "compras"] });
+  // Mismas claves que `api/agenda.ts`.
+  qc.invalidateQueries({ queryKey: ["appointments"] });
+  qc.invalidateQueries({ queryKey: ["appointments-range"] });
 }
 
 export function useVender() {

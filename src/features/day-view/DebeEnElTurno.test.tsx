@@ -8,6 +8,7 @@ import { PastillaDeTurno } from "../week-view/PastillaDeTurno";
 
 // ── Mocks para DayViewPage (mismo set que DayViewPage.vender.test.tsx) ──
 const SIN_DATOS: never[] = [];
+let turnosDelDia: Appointment[] = [];
 const SIN_MUTAR = { mutate: vi.fn(), isPending: false, error: null };
 
 const DE_LA_COMPRA = {
@@ -30,7 +31,7 @@ const DE_LA_COMPRA = {
 } as unknown as Appointment;
 
 vi.mock("../../api/agenda", () => ({
-  useAppointments: () => ({ data: SIN_DATOS, isLoading: false, error: null }),
+  useAppointments: () => ({ data: turnosDelDia, isLoading: false, error: null }),
   useComboPendientes: () => ({ data: undefined, isSuccess: false }),
   useCompanyConfig: () => ({ data: { openHours: SIN_DATOS } }),
   useProviderSchedule: () => ({ data: SIN_DATOS }),
@@ -127,6 +128,7 @@ describe("Debe $X — ficha de la pastilla de la semana", () => {
 
 describe("Debe $X — detalle del turno", () => {
   function montar() {
+    turnosDelDia = [DE_LA_COMPRA];
     const qc = new QueryClient();
     const invalidar = vi.spyOn(qc, "invalidateQueries");
     window.history.pushState({}, "", "/dia?date=2027-01-20");
@@ -147,15 +149,27 @@ describe("Debe $X — detalle del turno", () => {
     expect(screen.getByText("COBRAR pu1 6000")).toBeInTheDocument();
   });
 
-  it("al cobrar se invalidan los turnos y se cierra el cobro", async () => {
+  it("el detalle dice Debe $6.000 y, al cobrar y releerse el turno con deuda 0, ya no dice nada ni ofrece cobrar", async () => {
     const user = userEvent.setup();
-    const invalidar = montar();
+    const qc = new QueryClient();
+    turnosDelDia = [DE_LA_COMPRA];
+    window.history.pushState({}, "", "/dia?date=2027-01-20");
+    const arbol = () => (
+      <QueryClientProvider client={qc}>
+        <BrowserRouter><DayViewPage /></BrowserRouter>
+      </QueryClientProvider>
+    );
+    const { rerender } = render(arbol());
     await user.click(screen.getByText("abrir turno de compra"));
+    expect(screen.getByText("Debe $6.000")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Cobrar $6.000" }));
     await user.click(screen.getByText("confirmar cobro"));
-    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["appointments"] });
-    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["appointments-range"] });
     expect(screen.queryByText("confirmar cobro")).not.toBeInTheDocument();
+    // La lista se relee con la deuda en cero.
+    turnosDelDia = [{ ...DE_LA_COMPRA, deudaDeLaCompra: 0 } as Appointment];
+    rerender(arbol());
+    expect(screen.queryByText(/^Debe/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^cobrar \$/i })).not.toBeInTheDocument();
   });
 
   it("un turno sin deuda no ofrece cobrar la compra", async () => {

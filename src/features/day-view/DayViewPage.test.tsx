@@ -126,21 +126,27 @@ vi.mock("./CalendarGrid", () => ({
   }: {
     onSlotClick: (columnId: string, minutes: number) => void;
     onAppointmentClick: (appt: unknown) => void;
-  }) => (
+  }) => {
+    // El detalle lee el turno de la lista del día: el que se abre tiene que estar ahí.
+    const abrir = (t: unknown) => {
+      turnosDelDia = [t];
+      onAppointmentClick(t);
+    };
+    return (
     <>
       <button onClick={() => onSlotClick("prov1", 600)}>abrir un slot cualquiera</button>
       {/* Un turno YA COMPLETADO: es el caso que abre el modal cerrado. */}
-      <button onClick={() => onAppointmentClick(TURNO_COMPLETADO)}>
+      <button onClick={() => abrir(TURNO_COMPLETADO)}>
         abrir un turno completado
       </button>
-      <button onClick={() => onAppointmentClick({ ...TURNO_COMPLETADO, status: "scheduled" })}>
+      <button onClick={() => abrir({ ...TURNO_COMPLETADO, status: "scheduled" })}>
         abrir un turno agendado
       </button>
       {/* Fechas deliberadamente lejanas: así el cartel de la seña no depende
           del reloj de la máquina que corre la suite. */}
       <button
         onClick={() =>
-          onAppointmentClick({
+          abrir({
             ...TURNO_COMPLETADO,
             status: "no_show",
             appointmentStart: "2020-01-01T10:00:00.000Z",
@@ -152,7 +158,7 @@ vi.mock("./CalendarGrid", () => ({
       </button>
       <button
         onClick={() =>
-          onAppointmentClick({
+          abrir({
             ...TURNO_COMPLETADO,
             status: "no_show",
             appointmentStart: "2099-01-01T10:00:00.000Z",
@@ -163,7 +169,8 @@ vi.mock("./CalendarGrid", () => ({
         abrir un ausente que todavía no empezó
       </button>
     </>
-  ),
+    );
+  },
 }));
 
 const { DayViewPage } = await import("./DayViewPage");

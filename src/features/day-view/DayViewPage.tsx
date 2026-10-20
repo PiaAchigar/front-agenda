@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import {
   useAppointments,
@@ -48,24 +47,6 @@ const STATUS_LABELS: Record<
   no_show:   { label: "Ausente",    tone: "warning"  },
 };
 
-/** "Cobrar $X" sobre la compra del turno; al cobrar relee los turnos para que
- *  el "Debe $X" se actualice. Mismas claves que `api/agenda.ts`. */
-function CobrarDeudaDelTurno({ compraId, descripcion, deuda }: { compraId: string; descripcion: string; deuda: number }) {
-  const queryClient = useQueryClient();
-  return (
-    <CobrarLoQueFalta
-      compraId={compraId}
-      descripcion={descripcion}
-      etiqueta={`Cobrar ${pesos(deuda)}`}
-      variante="primary"
-      alCobrar={() => {
-        queryClient.invalidateQueries({ queryKey: ["appointments"] });
-        queryClient.invalidateQueries({ queryKey: ["appointments-range"] });
-      }}
-    />
-  );
-}
-
 export function DayViewPage() {
   /**
    * El día vive en la URL, no sólo en el estado.
@@ -93,7 +74,9 @@ export function DayViewPage() {
     },
     [setSearchParams],
   );
-  const [selected, setSelected]             = useState<Appointment | null>(null);
+  // Se guarda el id y no el turno: así el detalle lee siempre la copia fresca
+  // (si no, "Debe $X" quedaría viejo después de cobrar).
+  const [selectedId, setSelectedId]         = useState<string | null>(null);
   const [avisoInsumos, setAvisoInsumos]     = useState<Consumo | null>(null);
   const [attendanceFor, setAttendanceFor]   = useState<AttendanceTarget | null>(null);
   // El prefill de "A agendar" que pide la ficha del CRM viaja CRM → dashboard
@@ -115,7 +98,7 @@ export function DayViewPage() {
   const [busqueda] = useBusquedaAgenda();
 
   function openReschedule(appt: Appointment) {
-    setSelected(null);
+    setSelectedId(null);
     setRescheduleAppt(appt);
     setRescheduleOpen(true);
   }
@@ -165,7 +148,7 @@ export function DayViewPage() {
   useEffect(() => {
     if (!turnoPedido || isLoading) return;
     const pedido = allAppointments.find((a) => a.id === turnoPedido);
-    if (pedido) setSelected(pedido);
+    if (pedido) setSelectedId(pedido.id);
     setSearchParams(
       (params) => {
         params.delete("turno");
@@ -223,11 +206,12 @@ export function DayViewPage() {
         onSuccess: (r) => {
           if (hayQueAvisar(r.consumo)) setAvisoInsumos(r.consumo!);
         },
-        onSettled: () => setSelected(null),
+        onSettled: () => setSelectedId(null),
       },
     );
   }
 
+  const selected = selectedId ? (allAppointments.find((a) => a.id === selectedId) ?? null) : null;
   const debe = selected ? debeDelTurno(selected) : null;
   const statusInfo = STATUS_LABELS[selected?.status ?? "scheduled"] ?? STATUS_LABELS.scheduled!;
 
@@ -289,7 +273,7 @@ export function DayViewPage() {
           openHours={openHours}
           columnIds={columnIds}
           providerSchedule={providerSchedule}
-          onAppointmentClick={setSelected}
+          onAppointmentClick={(a) => setSelectedId(a.id)}
           onSlotClick={(columnId, minutes) =>
             openNewAppt({
               providerId: columnId,
@@ -327,7 +311,7 @@ export function DayViewPage() {
       {/* ── Modal de detalle / cambio de estado ── */}
       <Modal
         open={Boolean(selected)}
-        onClose={() => setSelected(null)}
+        onClose={() => setSelectedId(null)}
         title={selected?.customerName ?? "Turno"}
       >
         {selected && (
@@ -377,7 +361,7 @@ export function DayViewPage() {
                       activityName: selected.activityName,
                       startsAt: selected.appointmentStart,
                     });
-                    setSelected(null);
+                    setSelectedId(null);
                   }}
                 >
                   Asistencias
@@ -393,11 +377,15 @@ export function DayViewPage() {
               {/* La deuda es de la compra entera: se cobra sobre la compra. El
                   "Cobrar" común sigue bloqueado para estos turnos (sePuedeCobrar). */}
               {selected.customerPurchaseId && debe !== null && (
-                <CobrarDeudaDelTurno
-                  compraId={selected.customerPurchaseId}
-                  descripcion={selected.serviceName ?? "Compra"}
-                  deuda={debe}
-                />
+                <>
+                  <p className="self-center text-sm font-medium text-amber-700">Debe {pesos(debe)}</p>
+                  <CobrarLoQueFalta
+                    compraId={selected.customerPurchaseId}
+                    descripcion={selected.serviceName ?? "Compra"}
+                    etiqueta={`Cobrar ${pesos(debe)}`}
+                    variante="primary"
+                  />
+                </>
               )}
               {selected.status !== "completed" && (
                 <Button
