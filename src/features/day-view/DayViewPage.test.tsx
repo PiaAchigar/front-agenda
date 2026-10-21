@@ -148,6 +148,9 @@ vi.mock("./CalendarGrid", () => ({
       <button onClick={() => abrir({ ...TURNO_COMPLETADO, status: "scheduled", activityId: "act1", machineId: "m1" })}>
         abrir uno de máquina agendado
       </button>
+      <button onClick={() => abrir({ ...TURNO_COMPLETADO, status: "scheduled", activityId: "act1", providerId: "p1" })}>
+        abrir uno de actividad con proveedora
+      </button>
       <button onClick={() => abrir({ ...TURNO_COMPLETADO, status: "cancelled" })}>
         abrir un individual cancelado
       </button>
@@ -433,6 +436,15 @@ describe("DayViewPage — Asistencias de un turno de máquina", () => {
     montar();
     await userEvent.click(screen.getByText("abrir uno de máquina agendado"));
     await userEvent.click(await screen.findByRole("button", { name: "Asistencias" }));
-    expect(pedirRoster).toHaveBeenCalledWith("act1", "2026-09-29T11:00:00.000Z", "m1");
+    expect(pedirRoster).toHaveBeenCalledWith("act1", "2026-09-29T11:00:00.000Z", "m1", null);
+  });
+});
+
+describe("DayViewPage — Asistencias de un turno con proveedora", () => {
+  it("pide el roster con el providerId del turno", async () => {
+    montar();
+    await userEvent.click(screen.getByText("abrir uno de actividad con proveedora"));
+    await userEvent.click(await screen.findByRole("button", { name: "Asistencias" }));
+    expect(pedirRoster).toHaveBeenCalledWith("act1", "2026-09-29T11:00:00.000Z", null, "p1");
   });
 });

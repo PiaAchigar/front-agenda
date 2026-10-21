@@ -15,10 +15,20 @@ describe("AttendanceModal con máquina", () => {
   it("pide el roster con el machineId de la clase", () => {
     render(
       <AttendanceModal
-        target={{ activityId: "a1", activityName: "Pilates", startsAt: "2020-01-01T13:00:00.000Z", machineId: "m1" }}
+        target={{ activityId: "a1", activityName: "Pilates", startsAt: "2020-01-01T13:00:00.000Z", machineId: "m1", providerId: null }}
         onClose={() => {}}
       />,
     );
-    expect(useClassRoster).toHaveBeenCalledWith("a1", "2020-01-01T13:00:00.000Z", "m1");
+    expect(useClassRoster).toHaveBeenCalledWith("a1", "2020-01-01T13:00:00.000Z", "m1", null);
+  });
+
+  it("pide el roster con el providerId de la clase", () => {
+    render(
+      <AttendanceModal
+        target={{ activityId: "a1", activityName: "Pilates", startsAt: "2020-01-01T13:00:00.000Z", machineId: null, providerId: "p1" }}
+        onClose={() => {}}
+      />,
+    );
+    expect(useClassRoster).toHaveBeenCalledWith("a1", "2020-01-01T13:00:00.000Z", null, "p1");
   });
 });

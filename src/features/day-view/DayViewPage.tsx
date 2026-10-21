@@ -303,6 +303,7 @@ export function DayViewPage() {
               activityName: occurrence.name,
               startsAt: occurrence.startsAt,
               machineId: occurrence.machineId,
+              providerId: occurrence.providerId,
             })
           }
           // onAnotar abre el modal de anotar; onCobrar el de cobrar lo que debe una anotada.
@@ -408,6 +409,7 @@ export function DayViewPage() {
                       activityName: selected.activityName,
                       startsAt: selected.appointmentStart,
                       machineId: selected.machineId ?? null,
+                      providerId: selected.providerId ?? null,
                     });
                     setSelectedId(null);
                   }}

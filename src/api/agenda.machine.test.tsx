@@ -19,3 +19,19 @@ describe("useClassRoster con machineId", () => {
     expect(apiMock.mock.calls[0]![0]).toContain("&machineId=m1");
   });
 });
+
+describe("useClassRoster con providerId", () => {
+  it("lo manda en la URL", async () => {
+    apiMock.mockClear();
+    renderHook(() => useClassRoster("a1", "2020-01-02T13:00:00.000Z", null, "p1"), { wrapper });
+    await waitFor(() => expect(apiMock).toHaveBeenCalled());
+    expect(apiMock.mock.calls[0]![0]).toContain("&providerId=p1");
+  });
+
+  it("sin proveedora no manda el parámetro", async () => {
+    apiMock.mockClear();
+    renderHook(() => useClassRoster("a1", "2020-01-03T13:00:00.000Z"), { wrapper });
+    await waitFor(() => expect(apiMock).toHaveBeenCalled());
+    expect(apiMock.mock.calls[0]![0]).not.toContain("providerId");
+  });
+});

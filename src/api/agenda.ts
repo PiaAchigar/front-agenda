@@ -196,12 +196,13 @@ export function useClassRoster(
   activityId: string | null,
   startsAt: string | null,
   machineId: string | null = null,
+  providerId: string | null = null,
 ) {
   return useQuery({
-    queryKey: ["class-roster", activityId, startsAt, machineId],
+    queryKey: ["class-roster", activityId, startsAt, machineId, providerId],
     queryFn: () =>
       api<{ success: boolean; data: ClassRosterEntry[] }>(
-        `/api/class-attendance?activityId=${activityId}&startsAt=${encodeURIComponent(startsAt!)}${machineId ? `&machineId=${encodeURIComponent(machineId)}` : ""}`,
+        `/api/class-attendance?activityId=${activityId}&startsAt=${encodeURIComponent(startsAt!)}${machineId ? `&machineId=${encodeURIComponent(machineId)}` : ""}${providerId ? `&providerId=${encodeURIComponent(providerId)}` : ""}`,
       ).then((r) => r.data),
     enabled: Boolean(activityId && startsAt),
   });
@@ -212,6 +213,7 @@ export type MarkAttendanceInput = {
   startsAt: string;
   entries: { subscriptionId: string; attended: boolean }[];
   machineId?: string | null;
+  providerId?: string | null;
 };
 
 export function useMarkAttendance() {
