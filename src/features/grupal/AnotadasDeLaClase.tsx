@@ -4,6 +4,7 @@ import { Badge, Button, ErrorNote, Modal } from "../../components/ui";
 import { useSacarDeClase } from "../../api/grupal";
 import { pesos } from "../../lib/vender";
 import type { Anotada } from "../../api/types";
+import { DarDeBajaModal } from "./DarDeBajaModal";
 
 const VISIBLES = 6;
 
@@ -11,16 +12,20 @@ const VISIBLES = 6;
 export function AnotadasDeLaClase({
   anotadas,
   puedeSacar,
+  capacitacionId,
   onCobrar,
 }: {
   anotadas: Anotada[];
   /** Falso en una clase que ya pasó */
   puedeSacar: boolean;
+  /** En un encuentro de capacitación, sacar es la baja de toda la capacitación. */
+  capacitacionId?: string;
   onCobrar: (a: Anotada) => void;
 }) {
   const [verTodas, setVerTodas] = useState(false);
   // La anotada que se está por sacar: mientras no sea null, el modal pide confirmar.
   const [aSacar, setASacar] = useState<Anotada | null>(null);
+  const [aDarDeBaja, setADarDeBaja] = useState<Anotada | null>(null);
   const sacar = useSacarDeClase();
 
   if (anotadas.length === 0) return null;
@@ -62,9 +67,11 @@ export function AnotadasDeLaClase({
               {puedeSacar && (
                 <button
                   type="button"
-                  aria-label={`Sacar a ${nombre} de esta clase`}
+                  aria-label={
+                    capacitacionId ? `Dar de baja a ${nombre} de la capacitación` : `Sacar a ${nombre} de esta clase`
+                  }
                   disabled={sacar.isPending}
-                  onClick={() => setASacar(a)}
+                  onClick={() => (capacitacionId && a.customerId ? setADarDeBaja(a) : setASacar(a))}
                   className="px-1 text-ink-soft hover:text-red-600 disabled:opacity-40"
                 >
                   ×
@@ -85,6 +92,14 @@ export function AnotadasDeLaClase({
           </li>
         )}
       </ul>
+      {aDarDeBaja && capacitacionId && aDarDeBaja.customerId && (
+        <DarDeBajaModal
+          trainingId={capacitacionId}
+          customerId={aDarDeBaja.customerId}
+          nombre={aDarDeBaja.nombre ?? "esta clienta"}
+          onClose={() => setADarDeBaja(null)}
+        />
+      )}
       <Modal open={aSacar !== null} onClose={cerrarModal} title="Sacar de la clase">
         <div className="space-y-4">
           <p className="text-sm text-ink">¿Sacar a {aSacar?.nombre ?? "esta clienta"} de esta clase?</p>

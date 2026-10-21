@@ -161,6 +161,7 @@ function ClassCard({
       <AnotadasDeLaClase
         anotadas={occurrence.anotadas ?? []}
         puedeSacar={!isPast}
+        capacitacionId={occurrence.kind === "training" ? occurrence.subjectId : undefined}
         onCobrar={(a) => onCobrar(occurrence, a)}
       />
 

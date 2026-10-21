@@ -218,3 +218,53 @@ export function useClassesRange(from: string, to: string) {
     placeholderData: keepPreviousData, // al navegar queda a la vista el rango anterior
   });
 }
+
+/** La cuenta para dar de baja a una clienta de una capacitación (ver DarDeBajaModal). */
+export type CuentaDeBaja = {
+  compraId: string;
+  /** Pasó al menos un encuentro */
+  empezo: boolean;
+  precio: number;
+  pagado: number;
+  encuentrosTotales: number;
+  encuentrosPasados: number;
+  vino: number;
+  falto: number;
+  /** Lo que corresponde por los encuentros que pasaron */
+  corresponde: number;
+  /** Uno de los dos es 0 */
+  sugerido: { saldoAFavor: number; debe: number };
+};
+
+export function useCuentaDeBaja(trainingId: string, customerId: string) {
+  return useQuery({
+    queryKey: ["baja-de-capacitacion", trainingId, customerId],
+    queryFn: () =>
+      api<{ success: boolean; data: CuentaDeBaja }>(
+        `/api/agenda/classes/baja-de-capacitacion?trainingId=${trainingId}&customerId=${customerId}`,
+      ).then((r) => r.data),
+    // La cuenta depende de la hora: cada vez que se abre, fresca.
+    staleTime: 0,
+  });
+}
+
+/**
+ * La saca de toda la capacitación. Si ya empezó, va `saldoAFavor` o `debe`
+ * (uno de los dos); si no, ninguno.
+ */
+export function useDarDeBaja() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { trainingId: string; customerId: string; saldoAFavor?: number; debe?: number }) =>
+      api<{ success: boolean; data: { encuentrosCancelados: number; saldoAcreditado: number; debe: number } }>(
+        "/api/agenda/classes/baja-de-capacitacion",
+        { method: "POST", body: JSON.stringify(body) },
+      ).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["opciones-capacitacion"] });
+      queryClient.invalidateQueries({ queryKey: ["baja-de-capacitacion"] });
+    },
+  });
+}

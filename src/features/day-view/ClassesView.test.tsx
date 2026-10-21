@@ -212,3 +212,23 @@ describe("filtro por búsqueda grupal", () => {
     expect(screen.getByText("No hay clases de lo elegido este día.")).toBeInTheDocument();
   });
 });
+
+describe("dar de baja de una capacitación", () => {
+  beforeEach(() => {
+    apiMock.mockReset();
+    clases = [clase({ kind: "training", subjectId: "t1", activityType: null, anotadas: [anotada(1)], enrolledCount: 1 })];
+  });
+
+  // En una capacitación, sacar es siempre la baja de toda la capacitación (regla de Pia, 2026-10-21).
+  it("la cruz abre la baja de la capacitación, no el sacar de una clase", async () => {
+    apiMock.mockResolvedValue({ success: true, data: {
+      compraId: "k1", empezo: false, precio: 100000, pagado: 0, encuentrosTotales: 3, encuentrosPasados: 0,
+      vino: 0, falto: 0, corresponde: 0, sugerido: { saldoAFavor: 0, debe: 0 },
+    } });
+    montar();
+    expect(screen.queryByLabelText("Sacar a Clienta 1 de esta clase")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByLabelText("Dar de baja a Clienta 1 de la capacitación"));
+    expect(await screen.findByRole("dialog", { name: "Dar de baja de la capacitación" })).toBeInTheDocument();
+  });
+});
+
