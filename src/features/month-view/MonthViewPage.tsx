@@ -80,6 +80,7 @@ function MonthViewClases() {
         fecha={<FechaMes monthLabel={monthLabel} onNavegar={navigateMonth} />}
         buscador={<BuscadorAgenda />}
       />
+      <FiltrosAgenda />
       <MesGrupal />
     </div>
   );

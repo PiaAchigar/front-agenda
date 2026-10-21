@@ -265,7 +265,7 @@ export function DayViewPage() {
         buscador={<BuscadorAgenda />}
       />
 
-      {agendaMode === "turnos" && <FiltrosAgenda />}
+      <FiltrosAgenda />
 
       {error && <ErrorNote message={(error as Error).message} />}
 

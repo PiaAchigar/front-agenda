@@ -120,6 +120,7 @@ function WeekViewClases() {
         fecha={<FechaSemana monday={monday} fin={addDays(monday, 5)} onNavegar={navigateWeek} />}
         buscador={<BuscadorAgenda />}
       />
+      <FiltrosAgenda />
       <SemanaGrupal />
     </div>
   );

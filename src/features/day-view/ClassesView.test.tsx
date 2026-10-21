@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Anotada, ClassOccurrence } from "../../api/types";
 
@@ -50,11 +51,12 @@ const clase = (extra: Partial<ClassOccurrence> = {}): ClassOccurrence => ({
   ...extra,
 });
 
-function montar(props: Partial<Parameters<typeof ClassesView>[0]> = {}) {
+function montar(props: Partial<Parameters<typeof ClassesView>[0]> = {}, search = "") {
   const onAnotar = vi.fn();
   const onCobrar = vi.fn();
   const onOpenAttendance = vi.fn();
   render(
+    <MemoryRouter initialEntries={[`/dia${search}`]}>
     <QueryClientProvider client={new QueryClient()}>
       <ClassesView
         date="2099-01-01"
@@ -63,7 +65,8 @@ function montar(props: Partial<Parameters<typeof ClassesView>[0]> = {}) {
         onCobrar={onCobrar}
         {...props}
       />
-    </QueryClientProvider>,
+    </QueryClientProvider>
+    </MemoryRouter>,
   );
   return { onAnotar, onCobrar, onOpenAttendance };
 }
@@ -154,5 +157,35 @@ describe("botón Anotar", () => {
     const b = screen.getByRole("button", { name: "Anotar" });
     expect(b).toBeDisabled();
     expect(b).toHaveAttribute("title", "La clase está llena");
+  });
+});
+
+describe("filtro por búsqueda grupal", () => {
+  it("con ?actividad=a muestra sólo las clases de a; una capacitación sin filtrar por ella se oculta", () => {
+    clases = [
+      clase({ occurrenceId: "o1", subjectId: "a", name: "Pilates" }),
+      clase({ occurrenceId: "o2", subjectId: "b", name: "Yoga" }),
+      clase({ occurrenceId: "o3", kind: "training", subjectId: "a", name: "Curso de masajes" }),
+    ];
+    montar({}, "?actividad=a");
+    expect(screen.getByText("Pilates")).toBeInTheDocument();
+    expect(screen.queryByText("Yoga")).not.toBeInTheDocument();
+    expect(screen.queryByText("Curso de masajes")).not.toBeInTheDocument();
+  });
+
+  it("una capacitación elegida que no está en las listas igual se dibuja, sin filtro todo se ve", () => {
+    clases = [
+      clase({ occurrenceId: "o1", subjectId: "a", name: "Pilates" }),
+      clase({ occurrenceId: "o3", kind: "training", subjectId: "zzz", name: "Curso raro" }),
+    ];
+    montar({}, "?capacitacion=zzz");
+    expect(screen.getByText("Curso raro")).toBeInTheDocument();
+    expect(screen.queryByText("Pilates")).not.toBeInTheDocument();
+  });
+
+  it("si hay filtros y no queda ninguna, lo avisa", () => {
+    clases = [clase({ subjectId: "a" })];
+    montar({}, "?actividad=otra");
+    expect(screen.getByText("No hay clases de lo elegido este día.")).toBeInTheDocument();
   });
 });

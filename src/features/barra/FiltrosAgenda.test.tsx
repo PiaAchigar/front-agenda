@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const PRESTADORAS = [
   { id: "p1", fullName: "Romina", specialties: null },
@@ -19,6 +19,11 @@ vi.mock("../../api/agenda", () => ({
   useProviders: () => ({ data: PRESTADORAS }),
   useServices: () => ({ data: SERVICIOS }),
   useProvidersByServices: () => ({ porServicio, cargando, fallo }),
+}));
+
+vi.mock("../../api/grupal", () => ({
+  useActividades: () => ({ data: [{ id: "a1", name: "Pilates" }, { id: "a2", name: "Yoga" }] }),
+  useCapacitaciones: () => ({ data: [{ id: "t1", name: "Masaje reductor" }] }),
 }));
 
 const { FiltrosAgenda } = await import("./FiltrosAgenda");
@@ -130,5 +135,29 @@ describe("FiltrosAgenda", () => {
     montar("?servicio=s1");
     expect(screen.queryByText("Nadie tiene asignado este servicio todavía.")).not.toBeInTheDocument();
     expect(screen.getByText("No se pudo cargar quién lo hace.")).toBeInTheDocument();
+  });
+});
+
+describe("FiltrosAgenda en turnos grupales", () => {
+  beforeEach(() => localStorage.setItem("agenda-mode", "clases"));
+  afterEach(() => localStorage.removeItem("agenda-mode"));
+
+  it("muestra el chip de la actividad y no el de la prestadora; su × saca sólo la actividad", () => {
+    montar("?actividad=a1&prestadora=p1");
+    expect(screen.getByText("Pilates")).toBeInTheDocument();
+    expect(screen.queryByText("Romina")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Quitar Pilates" }));
+    expect(ubicacion()).toBe("/semana?prestadora=p1");
+  });
+
+  it("si el nombre no se encuentra usa Actividad / Capacitación", () => {
+    montar("?actividad=zz&capacitacion=yy");
+    expect(screen.getByText("Actividad")).toBeInTheDocument();
+    expect(screen.getByText("Capacitación")).toBeInTheDocument();
+  });
+
+  it("sin filtros invita a elegir", () => {
+    montar();
+    expect(screen.getByText(/Elegí una actividad o una capacitación/)).toBeInTheDocument();
   });
 });

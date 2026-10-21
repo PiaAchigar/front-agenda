@@ -1,24 +1,28 @@
 import { useId, useMemo, useState, type KeyboardEvent } from "react";
 import { useProviders, useServices } from "../../api/agenda";
+import { useActividades, useCapacitaciones } from "../../api/grupal";
 import { sugerencias, useBusquedaAgenda } from "../../lib/busqueda-agenda";
+import { useBusquedaGrupal } from "../../lib/busqueda-grupal";
+import { useModoAgenda } from "../../lib/modo-agenda";
 
-type Elegible = { tipo: "prestadora" | "servicio"; id: string; name: string };
+type Opcion = { id: string; name: string };
+type Grupo<T extends string> = { titulo: string; tipo: T; lista: Opcion[] };
 
 /**
- * El buscador de la barra: se tipea el nombre de una prestadora o de un
- * servicio y se suma como filtro. El buscador nunca cambia: elegir no lo
- * reemplaza por un chip, sigue vacío para sumar otro (los chips viven en
- * `FiltrosAgenda`, la fila de abajo).
+ * El buscador de la barra. Es el mismo en los dos modos (mismo input, mismas
+ * clases, mismo ancho); cambia qué busca: en "turnos", prestadoras y
+ * servicios; en "clases", actividades y capacitaciones. Cada modo es su
+ * componente para que los hooks de uno no corran en el otro.
  */
 export function BuscadorAgenda() {
-  const idBase = useId();
+  const [modo] = useModoAgenda();
+  return modo === "clases" ? <BuscadorGrupal /> : <BuscadorIndividual />;
+}
+
+function BuscadorIndividual() {
   const { agregar } = useBusquedaAgenda();
   const { data: provs = [] } = useProviders();
   const { data: servs = [] } = useServices();
-  const [texto, setTexto] = useState("");
-  const [abierta, setAbierta] = useState(false);
-  const [activa, setActiva] = useState(-1);
-
   const prestadoras = useMemo(
     () => provs.map((p) => ({ id: p.id, name: p.fullName ?? "Sin nombre" })),
     [provs],
@@ -27,12 +31,62 @@ export function BuscadorAgenda() {
     () => servs.map((s) => ({ id: s.id, name: s.name ?? "Sin nombre" })),
     [servs],
   );
+  return (
+    <CajaDeBusqueda
+      etiqueta="Buscar prestadora o servicio"
+      listas={[prestadoras, servicios]}
+      titulos={["Prestadoras", "Servicios"]}
+      tipos={["prestadora", "servicio"] as const}
+      onElegir={agregar}
+    />
+  );
+}
 
-  const grupos = useMemo(() => sugerencias(texto, prestadoras, servicios), [texto, prestadoras, servicios]);
-  const opciones: Elegible[] = [
-    ...grupos.prestadoras.map((o) => ({ ...o, tipo: "prestadora" as const })),
-    ...grupos.servicios.map((o) => ({ ...o, tipo: "servicio" as const })),
+function BuscadorGrupal() {
+  const { agregar } = useBusquedaGrupal();
+  const { data: acts = [] } = useActividades();
+  const { data: caps = [] } = useCapacitaciones();
+  return (
+    <CajaDeBusqueda
+      etiqueta="Buscar actividad o capacitación"
+      listas={[acts, caps]}
+      titulos={["Actividades", "Capacitaciones"]}
+      tipos={["actividad", "capacitacion"] as const}
+      onElegir={agregar}
+    />
+  );
+}
+
+/**
+ * El input con su lista de sugerencias. El buscador nunca cambia: elegir no lo
+ * reemplaza por un chip, sigue vacío para sumar otro (los chips viven en
+ * `FiltrosAgenda`, la fila de abajo).
+ */
+function CajaDeBusqueda<T extends string>({
+  etiqueta,
+  listas,
+  titulos,
+  tipos,
+  onElegir,
+}: {
+  etiqueta: string;
+  listas: readonly [Opcion[], Opcion[]];
+  titulos: readonly [string, string];
+  tipos: readonly [T, T];
+  onElegir: (tipo: T, id: string) => void;
+}) {
+  const idBase = useId();
+  const [texto, setTexto] = useState("");
+  const [abierta, setAbierta] = useState(false);
+  const [activa, setActiva] = useState(-1);
+
+  const [primera, segunda] = listas;
+  const sug = useMemo(() => sugerencias(texto, primera, segunda), [texto, primera, segunda]);
+  const grupos: Grupo<T>[] = [
+    { titulo: titulos[0], tipo: tipos[0], lista: sug.prestadoras },
+    { titulo: titulos[1], tipo: tipos[1], lista: sug.servicios },
   ];
+  const opciones = grupos.flatMap((g) => g.lista.map((o) => ({ ...o, tipo: g.tipo })));
   const listaAbierta = abierta && opciones.length > 0;
   const idOpcion = (i: number) => `${idBase}-op-${i}`;
 
@@ -42,8 +96,8 @@ export function BuscadorAgenda() {
     setActiva(-1);
   }
 
-  function aceptar(o: Elegible) {
-    agregar(o.tipo, o.id);
+  function aceptar(o: { tipo: T; id: string }) {
+    onElegir(o.tipo, o.id);
     cerrar();
   }
 
@@ -72,7 +126,7 @@ export function BuscadorAgenda() {
         aria-controls={`${idBase}-lista`}
         aria-autocomplete="list"
         aria-activedescendant={listaAbierta && activa >= 0 ? idOpcion(activa) : undefined}
-        aria-label="Buscar prestadora o servicio"
+        aria-label={etiqueta}
         value={texto}
         onChange={(e) => {
           setTexto(e.target.value);
@@ -81,8 +135,8 @@ export function BuscadorAgenda() {
         }}
         onKeyDown={alTeclear}
         onBlur={() => setAbierta(false)}
-        placeholder="Buscar prestadora o servicio…"
-        title="Buscar prestadora o servicio"
+        placeholder={`${etiqueta}…`}
+        title={etiqueta}
         className="w-64 max-w-full min-w-0 text-ellipsis rounded-lg border border-surface-highest bg-white px-3 py-1.5 text-sm outline-none focus:border-primary"
       />
       {listaAbierta && (
@@ -93,19 +147,16 @@ export function BuscadorAgenda() {
           onMouseDown={(e) => e.preventDefault()}
           className="absolute right-0 z-40 mt-1 w-64 max-h-72 overflow-auto rounded-lg border border-surface-highest bg-white py-1 shadow-lg"
         >
-          {(
-            [
-              ["Prestadoras", grupos.prestadoras, 0],
-              ["Servicios", grupos.servicios, grupos.prestadoras.length],
-            ] as const
-          ).map(
-            ([titulo, lista, desde]) =>
+          {grupos.map(
+            ({ titulo, lista }, g) =>
               lista.length > 0 && (
                 <div key={titulo} role="group" aria-label={titulo}>
                   <p className="px-3 pt-1 pb-0.5 text-[11px] font-semibold uppercase text-ink-soft">
                     {titulo}
                   </p>
-                  {lista.map((o, i) => (
+                  {lista.map((o, i) => {
+                    const desde = g === 0 ? 0 : grupos[0]!.lista.length;
+                    return (
                     <div
                       key={o.id}
                       id={idOpcion(desde + i)}
@@ -119,7 +170,8 @@ export function BuscadorAgenda() {
                     >
                       {o.name}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ),
           )}

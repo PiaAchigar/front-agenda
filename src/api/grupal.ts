@@ -181,3 +181,23 @@ export function useAnotarACapacitacion() {
     },
   });
 }
+
+export type OpcionGrupal = { id: string; name: string };
+
+/** Las actividades (para el buscador y los chips de Turnos grupales). */
+export function useActividades() {
+  return useQuery({
+    queryKey: ["activities"],
+    queryFn: () => api<OpcionGrupal[]>("/api/agenda/activities"),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** Las capacitaciones (para el buscador y los chips de Turnos grupales). */
+export function useCapacitaciones() {
+  return useQuery({
+    queryKey: ["trainings"],
+    queryFn: () => api<OpcionGrupal[]>("/api/agenda/trainings"),
+    staleTime: 5 * 60 * 1000,
+  });
+}

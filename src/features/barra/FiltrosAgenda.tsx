@@ -1,8 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { useProviders, useProvidersByServices, useServices } from "../../api/agenda";
 import { buildProviderColorMap, type ProviderColor } from "../../lib/colors";
 import { useBusquedaAgenda } from "../../lib/busqueda-agenda";
+import { hayFiltrosGrupales, useBusquedaGrupal } from "../../lib/busqueda-grupal";
+import { useActividades, useCapacitaciones } from "../../api/grupal";
+import { useModoAgenda } from "../../lib/modo-agenda";
 
 /**
  * La segunda fila de la barra: los filtros elegidos en el buscador, un chip
@@ -14,6 +17,45 @@ import { useBusquedaAgenda } from "../../lib/busqueda-agenda";
  * hacen y todavía no están elegidas; tocar una la agrega como filtro.
  */
 export function FiltrosAgenda() {
+  const [modo] = useModoAgenda();
+  return modo === "clases" ? <FiltrosGrupales /> : <FiltrosIndividuales />;
+}
+
+/** La fila de siempre, igual en los dos modos: cambia sólo lo que lleva adentro. */
+function Fila({ children }: { children: ReactNode }) {
+  return (
+    <div
+      data-testid="filtros-agenda"
+      className="flex h-9 shrink-0 flex-nowrap items-center gap-2 overflow-x-auto overflow-y-hidden whitespace-nowrap text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
+      {children}
+    </div>
+  );
+}
+
+function FiltrosGrupales() {
+  const { busqueda, quitar } = useBusquedaGrupal();
+  const { data: acts = [] } = useActividades();
+  const { data: caps = [] } = useCapacitaciones();
+  const actividadDe = (id: string) => acts.find((a) => a.id === id)?.name ?? "Actividad";
+  const capacitacionDe = (id: string) => caps.find((c) => c.id === id)?.name ?? "Capacitación";
+
+  return (
+    <Fila>
+      {!hayFiltrosGrupales(busqueda) && (
+        <span className="text-ink-soft/80">Elegí una actividad o una capacitación en el buscador para filtrar</span>
+      )}
+      {busqueda.actividades.map((id) => (
+        <Chip key={`a-${id}`} nombre={actividadDe(id)} onQuitar={() => quitar("actividad", id)} />
+      ))}
+      {busqueda.capacitaciones.map((id) => (
+        <Chip key={`c-${id}`} nombre={capacitacionDe(id)} onQuitar={() => quitar("capacitacion", id)} />
+      ))}
+    </Fila>
+  );
+}
+
+function FiltrosIndividuales() {
   const { busqueda, agregar, quitar } = useBusquedaAgenda();
   const { data: provs = [] } = useProviders();
   const { data: servs = [] } = useServices();
@@ -31,10 +73,7 @@ export function FiltrosAgenda() {
   const hayFiltros = busqueda.prestadoras.length + busqueda.servicios.length > 0;
 
   return (
-    <div
-      data-testid="filtros-agenda"
-      className="flex h-9 shrink-0 flex-nowrap items-center gap-2 overflow-x-auto overflow-y-hidden whitespace-nowrap text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-    >
+    <Fila>
       {!hayFiltros && (
         <span className="text-ink-soft/80">Elegí una prestadora o un servicio en el buscador para filtrar</span>
       )}
@@ -80,7 +119,7 @@ export function FiltrosAgenda() {
           })}
         </>
       )}
-    </div>
+    </Fila>
   );
 }
 

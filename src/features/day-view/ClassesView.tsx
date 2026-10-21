@@ -2,6 +2,7 @@ import { Badge, Button, ErrorNote } from "../../components/ui";
 import { useClasses } from "../../api/agenda";
 import type { Anotada, ClassOccurrence } from "../../api/types";
 import { AnotadasDeLaClase } from "../grupal/AnotadasDeLaClase";
+import { claseVisible, hayFiltrosGrupales, useBusquedaGrupal } from "../../lib/busqueda-grupal";
 
 /**
  * Agenda de clases y capacitaciones.
@@ -29,6 +30,8 @@ export function ClassesView({
   className?: string;
 }) {
   const { data: classes, isLoading, error } = useClasses(date);
+  const { busqueda } = useBusquedaGrupal();
+  const visibles = classes?.filter((o) => claseVisible(o, busqueda));
 
   if (error) return <ErrorNote message={(error as Error).message} />;
 
@@ -42,8 +45,12 @@ export function ClassesView({
         </div>
       )}
 
+      {!isLoading && classes && classes.length > 0 && visibles?.length === 0 && hayFiltrosGrupales(busqueda) && (
+        <div className="p-6 text-sm text-ink-soft">No hay clases de lo elegido este día.</div>
+      )}
+
       <ul className="space-y-2 p-2 sm:p-4">
-        {classes?.map((occurrence) => (
+        {visibles?.map((occurrence) => (
           <ClassCard
             key={occurrence.occurrenceId}
             occurrence={occurrence}

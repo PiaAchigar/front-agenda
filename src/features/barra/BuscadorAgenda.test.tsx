@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const PRESTADORAS = [
   { id: "p1", fullName: "Romina Suárez", specialties: null },
@@ -12,6 +12,11 @@ const SERVICIOS = [{ id: "s1", name: "Rostro completo" }];
 vi.mock("../../api/agenda", () => ({
   useProviders: () => ({ data: PRESTADORAS }),
   useServices: () => ({ data: SERVICIOS }),
+}));
+
+vi.mock("../../api/grupal", () => ({
+  useActividades: () => ({ data: [{ id: "a1", name: "Pilates" }, { id: "a2", name: "Yoga" }] }),
+  useCapacitaciones: () => ({ data: [{ id: "t1", name: "Masaje reductor" }] }),
 }));
 
 const { BuscadorAgenda } = await import("./BuscadorAgenda");
@@ -105,5 +110,50 @@ describe("BuscadorAgenda", () => {
 
     expect(caja).toHaveValue("");
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+});
+
+describe("BuscadorAgenda en turnos grupales", () => {
+  beforeEach(() => localStorage.setItem("agenda-mode", "clases"));
+  afterEach(() => localStorage.removeItem("agenda-mode"));
+
+  it("sugiere actividades y capacitaciones, y elegir agrega a la URL y vacía el input", async () => {
+    const user = userEvent.setup();
+    montar();
+    const input = screen.getByRole("combobox", { name: "Buscar actividad o capacitación" });
+    expect(input).toHaveAttribute("placeholder", "Buscar actividad o capacitación…");
+    expect(input).toHaveAttribute("title", "Buscar actividad o capacitación");
+
+    await user.type(input, "pil");
+    const grupo = screen.getByRole("group", { name: "Actividades" });
+    await user.click(within(grupo).getByRole("option", { name: "Pilates" }));
+
+    expect(ubicacion()).toBe("/dia?actividad=a1");
+    expect(input).toHaveValue("");
+  });
+
+  it("sugiere capacitaciones bajo su grupo", async () => {
+    const user = userEvent.setup();
+    montar();
+    await user.type(screen.getByRole("combobox"), "masa");
+    const grupo = screen.getByRole("group", { name: "Capacitaciones" });
+    await user.click(within(grupo).getByRole("option", { name: "Masaje reductor" }));
+    expect(ubicacion()).toBe("/dia?capacitacion=t1");
+  });
+
+  it("el nombre de una prestadora no sugiere nada", async () => {
+    const user = userEvent.setup();
+    montar();
+    await user.type(screen.getByRole("combobox"), "romina");
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
+  });
+
+  it("usa el mismo input y el mismo ancho que en individual", () => {
+    const { unmount } = montar();
+    const clases = screen.getByRole("combobox").className;
+    unmount();
+    localStorage.removeItem("agenda-mode");
+    montar();
+    expect(screen.getByRole("combobox").className).toBe(clases);
   });
 });
