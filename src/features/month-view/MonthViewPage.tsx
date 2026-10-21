@@ -17,6 +17,7 @@ import { FiltrosAgenda } from "../barra/FiltrosAgenda";
 import { PuntoDeLaPrestadora } from "./PuntoDeLaPrestadora";
 import { useModoAgenda } from "../../lib/modo-agenda";
 import { MesGrupal } from "./MesGrupal";
+import { WEEKDAY_LABELS } from "./grilla-mes";
 
 /** Reservas expiradas se tratan como canceladas hasta que el cron las limpie. */
 function isVisible(appt: { status: string | null; reservationExpiresAt: string | null }): boolean {
@@ -27,7 +28,6 @@ function isVisible(appt: { status: string | null; reservationExpiresAt: string |
   return true;
 }
 
-const WEEKDAY_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const MAX_DOTS = 4;
 
 function FechaMes({ monthLabel, onNavegar }: { monthLabel: string; onNavegar: (n: -1 | 1) => void }) {
@@ -81,7 +81,7 @@ function MonthViewClases() {
         buscador={<BuscadorAgenda />}
       />
       <FiltrosAgenda />
-      <MesGrupal />
+      <MesGrupal anchorDate={anchorDate} />
     </div>
   );
 }
