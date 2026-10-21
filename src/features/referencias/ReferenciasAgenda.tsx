@@ -3,7 +3,7 @@ import { Info } from "lucide-react";
 import { FONDO_DEL_HUECO, type TipoDeHueco } from "../../lib/fondo-del-hueco";
 import { STATUS_BORDER_COLOR } from "../../lib/colors";
 import { Badge } from "../../components/ui";
-import { COLOR_DE_CLASE } from "../../lib/estado-de-clase";
+import { COLOR_DE_CLASE, ESTILO_DEBE } from "../../lib/estado-de-clase";
 import { useModoAgenda } from "../../lib/modo-agenda";
 
 /**
@@ -225,7 +225,7 @@ const CLASES: { nombre: string; texto: string; muestra: ReactNode }[] = [
   {
     nombre: "Debe $X",
     texto: "A la alumna le falta pagar algo de la clase o de la cuota.",
-    muestra: <span className="rounded-full bg-amber-100 px-2 text-xs font-medium text-amber-800">Debe $X</span>,
+    muestra: <span className={ESTILO_DEBE}>Debe $X</span>,
   },
 ];
 

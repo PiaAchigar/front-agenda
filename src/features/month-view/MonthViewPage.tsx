@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { rutaConservando } from "../../lib/ruta-agenda";
-import { useQueries } from "@tanstack/react-query";
+import { useIsFetching, useQueries } from "@tanstack/react-query";
 import { useCompanyConfig, useDiasConLugar, useDiasQueAtienden, useProviders, useProvidersByServices } from "../../api/agenda";
 import { api } from "../../api/client";
 import type { Appointment } from "../../api/types";
@@ -59,6 +59,7 @@ export function MonthViewPage() {
 }
 
 function MonthViewClases() {
+  const cargando = useIsFetching({ queryKey: ["classes"] }) > 0;
   const [searchParams, setSearchParams] = useSearchParams();
   const anchorDate = searchParams.get("date") ?? todayLocal();
   const { year, month0 } = useMemo(() => diasDeLaGrilla(anchorDate), [anchorDate]);
@@ -77,6 +78,7 @@ function MonthViewClases() {
     <div className="flex flex-col gap-3 h-full min-h-0">
       <BarraAgenda
         vista="mes"
+        cargando={cargando}
         fecha={<FechaMes monthLabel={monthLabel} onNavegar={navigateMonth} />}
         buscador={<BuscadorAgenda />}
       />

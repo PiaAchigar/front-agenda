@@ -1,3 +1,4 @@
+import { ESTILO_DEBE } from "../../lib/estado-de-clase";
 import { useState } from "react";
 import { Badge, ErrorNote } from "../../components/ui";
 import { useSacarDeClase } from "../../api/grupal";
@@ -47,7 +48,7 @@ export function AnotadasDeLaClase({
                 <button
                   type="button"
                   onClick={() => onCobrar(a)}
-                  className="rounded-full bg-amber-100 px-2 text-xs font-medium text-amber-800 hover:bg-amber-200"
+                  className={`${ESTILO_DEBE} hover:bg-amber-200`}
                 >
                   Debe {pesos(a.debe)}
                 </button>

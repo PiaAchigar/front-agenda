@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useIsFetching } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import {
   useAppointments,
@@ -140,6 +141,7 @@ export function DayViewPage() {
   }, []);
 
   const { data: allAppointments = [], isLoading, error } = useAppointments(date);
+  const cargandoClases = useIsFetching({ queryKey: ["classes"] }) > 0;
 
   // La grilla de turnos muestra sólo los turnos 1 a 1. Las inscripciones a
   // clases y capacitaciones viven en la vista "Clases": si se dibujaran acá,
@@ -226,7 +228,7 @@ export function DayViewPage() {
       {/* ── Barra ── */}
       <BarraAgenda
         vista="dia"
-        cargando={isLoading}
+        cargando={agendaMode === "clases" ? cargandoClases : isLoading}
         fecha={
           <div className="flex items-center gap-0.5">
             <button

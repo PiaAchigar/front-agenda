@@ -19,7 +19,7 @@ export function MesGrupal({ anchorDate }: { anchorDate: string }) {
   const { busqueda } = useBusquedaGrupal();
   const { month0, days } = useMemo(() => diasDeLaGrilla(anchorDate), [anchorDate]);
   const today = todayLocal();
-  const { data: clases, isLoading, error } = useClassesRange(days[0]!, days[days.length - 1]!);
+  const { data: clases, error } = useClassesRange(days[0]!, days[days.length - 1]!);
   const ahora = new Date();
   const hayFiltro = hayFiltrosGrupales(busqueda);
 
@@ -33,7 +33,6 @@ export function MesGrupal({ anchorDate }: { anchorDate: string }) {
   return (
     <>
       {error && <p className="shrink-0 text-sm text-red-700">No se pudieron cargar las clases. Probá de nuevo.</p>}
-      {isLoading && <p className="shrink-0 text-sm text-ink-soft">Cargando clases…</p>}
       <div className="modal-scroll flex-1 min-h-0 overflow-auto rounded-xl border border-surface-high">
         <div className="grid grid-cols-7 border-b border-surface-high bg-white sticky top-0 z-10">
           {WEEKDAY_LABELS.map((label, i) => (

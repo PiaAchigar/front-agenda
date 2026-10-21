@@ -1,7 +1,8 @@
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ClassOccurrence } from "../../api/types";
-import { COLOR_DE_CLASE, estadoDeClase } from "../../lib/estado-de-clase";
+import { COLOR_DE_CLASE, ESTILO_DEBE, estadoDeClase } from "../../lib/estado-de-clase";
+import { Badge } from "../../components/ui";
 import { pesos } from "../../lib/vender";
 
 type Props = {
@@ -104,8 +105,8 @@ export function PastillaDeClase({ clase, ahora, carril, total, top, alto, onAbri
               {clase.anotadas.map((a) => (
                 <li key={a.appointmentId}>
                   {a.nombre ?? "Sin nombre"}
-                  {a.prueba && <span className="ml-1 font-semibold text-primary">Prueba</span>}
-                  {a.debe > 0 && <span className="ml-1 font-semibold text-red-600">Debe {pesos(a.debe)}</span>}
+                  {a.prueba && <span className="ml-1"><Badge tone="primary">Prueba</Badge></span>}
+                  {a.debe > 0 && <span className={`ml-1 ${ESTILO_DEBE}`}>Debe {pesos(a.debe)}</span>}
                 </li>
               ))}
             </ul>

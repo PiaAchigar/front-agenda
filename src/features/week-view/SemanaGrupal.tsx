@@ -19,7 +19,7 @@ export function SemanaGrupal({ anchorDate }: { anchorDate: string }) {
   const monday = useMemo(() => weekStart(anchorDate), [anchorDate]);
   const weekDates = useMemo(() => Array.from({ length: 6 }, (_, i) => addDays(monday, i)), [monday]);
   const today = todayLocal();
-  const { data: clases, isLoading, error } = useClassesRange(weekDates[0]!, weekDates[5]!);
+  const { data: clases, error } = useClassesRange(weekDates[0]!, weekDates[5]!);
   const ahora = new Date();
 
   const porDia = useMemo(() => {
@@ -33,7 +33,6 @@ export function SemanaGrupal({ anchorDate }: { anchorDate: string }) {
   return (
     <>
       {error && <p className="shrink-0 text-sm text-red-700">No se pudieron cargar las clases. Probá de nuevo.</p>}
-      {isLoading && <p className="shrink-0 text-sm text-ink-soft">Cargando clases…</p>}
       <div className="modal-scroll flex-1 min-h-0 overflow-y-auto overflow-x-auto rounded-xl border border-surface-high">
         <div style={{ minWidth: TIME_COL_W + 6 * DAY_COL_MIN }}>
           <div style={{ position: "sticky", top: 0, zIndex: 20, background: "white" }}>
@@ -87,7 +86,7 @@ export function SemanaGrupal({ anchorDate }: { anchorDate: string }) {
                 <div
                   key={d}
                   data-testid={`clases-${d}`}
-                  className="relative flex-1 border-l border-surface-high"
+                  className="relative isolate flex-1 border-l border-surface-high"
                   style={{ minWidth: DAY_COL_MIN, height: TOTAL_PX }}
                 >
                   {SLOTS.map((s) => (

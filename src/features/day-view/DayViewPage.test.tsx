@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DatosParaAgendar } from "../../api/types";
@@ -195,9 +196,11 @@ function conUrl(search: string) {
 
 function montar() {
   return render(
-    <BrowserRouter>
-      <DayViewPage />
-    </BrowserRouter>,
+    <QueryClientProvider client={new QueryClient()}>
+      <BrowserRouter>
+        <DayViewPage />
+      </BrowserRouter>
+    </QueryClientProvider>,
   );
 }
 

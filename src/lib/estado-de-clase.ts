@@ -21,3 +21,6 @@ export const COLOR_DE_CLASE: Record<
   sobrecupo: { barra: "bg-red-500", tono: "danger", pastilla: "bg-red-50 text-red-800 border-red-500" },
   pasada: { barra: "bg-gray-400", tono: "neutral", pastilla: "bg-gray-100 text-gray-500 border-gray-400" },
 };
+
+/** La pastilla "Debe $X" de una anotada: la misma en el día, la semana, el mes y Referencias. */
+export const ESTILO_DEBE = "rounded-full bg-amber-100 px-2 text-xs font-medium text-amber-800";

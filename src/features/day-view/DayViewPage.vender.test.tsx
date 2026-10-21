@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -60,7 +61,7 @@ afterEach(() => window.history.pushState({}, "", "/dia"));
 
 function montar(search = "?date=2027-01-20") {
   window.history.pushState({}, "", `/dia${search}`);
-  render(<BrowserRouter><DayViewPage /></BrowserRouter>);
+  render(<QueryClientProvider client={new QueryClient()}><BrowserRouter><DayViewPage /></BrowserRouter></QueryClientProvider>);
 }
 
 describe("DayViewPage — Nuevo turno", () => {

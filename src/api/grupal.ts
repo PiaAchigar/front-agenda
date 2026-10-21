@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type { ClassOccurrence } from "./types";
 
@@ -215,5 +215,6 @@ export function useClassesRange(from: string, to: string) {
         (r) => r.data,
       ),
     refetchInterval: 30_000,
+    placeholderData: keepPreviousData, // al navegar queda a la vista el rango anterior
   });
 }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useIsFetching } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { rutaConservando } from "../../lib/ruta-agenda";
 import { useAppointmentsRange, useCompanyConfig, useHuecosDeLaSemana, useProviders, useProvidersByServices, useServices } from "../../api/agenda";
@@ -65,6 +66,7 @@ export function WeekViewPage() {
 }
 
 function WeekViewClases() {
+  const cargando = useIsFetching({ queryKey: ["classes"] }) > 0;
   const [searchParams, setSearchParams] = useSearchParams();
   const anchorDate = searchParams.get("date") ?? todayLocal();
   const monday = useMemo(() => weekStart(anchorDate), [anchorDate]);
@@ -84,6 +86,7 @@ function WeekViewClases() {
     <div className="flex flex-col gap-3 h-full min-h-0">
       <BarraAgenda
         vista="semana"
+        cargando={cargando}
         fecha={<FechaSemana monday={monday} fin={addDays(monday, 5)} onNavegar={navigateWeek} />}
         buscador={<BuscadorAgenda />}
       />
@@ -293,7 +296,7 @@ function WeekViewTurnos() {
               return (
                 <div
                   key={d}
-                  className="relative flex-1 border-l border-surface-high"
+                  className="relative isolate flex-1 border-l border-surface-high"
                   style={{ minWidth: DAY_COL_MIN, height: TOTAL_PX }}
                 >
                   {/* Fondos de slots (abierto / cerrado) */}

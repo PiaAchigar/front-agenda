@@ -1,4 +1,5 @@
 import { render } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -58,9 +59,11 @@ const { DayViewPage } = await import("./DayViewPage");
 function montar(search: string) {
   window.history.pushState({}, "", `/dia${search}`);
   const { container } = render(
-    <BrowserRouter>
-      <DayViewPage />
-    </BrowserRouter>,
+    <QueryClientProvider client={new QueryClient()}>
+      <BrowserRouter>
+        <DayViewPage />
+      </BrowserRouter>
+    </QueryClientProvider>,
   );
   // Una columna = sus huecos: `slot-<providerId>-<minutos>`.
   const columnas = new Set(
