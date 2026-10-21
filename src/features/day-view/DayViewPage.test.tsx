@@ -122,6 +122,26 @@ vi.mock("../../api/agenda", () => ({
 // La grilla horaria no aporta nada a esta prueba —sólo hace falta poder
 // simular el click en un hueco— y arrastra mucha lógica de columnas/horarios
 // que no viene al caso acá.
+// En modo "clases" la página dibuja ClassesView; acá sólo importa lo que le
+// pasa a onOpenAttendance al hacer click en Asistencias de una clase.
+vi.mock("./ClassesView", () => ({
+  ClassesView: ({ onOpenAttendance }: { onOpenAttendance: (o: unknown) => void }) => (
+    <button
+      onClick={() =>
+        onOpenAttendance({
+          subjectId: "act1",
+          name: "Pilates",
+          startsAt: "2026-09-29T11:00:00.000Z",
+          machineId: null,
+          providerId: "p9",
+        })
+      }
+    >
+      Asistencias de la clase
+    </button>
+  ),
+}));
+
 vi.mock("./CalendarGrid", () => ({
   CalendarGrid: ({
     onSlotClick,
@@ -446,5 +466,14 @@ describe("DayViewPage — Asistencias de un turno con proveedora", () => {
     await userEvent.click(screen.getByText("abrir uno de actividad con proveedora"));
     await userEvent.click(await screen.findByRole("button", { name: "Asistencias" }));
     expect(pedirRoster).toHaveBeenCalledWith("act1", "2026-09-29T11:00:00.000Z", null, "p1");
+  });
+});
+
+describe("DayViewPage — Asistencias desde la card de una clase", () => {
+  it("pide el roster con el providerId de la clase", async () => {
+    localStorage.setItem("agenda-mode", "clases");
+    montar();
+    await userEvent.click(screen.getByText("Asistencias de la clase"));
+    expect(pedirRoster).toHaveBeenCalledWith("act1", "2026-09-29T11:00:00.000Z", null, "p9");
   });
 });

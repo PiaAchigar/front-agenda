@@ -219,10 +219,16 @@ export type MarkAttendanceInput = {
 export function useMarkAttendance() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: MarkAttendanceInput) =>
+    mutationFn: ({ machineId, providerId, ...data }: MarkAttendanceInput) =>
       api<{ success: boolean; data: ClassRosterEntry[] }>("/api/class-attendance", {
         method: "POST",
-        body: JSON.stringify(data),
+        // La API valida machineId/providerId con uuid().optional(): rechaza null,
+        // así que se omiten cuando no hay.
+        body: JSON.stringify({
+          ...data,
+          ...(machineId ? { machineId } : {}),
+          ...(providerId ? { providerId } : {}),
+        }),
       }).then((r) => r.data),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
