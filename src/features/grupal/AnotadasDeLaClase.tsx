@@ -1,6 +1,6 @@
 import { ESTILO_DEBE } from "../../lib/estado-de-clase";
 import { useState } from "react";
-import { Badge, ErrorNote } from "../../components/ui";
+import { Badge, Button, ErrorNote, Modal } from "../../components/ui";
 import { useSacarDeClase } from "../../api/grupal";
 import { pesos } from "../../lib/vender";
 import type { Anotada } from "../../api/types";
@@ -19,6 +19,8 @@ export function AnotadasDeLaClase({
   onCobrar: (a: Anotada) => void;
 }) {
   const [verTodas, setVerTodas] = useState(false);
+  // La anotada que se está por sacar: mientras no sea null, el modal pide confirmar.
+  const [aSacar, setASacar] = useState<Anotada | null>(null);
   const sacar = useSacarDeClase();
 
   if (anotadas.length === 0) return null;
@@ -26,10 +28,14 @@ export function AnotadasDeLaClase({
   const visibles = verTodas ? anotadas : anotadas.slice(0, VISIBLES);
   const resto = anotadas.length - VISIBLES;
 
-  const handleSacar = (a: Anotada) => {
-    const nombre = a.nombre ?? "esta clienta";
-    if (!window.confirm(`¿Sacar a ${nombre} de esta clase?`)) return;
-    sacar.mutate(a.appointmentId);
+  const cerrarModal = () => {
+    setASacar(null);
+    sacar.reset();
+  };
+
+  const confirmarSacar = () => {
+    if (!aSacar) return;
+    sacar.mutate(aSacar.appointmentId, { onSuccess: () => setASacar(null) });
   };
 
   return (
@@ -58,7 +64,7 @@ export function AnotadasDeLaClase({
                   type="button"
                   aria-label={`Sacar a ${nombre} de esta clase`}
                   disabled={sacar.isPending}
-                  onClick={() => handleSacar(a)}
+                  onClick={() => setASacar(a)}
                   className="px-1 text-ink-soft hover:text-red-600 disabled:opacity-40"
                 >
                   ×
@@ -79,7 +85,21 @@ export function AnotadasDeLaClase({
           </li>
         )}
       </ul>
-      {sacar.error && <ErrorNote message={(sacar.error as Error).message} />}
+      <Modal open={aSacar !== null} onClose={cerrarModal} title="Sacar de la clase">
+        <div className="space-y-4">
+          <p className="text-sm text-ink">¿Sacar a {aSacar?.nombre ?? "esta clienta"} de esta clase?</p>
+          <p className="text-xs text-ink-soft">Se cancela su turno y se libera el lugar.</p>
+          {sacar.error && <ErrorNote message={(sacar.error as Error).message} />}
+          <div className="flex justify-end gap-2 border-t border-surface-high pt-3">
+            <Button type="button" variant="secondary" onClick={cerrarModal} disabled={sacar.isPending}>
+              Cancelar
+            </Button>
+            <Button type="button" variant="danger" onClick={confirmarSacar} disabled={sacar.isPending}>
+              {sacar.isPending ? "Sacando…" : "Sacar"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

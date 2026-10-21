@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
@@ -13,6 +13,7 @@ const apiMock = vi.fn();
 vi.mock("../../api/client", () => ({ api: (...a: unknown[]) => apiMock(...a) }));
 
 const { ClassesView } = await import("./ClassesView");
+const { COLOR_DE_TIPO } = await import("../../lib/estado-de-clase");
 
 const anotada = (n: number, extra: Partial<Anotada> = {}): Anotada => ({
   appointmentId: `ap${n}`,
@@ -96,35 +97,57 @@ describe("anotadas en la card", () => {
   });
 });
 
+describe("color por tipo en la card", () => {
+  it("la card y su insignia tienen el color de actividad o de capacitación", async () => {
+    clases = [
+      clase({ occurrenceId: "a1", name: "Pilates" }),
+      clase({ occurrenceId: "c1", name: "Curso", kind: "training", subjectId: "t1", scheduleId: null }),
+    ];
+    montar();
+    const act = (await screen.findByText("Pilates")).closest("li")!;
+    const cap = screen.getByText("Curso").closest("li")!;
+    expect(act.dataset.tipo).toBe("activity");
+    expect(cap.dataset.tipo).toBe("training");
+    expect(act.className).toContain(COLOR_DE_TIPO.activity.borde);
+    expect(cap.className).toContain(COLOR_DE_TIPO.training.borde);
+    expect(within(act).getByText("Actividad").className).toContain(COLOR_DE_TIPO.activity.insignia);
+    expect(within(cap).getByText("Capacitación").className).toContain(COLOR_DE_TIPO.training.insignia);
+  });
+});
+
 describe("sacar de la clase", () => {
   beforeEach(() => {
     clases = [clase({ anotadas: [anotada(1)], enrolledCount: 1 })];
   });
 
-  it("confirma y cancela el turno", async () => {
-    const confirm = vi.fn(() => true);
-    window.confirm = confirm;
+  it("pide confirmación en un modal y cancela el turno", async () => {
     montar();
     await userEvent.click(screen.getByLabelText("Sacar a Clienta 1 de esta clase"));
-    expect(confirm).toHaveBeenCalledWith("¿Sacar a Clienta 1 de esta clase?");
+    const modal = screen.getByRole("dialog", { name: "Sacar de la clase" });
+    expect(within(modal).getByText("¿Sacar a Clienta 1 de esta clase?")).toBeInTheDocument();
+    expect(apiMock).not.toHaveBeenCalled();
+    await userEvent.click(within(modal).getByRole("button", { name: "Sacar" }));
     expect(apiMock).toHaveBeenCalledWith(
       "/api/agenda/appointments/ap1",
       expect.objectContaining({ method: "PATCH", body: JSON.stringify({ status: "cancelled" }) }),
     );
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
-  it("muestra el error si el PATCH falla", async () => {
-    window.confirm = vi.fn(() => true);
+  it("muestra el error en el modal si el PATCH falla", async () => {
     apiMock.mockRejectedValue(new Error("No se pudo sacar a la clienta"));
     montar();
     await userEvent.click(screen.getByLabelText("Sacar a Clienta 1 de esta clase"));
-    expect(await screen.findByText("No se pudo sacar a la clienta")).toBeInTheDocument();
+    const modal = screen.getByRole("dialog", { name: "Sacar de la clase" });
+    await userEvent.click(within(modal).getByRole("button", { name: "Sacar" }));
+    expect(await within(modal).findByText("No se pudo sacar a la clienta")).toBeInTheDocument();
   });
 
-  it("si no acepta, no llama nada", async () => {
-    window.confirm = vi.fn(() => false);
+  it("con Cancelar cierra el modal y no llama nada", async () => {
     montar();
     await userEvent.click(screen.getByLabelText("Sacar a Clienta 1 de esta clase"));
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(apiMock).not.toHaveBeenCalled();
   });
 

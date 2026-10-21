@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, useId } from "react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
 
 export function Button({
@@ -95,6 +95,7 @@ export function Modal({
    *  Para modales con solapas: así cambiar de solapa no lo hace saltar. */
   altoFijo?: boolean;
 }) {
+  const tituloId = useId();
   if (!open) return null;
   return (
     <div
@@ -102,11 +103,14 @@ export function Modal({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={tituloId}
         className={`flex w-full max-w-md flex-col rounded-2xl bg-surface-low shadow-xl ${altoFijo ? "h-[90vh]" : "max-h-[90vh]"}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="shrink-0 px-6 pt-6 pb-4 border-b border-surface-high">
-          <h3 className="text-2xl font-semibold">{title}</h3>
+          <h3 id={tituloId} className="text-2xl font-semibold">{title}</h3>
         </div>
         <div className="modal-scroll min-h-0 flex-1 overflow-y-auto px-6 py-4">
           {children}
