@@ -112,7 +112,8 @@ function Formulario({
             />
             <span>
               {h.etiqueta}
-              {h.maquina ? ` · ${h.maquina}` : ""} ({clases(h.clases)})
+              {h.maquina ? ` · ${h.maquina}` : ""}
+              {h.proveedora ? ` · ${h.proveedora}` : ""} ({clases(h.clases)})
             </span>
           </label>
         ))}

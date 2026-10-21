@@ -254,4 +254,17 @@ describe("AnotarEnClaseModal — anotar al mes", () => {
     await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u).includes("mes=2026-12"))).toBe(true));
     expect(await screen.findByText(/clases en diciembre/)).toBeInTheDocument();
   });
+
+  it("distingue dos horarios iguales por la proveedora", async () => {
+    const user = userEvent.setup();
+    opciones = { ...base, horarios: [
+      { scheduleId: "h1", etiqueta: "Mié 12:00", maquina: null, proveedora: "Lucía", clases: 4 },
+      { scheduleId: "h2", etiqueta: "Mié 12:00", maquina: "Reformer", proveedora: "Ana", clases: 4 },
+    ] };
+    montar();
+    await elegir(user);
+    await user.click(await screen.findByRole("button", { name: "Anotar al mes" }));
+    expect(await screen.findByRole("checkbox", { name: "Mié 12:00 · Lucía (4 clases)" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Mié 12:00 · Reformer · Ana (4 clases)" })).toBeInTheDocument();
+  });
 });

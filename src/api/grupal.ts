@@ -70,7 +70,7 @@ export type OpcionesParaAnotar = {
   horariosDelMes: string[];
   subscriptionId: string | null;
   clasesDelPlan: number | null;
-  horarios: { scheduleId: string; etiqueta: string; maquina: string | null; clases: number }[];
+  horarios: { scheduleId: string; etiqueta: string; maquina: string | null; proveedora: string | null; clases: number }[];
 };
 
 /** Qué se le puede ofrecer a una clienta en una actividad, para un mes (YYYY-MM). */
