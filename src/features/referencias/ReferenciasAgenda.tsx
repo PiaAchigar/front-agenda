@@ -3,6 +3,7 @@ import { Info } from "lucide-react";
 import { FONDO_DEL_HUECO, type TipoDeHueco } from "../../lib/fondo-del-hueco";
 import { STATUS_BORDER_COLOR } from "../../lib/colors";
 import { Badge } from "../../components/ui";
+import { COLOR_DE_CLASE } from "../../lib/estado-de-clase";
 import { useModoAgenda } from "../../lib/modo-agenda";
 
 /**
@@ -199,17 +200,22 @@ const CLASES: { nombre: string; texto: string; muestra: ReactNode }[] = [
   {
     nombre: "Con lugar",
     texto: "La clase tiene cupos libres.",
-    muestra: <MuestraDeCupo barra="bg-primary" insignia={<Badge tone="neutral">3/8</Badge>} />,
+    muestra: <MuestraDeCupo barra={COLOR_DE_CLASE["con-lugar"].barra} insignia={<Badge tone={COLOR_DE_CLASE["con-lugar"].tono}>3/8</Badge>} />,
   },
   {
     nombre: "Llena",
     texto: "Se completó el cupo: ya no entra nadie más sin pasarse.",
-    muestra: <MuestraDeCupo barra="bg-amber-500" insignia={<Badge tone="warning">8/8</Badge>} />,
+    muestra: <MuestraDeCupo barra={COLOR_DE_CLASE.llena.barra} insignia={<Badge tone={COLOR_DE_CLASE.llena.tono}>8/8</Badge>} />,
   },
   {
     nombre: "Sobrecupo",
     texto: "Hay más inscriptas que lugares.",
-    muestra: <MuestraDeCupo barra="bg-red-500" insignia={<Badge tone="danger">9/8</Badge>} />,
+    muestra: <MuestraDeCupo barra={COLOR_DE_CLASE.sobrecupo.barra} insignia={<Badge tone={COLOR_DE_CLASE.sobrecupo.tono}>9/8</Badge>} />,
+  },
+  {
+    nombre: "Ya pasó",
+    texto: "La clase ya se dictó.",
+    muestra: <MuestraDeCupo barra={COLOR_DE_CLASE.pasada.barra} insignia={<Badge tone={COLOR_DE_CLASE.pasada.tono}>5/8</Badge>} />,
   },
   {
     nombre: "Prueba",

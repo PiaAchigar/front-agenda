@@ -10,6 +10,10 @@ import { addDays, formatDate, isoToLocalDate, isoToLocalMinutes, todayLocal } fr
 import { carriles } from "../../lib/carriles";
 import { useModoAgenda } from "../../lib/modo-agenda";
 import { SemanaGrupal } from "./SemanaGrupal";
+import {
+  DAY_COL_MIN, DAY_LABELS, PASO_HUECO_MIN, PX_PER_MIN, SLOT_MIN, SLOT_PX, SLOTS, START_MIN,
+  TIME_COL_W, TOTAL_PX, minToLabel, timeStrToMin, weekStart,
+} from "./grilla-semana";
 
 function isVisible(appt: { status: string | null; reservationExpiresAt: string | null }): boolean {
   if (appt.status === "cancelled") return false;
@@ -28,43 +32,6 @@ import { HuecoLibre } from "./HuecoLibre";
 import { PastillaDeTurno } from "./PastillaDeTurno";
 import type { NewApptPrefill } from "../day-view/NewAppointmentModal";
 import { NuevoTurnoModal } from "../nuevo-turno/NuevoTurnoModal";
-
-// ── Constantes del grid ──────────────────────────────────────────────────────
-const PX_PER_MIN       = 2;
-const START_MIN        = 8  * 60;   // 480
-const END_MIN          = 22 * 60;   // 1320
-const SLOT_MIN         = 30;
-// La API ofrece huecos cada 15 min (availability.service): la caja mide eso, no un renglón.
-const PASO_HUECO_MIN   = 15;
-const SLOT_PX          = SLOT_MIN * PX_PER_MIN;          // 60 px
-const TOTAL_PX         = (END_MIN - START_MIN) * PX_PER_MIN; // 1680 px
-const TIME_COL_W       = 64;
-const DAY_COL_MIN      = 140;       // px mínimos por columna de día
-
-const SLOTS = Array.from(
-  { length: (END_MIN - START_MIN) / SLOT_MIN },
-  (_, i) => START_MIN + i * SLOT_MIN,
-);
-
-const DAY_LABELS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-
-function minToLabel(min: number) {
-  return `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
-}
-
-function timeStrToMin(t: string | null | undefined): number | null {
-  if (!t) return null;
-  const [h = 0, m = 0] = t.split(":").map(Number);
-  return h * 60 + m;
-}
-
-/** Lunes de la semana que contiene `dateStr`. */
-function weekStart(dateStr: string): string {
-  const d   = new Date(`${dateStr}T12:00:00Z`);
-  const dow = d.getUTCDay();
-  const diff = dow === 0 ? -6 : 1 - dow;
-  return addDays(dateStr, diff);
-}
 
 // ── Componente ───────────────────────────────────────────────────────────────
 function FechaSemana({ monday, fin, onNavegar }: { monday: string; fin: string; onNavegar: (n: -1 | 1) => void }) {
@@ -121,7 +88,7 @@ function WeekViewClases() {
         buscador={<BuscadorAgenda />}
       />
       <FiltrosAgenda />
-      <SemanaGrupal />
+      <SemanaGrupal anchorDate={anchorDate} />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { Badge, Button, ErrorNote } from "../../components/ui";
 import { useClasses } from "../../api/agenda";
 import type { Anotada, ClassOccurrence } from "../../api/types";
 import { AnotadasDeLaClase } from "../grupal/AnotadasDeLaClase";
+import { COLOR_DE_CLASE, estadoDeClase } from "../../lib/estado-de-clase";
 import { claseVisible, hayFiltrosGrupales, useBusquedaGrupal } from "../../lib/busqueda-grupal";
 
 /**
@@ -87,6 +88,8 @@ function ClassCard({
   // de una suscripción a una actividad. Ver planning/agenda_asistencia.md.
   const canMarkAttendance = !isTraining;
   const isPast = new Date(occurrence.startsAt).getTime() <= Date.now();
+  // El color del cupo no se apaga cuando la clase pasó: sigue diciendo si estaba llena.
+  const estadoCupo = estadoDeClase(occurrence, new Date(0));
 
   return (
     <li className="rounded-xl border border-surface-high bg-white p-3 shadow-sm sm:p-4">
@@ -123,7 +126,7 @@ function ClassCard({
           {occurrence.attendedCount > 0 && (
             <Badge tone="success">{occurrence.attendedCount} asistieron</Badge>
           )}
-          <Badge tone={isOverbooked ? "danger" : isFull ? "warning" : "neutral"}>
+          <Badge tone={COLOR_DE_CLASE[estadoCupo].tono}>
             {capacity === null
               ? `${enrolledCount} inscriptas`
               : `${enrolledCount}/${capacity} inscriptas`}
@@ -167,7 +170,7 @@ function ClassCard({
         >
           <div
             className={`h-full rounded-full transition-all ${
-              isOverbooked ? "bg-red-500" : isFull ? "bg-amber-500" : "bg-primary"
+              COLOR_DE_CLASE[estadoCupo].barra
             }`}
             style={{ width: `${occupancyPct}%` }}
           />

@@ -19,4 +19,10 @@ describe("rutaConservando", () => {
   it("los extra pisan a lo conservado", () => {
     expect(rutaConservando("/dia", new URLSearchParams("date=a"), { date: "b" })).toBe("/dia?date=b");
   });
+
+  it("conserva los filtros de actividades y capacitaciones", () => {
+    const url = new URL("http://x" + rutaConservando("/dia", new URLSearchParams("actividad=a&actividad=b&capacitacion=c")));
+    expect(url.searchParams.getAll("actividad")).toEqual(["a", "b"]);
+    expect(url.searchParams.getAll("capacitacion")).toEqual(["c"]);
+  });
 });

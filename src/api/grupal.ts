@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
+import type { ClassOccurrence } from "./types";
 
 /**
  * Saca a una anotada de una clase: cancela su turno. No es un borrado, el
@@ -199,5 +200,20 @@ export function useCapacitaciones() {
     queryKey: ["trainings"],
     queryFn: () => api<OpcionGrupal[]>("/api/agenda/trainings"),
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * Las clases de un rango de días (la semana) en un solo pedido. Su clave empieza
+ * con "classes": las mutaciones que invalidan `["classes"]` lo refrescan también.
+ */
+export function useClassesRange(from: string, to: string) {
+  return useQuery({
+    queryKey: ["classes", from, to],
+    queryFn: () =>
+      api<{ success: boolean; data: ClassOccurrence[] }>(`/api/agenda/classes?from=${from}&to=${to}`).then(
+        (r) => r.data,
+      ),
+    refetchInterval: 30_000,
   });
 }
