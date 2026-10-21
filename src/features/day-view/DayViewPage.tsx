@@ -262,7 +262,7 @@ export function DayViewPage() {
             </button>
           </div>
         }
-        buscador={agendaMode === "turnos" ? <BuscadorAgenda /> : undefined}
+        buscador={<BuscadorAgenda />}
       />
 
       {agendaMode === "turnos" && <FiltrosAgenda />}

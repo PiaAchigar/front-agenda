@@ -1,9 +1,7 @@
-import { useEffect, type ReactNode } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import type { ReactNode } from "react";
 import { ViewTabs } from "../../components/ViewTabs";
 import { Spinner } from "../../components/ui";
 import { useModoAgenda, type ModoAgenda } from "../../lib/modo-agenda";
-import { rutaConservando } from "../../lib/ruta-agenda";
 import { ReferenciasAgenda } from "../referencias/ReferenciasAgenda";
 
 const MODOS: { key: ModoAgenda; label: string }[] = [
@@ -27,23 +25,7 @@ type Props = {
  * no entra, los textos se cortan y se leen enteros al pasar el mouse.
  */
 export function BarraAgenda({ vista, fecha, cargando, buscador }: Props) {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [modo, setModo] = useModoAgenda();
-
-  // Entrar a semana o mes es pedir turnos individuales: si quedó guardado el
-  // modo grupal, se vuelve a individuales. Sólo al montar: tocar "Turnos
-  // grupales" estando acá cambia el modo y salta al día, no debe deshacerse.
-  useEffect(() => {
-    if (vista !== "dia" && modo === "clases") setModo("turnos");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function elegir(m: ModoAgenda) {
-    setModo(m);
-    // Las clases sólo se ven por día: desde semana o mes se salta al día.
-    if (m === "clases" && vista !== "dia") navigate(rutaConservando("/dia", searchParams));
-  }
 
   return (
     <div className="flex flex-nowrap items-center gap-2 shrink-0 min-w-0">
@@ -57,7 +39,7 @@ export function BarraAgenda({ vista, fecha, cargando, buscador }: Props) {
           {MODOS.map((m) => (
             <button
               key={m.key}
-              onClick={() => elegir(m.key)}
+              onClick={() => setModo(m.key)}
               title={m.label}
               className={[
                 "min-w-10 truncate whitespace-nowrap px-3 py-1.5 transition-colors",
@@ -75,7 +57,7 @@ export function BarraAgenda({ vista, fecha, cargando, buscador }: Props) {
         <div className="min-w-20 shrink-[3]">{buscador}</div>
 
         {/* Qué significa cada fondo y cada color de la grilla */}
-        {modo === "turnos" && <div className="shrink-0"><ReferenciasAgenda /></div>}
+        <div className="shrink-0"><ReferenciasAgenda /></div>
 
         <ViewTabs current={vista} />
       </div>

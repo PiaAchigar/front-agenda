@@ -15,6 +15,8 @@ import { BuscadorAgenda } from "../barra/BuscadorAgenda";
 import { useBusquedaAgenda, usePrestadorasDeLaBusqueda } from "../../lib/busqueda-agenda";
 import { FiltrosAgenda } from "../barra/FiltrosAgenda";
 import { PuntoDeLaPrestadora } from "./PuntoDeLaPrestadora";
+import { useModoAgenda } from "../../lib/modo-agenda";
+import { MesGrupal } from "./MesGrupal";
 
 /** Reservas expiradas se tratan como canceladas hasta que el cron las limpie. */
 function isVisible(appt: { status: string | null; reservationExpiresAt: string | null }): boolean {
@@ -28,7 +30,62 @@ function isVisible(appt: { status: string | null; reservationExpiresAt: string |
 const WEEKDAY_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const MAX_DOTS = 4;
 
+function FechaMes({ monthLabel, onNavegar }: { monthLabel: string; onNavegar: (n: -1 | 1) => void }) {
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={() => onNavegar(-1)}
+        className="group p-1.5 rounded hover:bg-surface-low transition-colors"
+        aria-label="Mes anterior"
+      >
+        <ChevronLeft size={18} className="text-ink-soft group-hover:text-primary transition-colors" />
+      </button>
+      <span className="text-xl font-semibold min-w-44 text-center">{monthLabel}</span>
+      <button
+        onClick={() => onNavegar(1)}
+        className="group p-1.5 rounded hover:bg-surface-low transition-colors"
+        aria-label="Mes siguiente"
+      >
+        <ChevronRight size={18} className="text-ink-soft group-hover:text-primary transition-colors" />
+      </button>
+    </div>
+  );
+}
+
+/** En modo grupal el mes no muestra turnos individuales. */
 export function MonthViewPage() {
+  const [modo] = useModoAgenda();
+  return modo === "clases" ? <MonthViewClases /> : <MonthViewTurnos />;
+}
+
+function MonthViewClases() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const anchorDate = searchParams.get("date") ?? todayLocal();
+  const { year, month0 } = useMemo(() => diasDeLaGrilla(anchorDate), [anchorDate]);
+  const monthLabel = useMemo(() => etiquetaDelMes(year, month0), [year, month0]);
+  useEffect(() => { saveView("mes"); }, []);
+
+  function navigateMonth(n: -1 | 1) {
+    const d = new Date(Date.UTC(year, month0 + n, 1));
+    setSearchParams(
+      (params) => { params.set("date", ymd(d.getUTCFullYear(), d.getUTCMonth(), 1)); return params; },
+      { replace: true },
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3 h-full min-h-0">
+      <BarraAgenda
+        vista="mes"
+        fecha={<FechaMes monthLabel={monthLabel} onNavegar={navigateMonth} />}
+        buscador={<BuscadorAgenda />}
+      />
+      <MesGrupal />
+    </div>
+  );
+}
+
+function MonthViewTurnos() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   // El mes vive en la URL (como en Día y Semana): recargar o pasar a Semana lo conserva.
@@ -125,23 +182,7 @@ export function MonthViewPage() {
         vista="mes"
         cargando={isLoading || cargandoLugar || cargandoHorario}
         fecha={
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => navigateMonth(-1)}
-              className="group p-1.5 rounded hover:bg-surface-low transition-colors"
-              aria-label="Mes anterior"
-            >
-              <ChevronLeft size={18} className="text-ink-soft group-hover:text-primary transition-colors" />
-            </button>
-            <span className="text-xl font-semibold min-w-44 text-center">{monthLabel}</span>
-            <button
-              onClick={() => navigateMonth(1)}
-              className="group p-1.5 rounded hover:bg-surface-low transition-colors"
-              aria-label="Mes siguiente"
-            >
-              <ChevronRight size={18} className="text-ink-soft group-hover:text-primary transition-colors" />
-            </button>
-          </div>
+          <FechaMes monthLabel={monthLabel} onNavegar={navigateMonth} />
         }
         buscador={<BuscadorAgenda />}
       />

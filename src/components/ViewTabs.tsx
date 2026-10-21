@@ -1,5 +1,4 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useModoAgenda } from "../lib/modo-agenda";
 import { rutaConservando } from "../lib/ruta-agenda";
 
 export type AgendaView = "dia" | "semana" | "mes";
@@ -21,12 +20,8 @@ export function getSavedView(): AgendaView {
 export function ViewTabs({ current }: { current: AgendaView }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [modo] = useModoAgenda();
-  // Las clases todavía sólo se ven por día.
-  const deshabilitado = modo === "clases";
 
   function handleClick(tab: (typeof TABS)[number]) {
-    if (deshabilitado) return;
     saveView(tab.key);
     navigate(rutaConservando(tab.path, searchParams));
   }
@@ -38,15 +33,12 @@ export function ViewTabs({ current }: { current: AgendaView }) {
           key={tab.key}
           onClick={() => handleClick(tab)}
           aria-current={current === tab.key ? "page" : undefined}
-          aria-disabled={deshabilitado || undefined}
-          title={deshabilitado ? "Por ahora las clases se ven por día" : tab.label}
+          title={tab.label}
           className={[
             "min-w-0 truncate whitespace-nowrap px-3 py-1.5 transition-colors",
-            deshabilitado
-              ? "bg-white text-ink-soft/50 cursor-not-allowed"
-              : current === tab.key
-                ? "bg-primary text-white font-medium"
-                : "bg-white text-ink-soft hover:bg-surface-low",
+            current === tab.key
+              ? "bg-primary text-white font-medium"
+              : "bg-white text-ink-soft hover:bg-surface-low",
           ].join(" ")}
         >
           {tab.label}

@@ -65,37 +65,40 @@ describe("BarraAgenda", () => {
     expect(screen.getByRole("button", { name: "Mes" })).not.toHaveAttribute("aria-current");
   });
 
-  it("Turnos grupales desde Semana conserva la búsqueda al saltar al día", async () => {
+  it("Turnos grupales estando en Semana no navega y deja el modo en clases", async () => {
     const user = userEvent.setup();
     montar("semana", "/semana?prestadora=p1&date=2026-10-19");
 
     await user.click(screen.getByRole("button", { name: "Turnos grupales" }));
 
-    expect(ubicacion()).toBe("/dia?prestadora=p1&date=2026-10-19");
+    expect(ubicacion()).toBe("/semana?prestadora=p1&date=2026-10-19");
+    expect(localStorage.getItem("agenda-mode")).toBe("clases");
+    await user.click(screen.getByRole("button", { name: "Turnos individuales" }));
+    expect(ubicacion()).toBe("/semana?prestadora=p1&date=2026-10-19");
+    expect(localStorage.getItem("agenda-mode")).toBe("turnos");
   });
 
-  it("Turnos grupales desde Semana lleva al día y deshabilita Semana y Mes", async () => {
-    const user = userEvent.setup();
-    montar("semana");
-
-    await user.click(screen.getByRole("button", { name: "Turnos grupales" }));
-
-    expect(ubicacion()).toBe("/dia");
-    expect(localStorage.getItem("agenda-mode")).toBe("clases");
-    for (const n of ["Semana", "Mes"]) {
-      const b = screen.getByRole("button", { name: n });
-      expect(b).toHaveAttribute("aria-disabled", "true");
-      expect(b).toHaveAttribute("title", "Por ahora las clases se ven por día");
+  it.each(["turnos", "clases"])("con modo %s, en Día, Semana y Mes están buscador, Referencias, Semana y Mes habilitados", (modo) => {
+    localStorage.setItem("agenda-mode", modo);
+    for (const [vista, ruta] of [["dia", "/dia"], ["semana", "/semana"], ["mes", "/mes"]] as const) {
+      const { unmount } = montar(vista, ruta);
+      expect(screen.getByText("el buscador")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Referencias de colores" })).toBeInTheDocument();
+      for (const n of ["Semana", "Mes"]) {
+        expect(screen.getByRole("button", { name: n })).not.toHaveAttribute("aria-disabled");
+      }
+      unmount();
     }
   });
 
-  it("con las clases activas, tocar Semana no navega", async () => {
+  it("con las clases activas, tocar Semana navega", async () => {
     localStorage.setItem("agenda-mode", "clases");
     const user = userEvent.setup();
     montar("dia", "/dia");
 
     await user.click(screen.getByRole("button", { name: "Semana" }));
-    expect(ubicacion()).toBe("/dia");
+    expect(ubicacion()).toBe("/semana");
+    expect(localStorage.getItem("agenda-mode")).toBe("clases");
   });
 
   it("tocar Semana conserva todas las prestadoras y servicios, y date", async () => {
@@ -112,21 +115,11 @@ describe("BarraAgenda", () => {
     expect(url.searchParams.has("otra")).toBe(false);
   });
 
-  it("volver a Turnos individuales rehabilita las solapas", async () => {
-    localStorage.setItem("agenda-mode", "clases");
-    const user = userEvent.setup();
-    montar("dia", "/dia");
-
-    await user.click(screen.getByRole("button", { name: "Turnos individuales" }));
-    expect(screen.getByRole("button", { name: "Semana" })).not.toHaveAttribute("aria-disabled");
-  });
-
-  it("al entrar a Semana o Mes con el modo grupal guardado, vuelve a Turnos individuales", () => {
+  it("al entrar a Semana o Mes con el modo grupal guardado, no lo pisa", () => {
     localStorage.setItem("agenda-mode", "clases");
     montar("mes", "/mes");
 
-    expect(localStorage.getItem("agenda-mode")).toBe("turnos");
-    expect(screen.getByRole("button", { name: "Semana" })).not.toHaveAttribute("aria-disabled");
-    expect(screen.getByRole("button", { name: "Turnos individuales" }).className).toContain("bg-primary");
+    expect(localStorage.getItem("agenda-mode")).toBe("clases");
+    expect(screen.getByRole("button", { name: "Turnos grupales" }).className).toContain("bg-primary");
   });
 });

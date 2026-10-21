@@ -2,6 +2,8 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Info } from "lucide-react";
 import { FONDO_DEL_HUECO, type TipoDeHueco } from "../../lib/fondo-del-hueco";
 import { STATUS_BORDER_COLOR } from "../../lib/colors";
+import { Badge } from "../../components/ui";
+import { useModoAgenda } from "../../lib/modo-agenda";
 
 /**
  * "Referencias": qué significa cada fondo y cada color de la grilla.
@@ -28,6 +30,7 @@ const ESTADOS: { estado: keyof typeof STATUS_BORDER_COLOR; nombre: string; texto
 ];
 
 export function ReferenciasAgenda() {
+  const [modo] = useModoAgenda();
   const [abierto, setAbierto] = useState(false);
   const contenedor = useRef<HTMLDivElement>(null);
   const boton = useRef<HTMLButtonElement>(null);
@@ -79,6 +82,10 @@ export function ReferenciasAgenda() {
           aria-label="Referencias de colores"
           className="referencias-panel z-40 rounded-xl max-sm:fixed max-sm:inset-x-4 max-sm:top-16 max-sm:max-h-[calc(100vh-5rem)] max-sm:overflow-y-auto sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:w-[22rem] border border-surface-high bg-white p-4 shadow-[0_10px_28px_-8px_rgba(61,52,44,0.28)]"
         >
+          {modo === "clases" ? (
+            <ReferenciasDeClases />
+          ) : (
+            <>
           <Grupo titulo="Horarios">
             {HORARIOS.map((h) => (
               <Item key={h.tipo} nombre={h.nombre} texto={h.texto} muestra={<MuestraDeHueco tipo={h.tipo} />} />
@@ -135,6 +142,8 @@ export function ReferenciasAgenda() {
               muestra={<span className="flex h-6 w-10 items-center justify-center rounded-md border border-surface-high bg-white text-[10px] font-semibold text-red-700">Debe</span>}
             />
           </Grupo>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -183,5 +192,54 @@ function MuestraDeTarjeta({ borde }: { borde: string }) {
       className="block h-6 w-10 rounded-md border border-surface-high"
       style={{ background: "#f5efe7", borderLeft: `4px solid ${borde}` }}
     />
+  );
+}
+
+const CLASES: { nombre: string; texto: string; muestra: ReactNode }[] = [
+  {
+    nombre: "Con lugar",
+    texto: "La clase tiene cupos libres.",
+    muestra: <MuestraDeCupo barra="bg-primary" insignia={<Badge tone="neutral">3/8</Badge>} />,
+  },
+  {
+    nombre: "Llena",
+    texto: "Se completó el cupo: ya no entra nadie más sin pasarse.",
+    muestra: <MuestraDeCupo barra="bg-amber-500" insignia={<Badge tone="warning">8/8</Badge>} />,
+  },
+  {
+    nombre: "Sobrecupo",
+    texto: "Hay más inscriptas que lugares.",
+    muestra: <MuestraDeCupo barra="bg-red-500" insignia={<Badge tone="danger">9/8</Badge>} />,
+  },
+  {
+    nombre: "Prueba",
+    texto: "Viene a una clase de prueba, todavía no es alumna.",
+    muestra: <Badge tone="primary">Prueba</Badge>,
+  },
+  {
+    nombre: "Debe $X",
+    texto: "A la alumna le falta pagar algo de la clase o de la cuota.",
+    muestra: <span className="rounded-full bg-amber-100 px-2 text-xs font-medium text-amber-800">Debe $X</span>,
+  },
+];
+
+function ReferenciasDeClases() {
+  return (
+    <Grupo titulo="Clases">
+      {CLASES.map((c) => (
+        <Item key={c.nombre} nombre={c.nombre} texto={c.texto} muestra={c.muestra} />
+      ))}
+    </Grupo>
+  );
+}
+
+function MuestraDeCupo({ barra, insignia }: { barra: string; insignia: ReactNode }) {
+  return (
+    <span className="flex w-14 flex-col items-start gap-1">
+      {insignia}
+      <span className="block h-1.5 w-full rounded-full bg-surface-high">
+        <span className={`block h-full w-full rounded-full ${barra}`} />
+      </span>
+    </span>
   );
 }

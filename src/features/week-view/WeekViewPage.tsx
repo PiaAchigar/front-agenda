@@ -8,6 +8,8 @@ import { yaPaso } from "../../lib/horario";
 import { buildProviderColorMap } from "../../lib/colors";
 import { addDays, formatDate, isoToLocalDate, isoToLocalMinutes, todayLocal } from "../../lib/format";
 import { carriles } from "../../lib/carriles";
+import { useModoAgenda } from "../../lib/modo-agenda";
+import { SemanaGrupal } from "./SemanaGrupal";
 
 function isVisible(appt: { status: string | null; reservationExpiresAt: string | null }): boolean {
   if (appt.status === "cancelled") return false;
@@ -65,7 +67,65 @@ function weekStart(dateStr: string): string {
 }
 
 // ── Componente ───────────────────────────────────────────────────────────────
+function FechaSemana({ monday, fin, onNavegar }: { monday: string; fin: string; onNavegar: (n: -1 | 1) => void }) {
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={() => onNavegar(-1)}
+        className="p-1.5 rounded hover:bg-surface text-ink-soft hover:text-ink transition-colors"
+        aria-label="Semana anterior"
+      >
+        ‹
+      </button>
+      <span className="text-xl font-semibold min-w-56 text-center">
+        {formatDate(monday)} – {formatDate(fin)}
+      </span>
+      <button
+        onClick={() => onNavegar(1)}
+        className="p-1.5 rounded hover:bg-surface text-ink-soft hover:text-ink transition-colors"
+        aria-label="Semana siguiente"
+      >
+        ›
+      </button>
+    </div>
+  );
+}
+
+/** En modo grupal la semana no muestra turnos individuales. */
 export function WeekViewPage() {
+  const [modo] = useModoAgenda();
+  return modo === "clases" ? <WeekViewClases /> : <WeekViewTurnos />;
+}
+
+function WeekViewClases() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const anchorDate = searchParams.get("date") ?? todayLocal();
+  const monday = useMemo(() => weekStart(anchorDate), [anchorDate]);
+  useEffect(() => { saveView("semana"); }, []);
+
+  function navigateWeek(n: -1 | 1) {
+    setSearchParams(
+      (params) => {
+        params.set("date", addDays(anchorDate, n * 7));
+        return params;
+      },
+      { replace: true },
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3 h-full min-h-0">
+      <BarraAgenda
+        vista="semana"
+        fecha={<FechaSemana monday={monday} fin={addDays(monday, 5)} onNavegar={navigateWeek} />}
+        buscador={<BuscadorAgenda />}
+      />
+      <SemanaGrupal />
+    </div>
+  );
+}
+
+function WeekViewTurnos() {
   const navigate    = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   // La semana vive en la URL (?date=): volver de un día cae en la misma semana.
@@ -163,25 +223,7 @@ export function WeekViewPage() {
         vista="semana"
         cargando={isLoading || cargandoHuecos}
         fecha={
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => navigateWeek(-1)}
-              className="p-1.5 rounded hover:bg-surface text-ink-soft hover:text-ink transition-colors"
-              aria-label="Semana anterior"
-            >
-              ‹
-            </button>
-            <span className="text-xl font-semibold min-w-56 text-center">
-              {formatDate(monday)} – {formatDate(weekDates[5]!)}
-            </span>
-            <button
-              onClick={() => navigateWeek(1)}
-              className="p-1.5 rounded hover:bg-surface text-ink-soft hover:text-ink transition-colors"
-              aria-label="Semana siguiente"
-            >
-              ›
-            </button>
-          </div>
+          <FechaSemana monday={monday} fin={weekDates[5]!} onNavegar={navigateWeek} />
         }
         buscador={<BuscadorAgenda />}
       />
