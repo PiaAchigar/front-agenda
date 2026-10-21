@@ -53,7 +53,7 @@ export function AnotarEnCapacitacionModal({ occurrence, onClose }: { occurrence:
     anotar.mutate({ trainingId: occurrence.subjectId, customerId: c.id }, { onSuccess: alAnotar });
 
   return (
-    <Modal open onClose={onClose} title={`Anotar en ${occurrence.name}`}>
+    <Modal open arriba onClose={onClose} title={`Anotar en ${occurrence.name}`}>
       {vendido && customer ? (
         // Anotar va ANTES de cobrar: un cobro postergado nunca deja la venta sin anotar.
         <div className="space-y-3">
@@ -67,10 +67,8 @@ export function AnotarEnCapacitacionModal({ occurrence, onClose }: { occurrence:
           {anotar.data && (
             <>
               <Resumen r={anotar.data} />
+              {/* Trae su propio "Cobrar después" (y "Cerrar" si no queda nada por cobrar). */}
               <CobrarLoQueFalta compraId={vendido.compraId} descripcion={vendido.descripcion} abiertoDeEntrada alCerrar={onClose} />
-              <div className="flex justify-end border-t border-surface-high pt-3">
-                <Button type="button" variant="secondary" onClick={onClose}>Cobrar después</Button>
-              </div>
             </>
           )}
         </div>

@@ -86,6 +86,7 @@ export function Modal({
   title,
   children,
   altoFijo = false,
+  arriba = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -94,19 +95,23 @@ export function Modal({
   /** Ocupa siempre el 90% de la pantalla en vez de crecer con el contenido.
    *  Para modales con solapas: así cambiar de solapa no lo hace saltar. */
   altoFijo?: boolean;
+  /** Anclado arriba en vez de centrado: crece sólo hacia abajo. Para modales
+   *  que cambian de alto mientras se usan (un buscador con resultados), que
+   *  centrados se recentran a cada letra y suben y bajan. */
+  arriba?: boolean;
 }) {
   const tituloId = useId();
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4"
+      className={`fixed inset-0 z-50 flex justify-center bg-ink/40 p-4 ${arriba ? "items-start pt-[8vh]" : "items-center"}`}
       onClick={onClose}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={tituloId}
-        className={`flex w-full max-w-md flex-col rounded-2xl bg-surface-low shadow-xl ${altoFijo ? "h-[90vh]" : "max-h-[90vh]"}`}
+        className={`flex w-full max-w-md flex-col rounded-2xl bg-surface-low shadow-xl ${altoFijo ? "h-[90vh]" : arriba ? "max-h-[84vh]" : "max-h-[90vh]"}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="shrink-0 px-6 pt-6 pb-4 border-b border-surface-high">

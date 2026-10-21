@@ -21,7 +21,7 @@ export function AnotarEnClaseModal({ occurrence, onClose }: { occurrence: ClassO
   };
 
   return (
-    <Modal open onClose={onClose} title={`Anotar en ${occurrence.name}`}>
+    <Modal open arriba onClose={onClose} title={`Anotar en ${occurrence.name}`}>
       {listo ? (
         <div className="space-y-3">
           <p className="text-sm text-ink">Quedó anotada</p>

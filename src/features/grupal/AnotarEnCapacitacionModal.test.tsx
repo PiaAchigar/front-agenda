@@ -98,7 +98,13 @@ describe("AnotarEnCapacitacionModal", () => {
     expect(await screen.findByText("cobro:k9:abierto")).toBeInTheDocument();
     expect(posts()).toHaveLength(1);
     expect(screen.getByText("Quedó anotada en 3 encuentros")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cobrar después" })).toBeInTheDocument();
+    // El cobro ya trae su propio "Cobrar después": el modal no le suma otro.
+    expect(screen.queryByRole("button", { name: "Cobrar después" })).toBeNull();
+  });
+
+  it("queda anclado arriba: buscar clienta no lo hace saltar", () => {
+    montar();
+    expect(screen.getByRole("dialog").parentElement).toHaveClass("items-start");
   });
 
   it("capacitación fuera del catálogo vendible: avisa", async () => {

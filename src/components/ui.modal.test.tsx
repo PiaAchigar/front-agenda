@@ -16,3 +16,18 @@ describe("Modal — alto", () => {
     expect(panelDe("Algo")).toHaveClass("h-[90vh]");
   });
 });
+
+describe("Modal — posición", () => {
+  it("por defecto va centrado", () => {
+    render(<Modal open onClose={() => {}} title="Algo">contenido</Modal>);
+    expect(screen.getByRole("dialog").parentElement).toHaveClass("items-center");
+  });
+
+  // Centrado, cada cambio de alto (una lista de resultados que crece y se
+  // achica) lo recentra y el modal sube y baja. Arriba, sólo crece hacia abajo.
+  it("con arriba queda anclado arriba", () => {
+    render(<Modal open onClose={() => {}} title="Algo" arriba>contenido</Modal>);
+    expect(screen.getByRole("dialog").parentElement).toHaveClass("items-start");
+    expect(screen.getByRole("dialog").parentElement).not.toHaveClass("items-center");
+  });
+});

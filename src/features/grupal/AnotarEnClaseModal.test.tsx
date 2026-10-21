@@ -267,4 +267,9 @@ describe("AnotarEnClaseModal — anotar al mes", () => {
     expect(await screen.findByRole("checkbox", { name: "Mié 12:00 · Lucía (4 clases)" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Mié 12:00 · Reformer · Ana (4 clases)" })).toBeInTheDocument();
   });
+
+  it("queda anclado arriba: buscar clienta no lo hace saltar", () => {
+    montar();
+    expect(screen.getByRole("dialog").parentElement).toHaveClass("items-start");
+  });
 });
