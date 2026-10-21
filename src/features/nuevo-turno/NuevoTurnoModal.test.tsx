@@ -58,6 +58,9 @@ let ventaTardia = false;
 let compraDeLaVenta: Compra | null = null;
 let comprasPorClienta: Record<string, Compra[]> = {};
 let clientaPrefill: typeof CLIENTA | undefined;
+type Oferta = { servicios: string[]; combos: string[]; depilacion: boolean; actividades: { id: string; nombre: string }[]; capacitaciones: { id: string; nombre: string }[] };
+// null = la API no dijo nada: no se recorta (los tests de siempre siguen viendo todo).
+let oferta: Oferta | null = null;
 const vender = vi.fn((_i: unknown, o?: { onSuccess?: (r: unknown) => void }) => {
   compraDeLaVenta = compra("pu9", "Pack Glow x4", "c1", [linea("ps9", 1)], { sessionsTotal: 4 });
   if (ventaTardia) {
@@ -79,6 +82,8 @@ vi.mock("../../api/ventas", () => ({
 }));
 vi.mock("../../api/agenda", () => ({
   useComboPendientes: () => ({ data: undefined, isSuccess: false, isError: false }),
+  useOfertaDeProveedora: (id: string | null) => ({ data: id ? (oferta ?? undefined) : undefined, isLoading: false, isError: false }),
+  useProviders: () => ({ data: [{ id: "prov1", fullName: "Gabi", specialties: null }, { id: "prov2", fullName: "Lu", specialties: null }] }),
   useConsumible: () => ({ data: { tipo: "ninguna" }, isFetching: false }),
   useCreateAppointment: () => ({ mutate: crear, isPending: false, error: null }),
   useCreateCustomer: () => ({ mutate: vi.fn(), isPending: false, error: null }),
@@ -126,6 +131,7 @@ beforeEach(() => {
   ventaTardia = false;
   compraDeLaVenta = null;
   clientaPrefill = undefined;
+  oferta = null;
   vender.mockClear();
   despues.mockClear();
   crear.mockClear();
@@ -137,9 +143,10 @@ afterEach(() => vi.useRealTimers());
 const HUECO = { providerId: "prov1", providerName: "Gabi", minutes: 930 };
 function montar(prefill: Parameters<typeof NuevoTurnoModal>[0]["prefill"] = HUECO) {
   const onClose = vi.fn();
-  const el = <NuevoTurnoModal date="2027-01-20" prefill={prefill} onClose={onClose} />;
+  const onIrAGrupales = vi.fn();
+  const el = <NuevoTurnoModal date="2027-01-20" prefill={prefill} onClose={onClose} onIrAGrupales={onIrAGrupales} />;
   const { rerender } = render(el);
-  return { onClose, user: userEvent.setup({ advanceTimers: vi.advanceTimersByTime }), refrescar: () => rerender(<NuevoTurnoModal date="2027-01-20" prefill={prefill} onClose={onClose} />) };
+  return { onClose, onIrAGrupales, user: userEvent.setup({ advanceTimers: vi.advanceTimersByTime }), refrescar: () => rerender(<NuevoTurnoModal date="2027-01-20" prefill={prefill} onClose={onClose} />) };
 }
 type U = ReturnType<typeof userEvent.setup>;
 async function elegirClienta(user: U) {
@@ -531,3 +538,53 @@ describe("NuevoTurnoModal — lo que no se pierde", () => {
     expect(screen.getByRole("radio", { name: "En el turno" })).toBeChecked();
   });
 });
+
+describe("NuevoTurnoModal — desde el hueco de una prestadora", () => {
+  const OFERTA_GABI: Oferta = {
+    servicios: ["s1"], combos: [], depilacion: false,
+    actividades: [{ id: "act-1", nombre: "Pilates" }], capacitaciones: [],
+  };
+  const areas = () => within(screen.getByLabelText("Área")).getAllByRole("option").map((o) => o.textContent);
+
+  it("el desplegable Prestadora viene con la del hueco y Área sólo trae lo suyo", () => {
+    oferta = OFERTA_GABI;
+    montar();
+    expect(screen.getByLabelText("Prestadora")).toHaveValue("prov1");
+    expect(areas()).toEqual(["Elegí un área…", "Estética", "Promos", "Actividades que dicta"]);
+  });
+
+  it("Qué sólo trae sus servicios", async () => {
+    oferta = OFERTA_GABI;
+    const { user } = montar();
+    await user.selectOptions(screen.getByLabelText("Área"), "a-est");
+    const opciones = within(screen.getByLabelText("Qué")).getAllByRole("option").map((o) => o.textContent);
+    expect(opciones.some((o) => o?.startsWith("Limpieza facial"))).toBe(true);
+    expect(opciones.some((o) => o?.startsWith("Pack Glow x4"))).toBe(false);
+  });
+
+  it("con 'Cualquiera' vuelve a todo el catálogo", async () => {
+    oferta = OFERTA_GABI;
+    const { user } = montar();
+    await user.selectOptions(screen.getByLabelText("Prestadora"), "");
+    expect(areas()).toEqual(["Elegí un área…", "Depilación Definitiva", "Estética", "Promos"]);
+  });
+
+  it("cambiar de prestadora limpia lo elegido", async () => {
+    oferta = OFERTA_GABI;
+    const { user } = montar();
+    await user.selectOptions(screen.getByLabelText("Área"), "a-est");
+    await user.selectOptions(screen.getByLabelText("Prestadora"), "prov2");
+    expect(screen.getByLabelText("Área")).toHaveValue("");
+  });
+
+  it("una actividad que dicta lleva a anotarla en Turnos grupales", async () => {
+    oferta = OFERTA_GABI;
+    const { user, onIrAGrupales, onClose } = montar();
+    await user.selectOptions(screen.getByLabelText("Área"), "dicta-actividades");
+    expect(screen.getByText(/se anotan desde Turnos grupales/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Anotar en Pilates" }));
+    expect(onIrAGrupales).toHaveBeenCalledWith("actividad", "act-1", "2027-01-20");
+    expect(onClose).toHaveBeenCalled();
+  });
+});
+

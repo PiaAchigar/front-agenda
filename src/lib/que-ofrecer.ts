@@ -29,9 +29,58 @@ export type GrupoDeQue = {
   opciones: EleccionDeQue[];
 };
 
-/** Las áreas del select del Nuevo turno: sin Actividades ni Capacitaciones; Promos al final. */
-export function areasDelTurno(catalogo: Catalogo): OpcionDeArea[] {
-  return areasParaVender(catalogo).filter((a) => !AREAS_FUERA.has(a.nombre.trim().toLowerCase()));
+/**
+ * Lo que ofrece la prestadora del hueco (`GET /providers/:id/oferta`). Con
+ * ella, el Nuevo turno muestra sólo lo suyo (pedido de Pia, 2026-10-22).
+ */
+export type OfertaDeProveedora = {
+  servicios: string[];
+  /** Combos y packs con al menos un servicio suyo */
+  combos: string[];
+  depilacion: boolean;
+  actividades: { id: string; nombre: string }[];
+  capacitaciones: { id: string; nombre: string }[];
+};
+
+/**
+ * Las áreas de lo que dicta en Turnos grupales. No se agendan en un hueco: se
+ * muestran para que Laura vea lo que ofrece y salte a anotarla allá.
+ */
+export const CLAVE_ACTIVIDADES_QUE_DICTA = "dicta-actividades";
+export const CLAVE_CAPACITACIONES_QUE_DICTA = "dicta-capacitaciones";
+
+/**
+ * Las áreas del select del Nuevo turno: sin Actividades ni Capacitaciones del
+ * catálogo; Promos al final. Con la oferta de una prestadora, al final van las
+ * actividades y capacitaciones que dicta.
+ */
+export function areasDelTurno(catalogo: Catalogo, oferta?: OfertaDeProveedora | null): OpcionDeArea[] {
+  const areas = areasParaVender(catalogo).filter((a) => !AREAS_FUERA.has(a.nombre.trim().toLowerCase()));
+  if (oferta?.actividades.length) areas.push({ clave: CLAVE_ACTIVIDADES_QUE_DICTA, nombre: "Actividades que dicta" });
+  if (oferta?.capacitaciones.length) areas.push({ clave: CLAVE_CAPACITACIONES_QUE_DICTA, nombre: "Capacitaciones que dicta" });
+  return areas;
+}
+
+/** El catálogo recortado a lo que hace la prestadora: sus servicios, combos y packs, depilación si la hace, y las promos de eso. */
+export function catalogoDeLaPrestadora(catalogo: Catalogo, oferta: OfertaDeProveedora): Catalogo {
+  const servicios = catalogo.servicios.filter((i) => oferta.servicios.includes(i.id));
+  const combos = catalogo.combos.filter((i) => oferta.combos.includes(i.id));
+  const depilacion = oferta.depilacion ? catalogo.depilacion : [];
+  const listas = { servicio: servicios, combo: combos, depilacion };
+  const promociones = catalogo.promociones.filter((p) =>
+    p.destinos.some((d) => listas[d.tipo].some((i) => i.id === d.id)),
+  );
+  return { ...catalogo, servicios, combos, depilacion, promociones };
+}
+
+/** Las compras con sólo las sesiones que la prestadora puede hacer (para "Ya comprado"). */
+export function comprasQueHace(compras: Compra[], oferta: OfertaDeProveedora): Compra[] {
+  return compras.map((c) => ({
+    ...c,
+    servicios: c.servicios.filter((s) =>
+      s.depilationComboId != null ? oferta.depilacion : s.serviceId != null && oferta.servicios.includes(s.serviceId),
+    ),
+  }));
 }
 
 const sinTildes = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();

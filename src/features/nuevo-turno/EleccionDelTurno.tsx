@@ -1,6 +1,14 @@
 import type { Catalogo } from "../../api/ventas";
 import { claveDeItem, pesos } from "../../lib/vender";
-import { type EleccionDeQue, type GrupoDeQue, type LineaDisponible, areasDelTurno } from "../../lib/que-ofrecer";
+import {
+  CLAVE_ACTIVIDADES_QUE_DICTA,
+  CLAVE_CAPACITACIONES_QUE_DICTA,
+  type EleccionDeQue,
+  type GrupoDeQue,
+  type LineaDisponible,
+  type OfertaDeProveedora,
+  areasDelTurno,
+} from "../../lib/que-ofrecer";
 
 const FIELD = "w-full rounded-xl border border-surface-highest bg-white px-3 py-2 text-sm outline-none focus:border-primary";
 const LABEL = "mb-1 block text-xs font-medium text-ink-soft";
@@ -38,6 +46,8 @@ export function EleccionDelTurno({
   onCuando,
   yaTiene,
   onElegirLinea,
+  oferta = null,
+  onIrAGrupales,
 }: {
   catalogo: Catalogo | undefined;
   area: string;
@@ -52,8 +62,18 @@ export function EleccionDelTurno({
   /** Sesiones sin usar de lo mismo que se está por vender. */
   yaTiene: LineaDisponible[];
   onElegirLinea: (l: LineaDisponible) => void;
+  /** Lo que ofrece la prestadora elegida: suma las áreas de lo que dicta en grupales. */
+  oferta?: OfertaDeProveedora | null;
+  /** Anotar en una actividad o capacitación que dicta: se hace en Turnos grupales. */
+  onIrAGrupales?: (tipo: "actividad" | "capacitacion", id: string) => void;
 }) {
-  const areas = catalogo ? areasDelTurno(catalogo) : [];
+  const areas = catalogo ? areasDelTurno(catalogo, oferta) : [];
+  const grupal =
+    area === CLAVE_ACTIVIDADES_QUE_DICTA
+      ? { tipo: "actividad" as const, items: oferta?.actividades ?? [], cuales: "Las actividades" }
+      : area === CLAVE_CAPACITACIONES_QUE_DICTA
+        ? { tipo: "capacitacion" as const, items: oferta?.capacitaciones ?? [], cuales: "Las capacitaciones" }
+        : null;
   const opciones = grupos.flatMap((g) => g.opciones);
   const valor = eleccion && opciones.some((o) => claveDeEleccion(o) === claveDeEleccion(eleccion)) ? claveDeEleccion(eleccion) : "";
 
@@ -69,6 +89,27 @@ export function EleccionDelTurno({
         </select>
       </label>
 
+      {grupal ? (
+        <div className="space-y-2">
+          <p className="text-xs text-ink-soft">{grupal.cuales} se anotan desde Turnos grupales, con su cupo y sus encuentros.</p>
+          <ul className="divide-y divide-surface-high rounded-xl border border-surface-highest bg-white">
+            {grupal.items.map((i) => (
+              <li key={i.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm text-ink">
+                <span>{i.nombre}</span>
+                <button
+                  type="button"
+                  aria-label={`Anotar en ${i.nombre}`}
+                  onClick={() => onIrAGrupales?.(grupal.tipo, i.id)}
+                  className="shrink-0 rounded-full border border-primary/50 px-3 py-1 text-xs font-medium text-primary-dark transition-colors hover:border-primary-dark hover:bg-primary-dark hover:text-white"
+                >
+                  Anotar en grupales
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+      <>
       {area && (
         <input aria-label="Buscar" placeholder="Buscar por nombre…" className={FIELD} value={busqueda} onChange={(e) => onBusqueda(e.target.value)} />
       )}
@@ -91,6 +132,8 @@ export function EleccionDelTurno({
           ))}
         </select>
       </label>
+      </>
+      )}
 
       {eleccion && eleccion.tipo !== "comprado" && (
         <>

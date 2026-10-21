@@ -18,6 +18,7 @@ import { BuscadorAgenda } from "../barra/BuscadorAgenda";
 import { useBusquedaAgenda, usePrestadorasDeLaBusqueda } from "../../lib/busqueda-agenda";
 import { FiltrosAgenda } from "../barra/FiltrosAgenda";
 import { useModoAgenda } from "../../lib/modo-agenda";
+import { useIrAGrupales } from "../../lib/ir-a-grupales";
 import type { NewApptPrefill } from "./NewAppointmentModal";
 import { NuevoTurnoModal } from "../nuevo-turno/NuevoTurnoModal";
 import { ReagendarTurnoModal } from "./ReagendarTurnoModal";
@@ -101,6 +102,7 @@ export function DayViewPage() {
   const [expiredAppt,    setExpiredAppt]    = useState<Appointment | null>(null);
   // Turnos individuales vs grupales (clases): ver `lib/modo-agenda.ts`.
   const [agendaMode] = useModoAgenda();
+  const irAGrupales = useIrAGrupales();
   const columnIds = usePrestadorasDeLaBusqueda();
   const { busqueda } = useBusquedaAgenda();
 
@@ -353,6 +355,7 @@ export function DayViewPage() {
           prefill={newApptPrefill}
           onClose={() => setNewApptOpen(false)}
           onCambiarDia={setDate}
+          onIrAGrupales={irAGrupales}
         />
       )}
 

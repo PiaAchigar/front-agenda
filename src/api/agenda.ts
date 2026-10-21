@@ -21,6 +21,7 @@ import type {
 import { huecosDelDia, type HuecoLibre } from "../lib/huecos";
 import { ahoraEnArgentina } from "../lib/horario";
 import { disponibilidadDelMesUrl, disponibilidadUrl, type OpcionesDeDisponibilidad } from "../lib/disponibilidad";
+import type { OfertaDeProveedora } from "../lib/que-ofrecer";
 
 export function useCategories() {
   return useQuery({
@@ -281,6 +282,16 @@ export function useServicesByProvider(providerId: string | null) {
   return useQuery({
     queryKey: ["services", "by-provider", providerId],
     queryFn: () => api<ProviderService[]>(`/api/agenda/providers/${providerId}/services`),
+    enabled: Boolean(providerId),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** Lo que ofrece una prestadora: con esto el Nuevo turno desde su columna muestra sólo lo suyo. */
+export function useOfertaDeProveedora(providerId: string | null) {
+  return useQuery({
+    queryKey: ["providers", "oferta", providerId],
+    queryFn: () => api<OfertaDeProveedora>(`/api/agenda/providers/${providerId}/oferta`),
     enabled: Boolean(providerId),
     staleTime: 5 * 60 * 1000,
   });

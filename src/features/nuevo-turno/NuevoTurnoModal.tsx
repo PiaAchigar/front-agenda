@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useCustomer, useParaAgendar, useServicesByProvider } from "../../api/agenda";
+import { useCustomer, useOfertaDeProveedora, useParaAgendar, useProviders, useServicesByProvider } from "../../api/agenda";
 import type { Customer } from "../../api/types";
 import { useCatalogoVendible, useComprasDeCliente } from "../../api/ventas";
 import { Button, ErrorNote, Modal } from "../../components/ui";
@@ -8,6 +8,8 @@ import {
   type EleccionDeQue,
   type LineaDisponible,
   areasDelTurno,
+  catalogoDeLaPrestadora,
+  comprasQueHace,
   gruposDeQue,
   modoDelTurno,
   sinUsarDeLoMismo,
@@ -53,14 +55,18 @@ export function NuevoTurnoModal({
   prefill,
   onClose,
   onCambiarDia,
+  onIrAGrupales,
 }: {
   date: string;
   prefill: NewApptPrefill | null;
   onClose: () => void;
   /** Se vendió y se agenda en otro día que el de la grilla: la grilla lo sigue. */
   onCambiarDia?: (date: string) => void;
+  /** Anotar en una actividad o capacitación que dicta la prestadora: pasa a Turnos grupales con ese filtro. */
+  onIrAGrupales?: (tipo: "actividad" | "capacitacion", id: string, fecha: string) => void;
 }) {
-  const { data: catalogo, isLoading, error: errorCatalogo } = useCatalogoVendible();
+  const { data: catalogoCompleto, isLoading, error: errorCatalogo } = useCatalogoVendible();
+  const { data: prestadoras = [] } = useProviders();
 
   // "A agendar" del CRM sin hueco arranca sin día: el cuerpo de Agendar
   // elige el primer día libre y lo avisa para acá.
@@ -93,6 +99,18 @@ export function NuevoTurnoModal({
   const comprasQ = useComprasDeCliente(customer?.id ?? null);
   const compras = customer ? (comprasQ.data ?? null) : null;
 
+  // Con una prestadora elegida (la del hueco, o la que Laura ponga arriba),
+  // Área y Qué muestran sólo lo que ella hace (pedido de Pia, 2026-10-22).
+  // Sin oferta todavía, o si la API falla, se muestra todo: nunca se traba.
+  const ofertaQ = useOfertaDeProveedora(prestadora.providerId ?? null);
+  const oferta = prestadora.providerId ? (ofertaQ.data ?? null) : null;
+  const esperandoOferta = !!prestadora.providerId && ofertaQ.isLoading;
+  const catalogo = useMemo(
+    () => (catalogoCompleto && oferta ? catalogoDeLaPrestadora(catalogoCompleto, oferta) : catalogoCompleto),
+    [catalogoCompleto, oferta],
+  );
+  const comprasVisibles = useMemo(() => (compras && oferta ? comprasQueHace(compras, oferta) : compras), [compras, oferta]);
+
   /** Todo lo que depende de lo elegido vuelve a cero (Review Focus 4). */
   function limpiarEleccion() {
     setEleccion(null);
@@ -102,7 +120,7 @@ export function NuevoTurnoModal({
 
   // Poner la elección que pidió el prefill (o el traspaso de una venta) apenas
   // se puede resolver; si no aparece, se suelta: nada queda esperando.
-  if (pendiente && catalogo) {
+  if (pendiente && catalogo && !esperandoOferta) {
     const ponerServicio = (serviceId: string) => {
       const item = catalogo.servicios.find((s) => s.id === serviceId);
       const clave = item ? (item.area?.id ?? CLAVE_SIN_AREA) : null;
@@ -154,8 +172,8 @@ export function NuevoTurnoModal({
   const horarioPasado = Boolean(fecha) && minutos !== null && yaPaso(fecha, minutos);
 
   const grupos = useMemo(
-    () => (catalogo && area ? gruposDeQue(catalogo, compras, area, busqueda) : []),
-    [catalogo, compras, area, busqueda],
+    () => (catalogo && area ? gruposDeQue(catalogo, comprasVisibles, area, busqueda) : []),
+    [catalogo, comprasVisibles, area, busqueda],
   );
   const modo = eleccion ? modoDelTurno(eleccion, cuando) : null;
   const yaTiene = eleccion && compras ? sinUsarDeLoMismo(eleccion, compras) : [];
@@ -195,6 +213,14 @@ export function NuevoTurnoModal({
     setAvisoDeCierre(false);
     limpiarEleccion();
     setPendiente(pendienteDe(t.prefill));
+  }
+
+  function cambiarPrestadora(providerId: string) {
+    const p = prestadoras.find((x) => x.id === providerId);
+    setPrestadora(p ? { providerId: p.id, providerName: p.fullName ?? undefined } : {});
+    setArea("");
+    setBusqueda("");
+    limpiarEleccion();
   }
 
   function elegirLinea(l: LineaDisponible) {
@@ -252,9 +278,27 @@ export function NuevoTurnoModal({
             </label>
           </div>
           {horarioPasado && <p className="text-xs text-red-700">{AVISO_HORARIO_PASADO}</p>}
+          <label className="block">
+            <span className={LABEL}>Prestadora</span>
+            <select
+              aria-label="Prestadora"
+              className={FIELD}
+              value={prestadora.providerId ?? ""}
+              onChange={(e) => cambiarPrestadora(e.target.value)}
+            >
+              <option value="">Cualquiera</option>
+              {/* La del hueco aunque no venga en la lista (archivada, o la lista todavía cargando). */}
+              {prestadora.providerId && !prestadoras.some((p) => p.id === prestadora.providerId) && (
+                <option value={prestadora.providerId}>{prestadora.providerName ?? "Prestadora"}</option>
+              )}
+              {prestadoras.map((p) => (
+                <option key={p.id} value={p.id}>{p.fullName ?? "Sin nombre"}</option>
+              ))}
+            </select>
+          </label>
           </>
         )}
-        {prestadora.providerName && (prestadoraFija || modo === "vender") && <p className="text-xs text-ink-soft">Profesional: {prestadora.providerName}</p>}
+        {prestadora.providerName && prestadoraFija && cuerpoDeAgendar && <p className="text-xs text-ink-soft">Profesional: {prestadora.providerName}</p>}
 
         <div>
           <span className={LABEL}>Cliente</span>
@@ -268,7 +312,7 @@ export function NuevoTurnoModal({
           />
         </div>
 
-        {isLoading && <p className="text-xs text-ink-soft">Cargando lo que se puede agendar…</p>}
+        {(isLoading || esperandoOferta) && <p className="text-xs text-ink-soft">Cargando lo que se puede agendar…</p>}
         {errorCatalogo && <ErrorNote message={`No se pudo cargar el catálogo: ${(errorCatalogo as Error).message}`} />}
 
         <EleccionDelTurno
@@ -292,6 +336,11 @@ export function NuevoTurnoModal({
           onCuando={setCuando}
           yaTiene={yaTiene}
           onElegirLinea={elegirLinea}
+          oferta={oferta}
+          onIrAGrupales={(tipo, id) => {
+            onIrAGrupales?.(tipo, id, fecha || date);
+            onClose();
+          }}
         />
 
         {eleccion && modo === "vender" && (

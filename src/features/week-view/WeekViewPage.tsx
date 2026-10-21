@@ -10,6 +10,7 @@ import { buildProviderColorMap } from "../../lib/colors";
 import { addDays, formatDate, isoToLocalDate, isoToLocalMinutes, todayLocal } from "../../lib/format";
 import { carriles } from "../../lib/carriles";
 import { useModoAgenda } from "../../lib/modo-agenda";
+import { useIrAGrupales } from "../../lib/ir-a-grupales";
 import { SemanaGrupal } from "./SemanaGrupal";
 import {
   DAY_COL_MIN, DAY_LABELS, PASO_HUECO_MIN, PX_PER_MIN, SLOT_MIN, SLOT_PX, SLOTS, START_MIN,
@@ -99,6 +100,7 @@ function WeekViewClases() {
 function WeekViewTurnos() {
   const navigate    = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const irAGrupales = useIrAGrupales();
   // La semana vive en la URL (?date=): volver de un día cae en la misma semana.
   const anchorDate = searchParams.get("date") ?? todayLocal();
   const [newApptOpen,    setNewApptOpen]    = useState(false);
@@ -394,6 +396,7 @@ function WeekViewTurnos() {
           date={newApptDate}
           prefill={newApptPrefill}
           onClose={() => setNewApptOpen(false)}
+          onIrAGrupales={irAGrupales}
         />
       )}
     </div>

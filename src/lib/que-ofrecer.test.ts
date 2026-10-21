@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { Catalogo, Compra, ItemDeCatalogo, LineaDeCompra, PromoVendible } from "../api/ventas";
-import { areasDelTurno, gruposDeQue, modoDelTurno, sinUsarDeLoMismo, type EleccionDeQue } from "./que-ofrecer";
+import {
+  CLAVE_ACTIVIDADES_QUE_DICTA,
+  CLAVE_CAPACITACIONES_QUE_DICTA,
+  areasDelTurno,
+  catalogoDeLaPrestadora,
+  comprasQueHace,
+  gruposDeQue,
+  modoDelTurno,
+  sinUsarDeLoMismo,
+  type EleccionDeQue,
+  type OfertaDeProveedora,
+} from "./que-ofrecer";
 import { CLAVE_PROMOS } from "./vender";
 
 const AHORA = new Date("2026-10-19T12:00:00Z");
@@ -171,3 +182,48 @@ describe("sinUsarDeLoMismo", () => {
     expect(sinUsarDeLoMismo({ tipo: "promo", promo: promoEst }, [packViva])).toEqual([]);
   });
 });
+
+describe("lo que ofrece la prestadora del hueco", () => {
+  const oferta: OfertaDeProveedora = {
+    servicios: ["s-limp"],
+    combos: ["c-pack"],
+    depilacion: false,
+    actividades: [{ id: "act-1", nombre: "Pilates" }],
+    capacitaciones: [],
+  };
+
+  it("el catálogo queda con sus servicios, combos y packs, y las promos de eso", () => {
+    const c = catalogoDeLaPrestadora(catalogo, oferta);
+    expect(c.servicios).toEqual([limpieza]);
+    expect(c.combos).toEqual([packEst]);
+    expect(c.depilacion).toEqual([]);
+    expect(c.promociones).toEqual([promoEst]);
+  });
+
+  it("con depilación habilitada trae los items de depilación y sus promos", () => {
+    const c = catalogoDeLaPrestadora(catalogo, { ...oferta, depilacion: true });
+    expect(c.depilacion).toEqual([packDep, depSuelto]);
+    expect(c.promociones).toEqual([promoDep, promoEst]);
+  });
+
+  it("Área sólo ofrece las áreas donde tiene algo, y suma las actividades que dicta", () => {
+    const areas = areasDelTurno(catalogoDeLaPrestadora(catalogo, oferta), oferta);
+    expect(areas.map((a) => a.nombre)).toEqual(["Estética", "Promos", "Actividades que dicta"]);
+    expect(areas.at(-1)!.clave).toBe(CLAVE_ACTIVIDADES_QUE_DICTA);
+  });
+
+  it("las capacitaciones que dicta van aparte, sólo si dicta alguna", () => {
+    const conCapa = { ...oferta, actividades: [], capacitaciones: [{ id: "t-1", nombre: "Instructorado" }] };
+    const claves = areasDelTurno(catalogoDeLaPrestadora(catalogo, conCapa), conCapa).map((a) => a.clave);
+    expect(claves).toContain(CLAVE_CAPACITACIONES_QUE_DICTA);
+    expect(claves).not.toContain(CLAVE_ACTIVIDADES_QUE_DICTA);
+  });
+
+  it("Ya comprado: sólo las sesiones que ella puede hacer", () => {
+    const masajeComprado = compra("cp-2", { servicios: [linea("m1", { serviceId: "s-mas", serviceName: "Masaje" })] });
+    const depi = compra("cp-3", { servicios: [linea("d1", { serviceId: null, depilationComboId: "d-pack" })] });
+    expect(comprasQueHace([packViva, masajeComprado, depi], oferta).flatMap((c) => c.servicios.map((x) => x.id))).toEqual(["l1", "l2", "l3"]);
+    expect(comprasQueHace([depi], { ...oferta, depilacion: true })[0]!.servicios).toHaveLength(1);
+  });
+});
+
