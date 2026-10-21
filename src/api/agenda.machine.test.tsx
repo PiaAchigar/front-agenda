@@ -28,11 +28,12 @@ describe("useClassRoster con providerId", () => {
     expect(apiMock.mock.calls[0]![0]).toContain("&providerId=p1");
   });
 
-  it("sin proveedora no manda el parámetro", async () => {
+  it("la clase sin proveedora ni máquina manda \"none\": así no trae la lista de la de al lado", async () => {
     apiMock.mockClear();
-    renderHook(() => useClassRoster("a1", "2020-01-03T13:00:00.000Z"), { wrapper });
+    renderHook(() => useClassRoster("a1", "2020-01-03T13:00:00.000Z", null, null), { wrapper });
     await waitFor(() => expect(apiMock).toHaveBeenCalled());
-    expect(apiMock.mock.calls[0]![0]).not.toContain("providerId");
+    expect(apiMock.mock.calls[0]![0]).toContain("&providerId=none");
+    expect(apiMock.mock.calls[0]![0]).toContain("&machineId=none");
   });
 });
 
@@ -45,10 +46,10 @@ describe("useMarkAttendance — body del POST", () => {
     return JSON.parse((apiMock.mock.calls[0]![1] as { body: string }).body);
   };
 
-  it("con machineId y providerId null no manda ninguna de las dos claves", async () => {
+  it("con machineId y providerId null manda \"none\" en las dos", async () => {
     const body = await postBody({ machineId: null, providerId: null });
-    expect(body).not.toHaveProperty("machineId");
-    expect(body).not.toHaveProperty("providerId");
+    expect(body.machineId).toBe("none");
+    expect(body.providerId).toBe("none");
   });
 
   it("con valores manda las dos", async () => {

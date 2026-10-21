@@ -186,6 +186,13 @@ export function useClasses(date: string) {
 }
 
 /**
+ * La clase sin máquina o sin proveedora se pide con "none": la API filtra por
+ * el vacío. Si no se mandara nada, no filtraría y una clase "Sin proveedora"
+ * traería también la lista de la de al lado (misma hora, otra proveedora).
+ */
+const oNinguna = (id: string | null | undefined) => id || "none";
+
+/**
  * Roster de una clase (actividad + horario exacto).
  *
  * Una actividad grupal son N turnos distintos con el mismo activity_id y el
@@ -202,7 +209,7 @@ export function useClassRoster(
     queryKey: ["class-roster", activityId, startsAt, machineId, providerId],
     queryFn: () =>
       api<{ success: boolean; data: ClassRosterEntry[] }>(
-        `/api/class-attendance?activityId=${activityId}&startsAt=${encodeURIComponent(startsAt!)}${machineId ? `&machineId=${encodeURIComponent(machineId)}` : ""}${providerId ? `&providerId=${encodeURIComponent(providerId)}` : ""}`,
+        `/api/class-attendance?activityId=${activityId}&startsAt=${encodeURIComponent(startsAt!)}&machineId=${encodeURIComponent(oNinguna(machineId))}&providerId=${encodeURIComponent(oNinguna(providerId))}`,
       ).then((r) => r.data),
     enabled: Boolean(activityId && startsAt),
   });
@@ -222,12 +229,10 @@ export function useMarkAttendance() {
     mutationFn: ({ machineId, providerId, ...data }: MarkAttendanceInput) =>
       api<{ success: boolean; data: ClassRosterEntry[] }>("/api/class-attendance", {
         method: "POST",
-        // La API valida machineId/providerId con uuid().optional(): rechaza null,
-        // así que se omiten cuando no hay.
         body: JSON.stringify({
           ...data,
-          ...(machineId ? { machineId } : {}),
-          ...(providerId ? { providerId } : {}),
+          machineId: oNinguna(machineId),
+          providerId: oNinguna(providerId),
         }),
       }).then((r) => r.data),
     onSuccess: (_data, variables) => {
