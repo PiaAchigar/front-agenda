@@ -3,7 +3,7 @@ import { Info } from "lucide-react";
 import { FONDO_DEL_HUECO, type TipoDeHueco } from "../../lib/fondo-del-hueco";
 import { STATUS_BORDER_COLOR } from "../../lib/colors";
 import { Badge } from "../../components/ui";
-import { COLOR_DE_CLASE, ESTILO_DEBE } from "../../lib/estado-de-clase";
+import { COLOR_DE_CLASE, COLOR_DE_TIPO, ESTILO_DEBE } from "../../lib/estado-de-clase";
 import { useModoAgenda } from "../../lib/modo-agenda";
 
 /**
@@ -196,7 +196,27 @@ function MuestraDeTarjeta({ borde }: { borde: string }) {
   );
 }
 
+function MuestraDeTipo({ tipo }: { tipo: keyof typeof COLOR_DE_TIPO }) {
+  const c = COLOR_DE_TIPO[tipo];
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className={`h-5 w-8 rounded border-l-[3px] ${c.pastilla}`} />
+      <span className={`h-3 w-3 rounded-full ${c.punto}`} />
+    </span>
+  );
+}
+
 const CLASES: { nombre: string; texto: string; muestra: ReactNode }[] = [
+  {
+    nombre: COLOR_DE_TIPO.activity.nombre,
+    texto: "Clases de una actividad (Pilates, Thermo Bike…): se anotan por mes.",
+    muestra: <MuestraDeTipo tipo="activity" />,
+  },
+  {
+    nombre: COLOR_DE_TIPO.training.nombre,
+    texto: "Encuentros de una capacitación: se anotan a la capacitación entera.",
+    muestra: <MuestraDeTipo tipo="training" />,
+  },
   {
     nombre: "Con lugar",
     texto: "La clase tiene cupos libres.",
@@ -214,7 +234,7 @@ const CLASES: { nombre: string; texto: string; muestra: ReactNode }[] = [
   },
   {
     nombre: "Ya pasó",
-    texto: "La clase ya se dictó.",
+    texto: "La clase ya se dictó: en la semana y el mes se ve apagada.",
     muestra: <MuestraDeCupo barra={COLOR_DE_CLASE.pasada.barra} insignia={<Badge tone={COLOR_DE_CLASE.pasada.tono}>5/8</Badge>} />,
   },
   {

@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ClassOccurrence } from "../../api/types";
-import { COLOR_DE_CLASE, ESTILO_DEBE, type EstadoDeClase } from "../../lib/estado-de-clase";
+import { COLOR_DE_CLASE, COLOR_DE_TIPO, ESTILO_DEBE, type EstadoDeClase } from "../../lib/estado-de-clase";
 import { Badge } from "../../components/ui";
 import { pesos } from "../../lib/vender";
 
@@ -76,8 +76,9 @@ export function PuntoDeClase({ clase, estado }: Props) {
         ref={punto}
         data-testid={`punto-${clase.occurrenceId}`}
         data-estado={estado}
+        data-tipo={clase.kind}
         aria-describedby={ficha ? fichaId : undefined}
-        className={`h-3.5 w-3.5 rounded-full ${COLOR_DE_CLASE[estado].barra}`}
+        className={`h-3.5 w-3.5 rounded-full ${COLOR_DE_TIPO[clase.kind].punto} ${COLOR_DE_CLASE[estado].punto}`}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         onPointerDown={(e) => { fueToque.current = e.pointerType === "touch"; }}

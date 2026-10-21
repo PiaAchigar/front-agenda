@@ -18,12 +18,15 @@ const CLASES = [
     startsAt: "2026-10-21T12:00:00.000Z", capacity: 4, enrolledCount: 1, machineName: "Máquina 1", anotadas: [] },
   { ...base, occurrenceId: "m2", subjectId: "b", name: "Reformer 2", date: "2026-10-21", startTime: "09:00", endTime: "10:00",
     startsAt: "2026-10-21T12:00:00.000Z", capacity: 4, enrolledCount: 2, machineName: "Máquina 2", anotadas: [] },
+  { ...base, kind: "training", occurrenceId: "cap", subjectId: "t", name: "Curso de masajes", date: "2026-10-22", startTime: "15:00",
+    endTime: "17:00", startsAt: "2026-10-22T18:00:00.000Z", capacity: 10, enrolledCount: 3, machineName: null, anotadas: [] },
 ];
 
 const api = vi.fn(async (_url: string) => ({ success: true, data: CLASES }));
 vi.mock("../../api/client", () => ({ api: (url: string) => api(url) }));
 
 const { SemanaGrupal } = await import("./SemanaGrupal");
+const { COLOR_DE_TIPO } = await import("../../lib/estado-de-clase");
 
 function Ubicacion() {
   const l = useLocation();
@@ -69,6 +72,16 @@ describe("SemanaGrupal", () => {
     expect(a.style.left).not.toBe(b.style.left);
     expect(a.style.width).toBe(b.style.width);
     expect(a.style.width).toContain("50%");
+  });
+
+  it("la pastilla tiene el color de su tipo: actividad y capacitación se distinguen", async () => {
+    montar();
+    const actividad = (await screen.findByText("Pilates")).closest("button")!;
+    const capacitacion = screen.getByText("Curso de masajes").closest("button")!;
+    expect(actividad.dataset.tipo).toBe("activity");
+    expect(capacitacion.dataset.tipo).toBe("training");
+    expect(actividad.className).toContain(COLOR_DE_TIPO.activity.pastilla);
+    expect(capacitacion.className).toContain(COLOR_DE_TIPO.training.pastilla);
   });
 
   it("?actividad=a deja sólo las pastillas de a", async () => {

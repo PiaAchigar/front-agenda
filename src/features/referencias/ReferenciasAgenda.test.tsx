@@ -55,7 +55,7 @@ describe("ReferenciasAgenda", () => {
     const user = userEvent.setup();
     render(<ReferenciasAgenda />);
     await user.click(boton());
-    for (const nombre of ["Con lugar", "Llena", "Sobrecupo"]) {
+    for (const nombre of ["Actividad", "Capacitación", "Con lugar", "Llena", "Sobrecupo"]) {
       expect(screen.getByText(nombre)).toBeInTheDocument();
     }
     // "Prueba" y "Debe $X" también son la pastilla de muestra, además del nombre.

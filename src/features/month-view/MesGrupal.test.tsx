@@ -21,6 +21,7 @@ const api = vi.fn(async (_url: string) => ({ success: true, data: CLASES }));
 vi.mock("../../api/client", () => ({ api: (url: string) => api(url) }));
 
 const { MesGrupal } = await import("./MesGrupal");
+const { COLOR_DE_TIPO } = await import("../../lib/estado-de-clase");
 
 function Ubicacion() {
   const l = useLocation();
@@ -53,6 +54,18 @@ describe("MesGrupal", () => {
     api.mockClear();
     montar("2026-10-10");
     await vi.waitFor(() => expect(api).toHaveBeenCalledWith("/api/agenda/classes?from=2026-09-28&to=2026-11-01"));
+  });
+
+  it("el punto tiene el color de su tipo: actividad o capacitación", async () => {
+    CLASES = [clase("act", "2026-10-14"), clase("cap", "2026-10-14", { kind: "training", subjectId: "t" })];
+    montar("2026-10-10");
+    await screen.findByText("2 clases");
+    const act = screen.getByTestId("punto-act");
+    const cap = screen.getByTestId("punto-cap");
+    expect(act.dataset.tipo).toBe("activity");
+    expect(cap.dataset.tipo).toBe("training");
+    expect(act.className).toContain(COLOR_DE_TIPO.activity.punto);
+    expect(cap.className).toContain(COLOR_DE_TIPO.training.punto);
   });
 
   it("un día con 3 clases muestra 3 puntos y '3 clases'; con 10, 8 puntos y '+2'", async () => {

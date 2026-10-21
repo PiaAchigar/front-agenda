@@ -2,7 +2,7 @@ import { Badge, Button, ErrorNote } from "../../components/ui";
 import { useClasses } from "../../api/agenda";
 import type { Anotada, ClassOccurrence } from "../../api/types";
 import { AnotadasDeLaClase } from "../grupal/AnotadasDeLaClase";
-import { COLOR_DE_CLASE, estadoDeClase } from "../../lib/estado-de-clase";
+import { COLOR_DE_CLASE, COLOR_DE_TIPO, estadoDeClase } from "../../lib/estado-de-clase";
 import { claseVisible, hayFiltrosGrupales, useBusquedaGrupal } from "../../lib/busqueda-grupal";
 
 /**
@@ -92,7 +92,10 @@ function ClassCard({
   const estadoCupo = estadoDeClase(occurrence, new Date(0));
 
   return (
-    <li className="rounded-xl border border-surface-high bg-white p-3 shadow-sm sm:p-4">
+    <li
+      data-tipo={occurrence.kind}
+      className={`rounded-xl border border-l-4 border-surface-high bg-white p-3 shadow-sm sm:p-4 ${COLOR_DE_TIPO[occurrence.kind].borde}`}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -100,9 +103,11 @@ function ClassCard({
               {occurrence.startTime}–{occurrence.endTime}
             </span>
             <p className="truncate font-semibold text-ink">{occurrence.name}</p>
-            <Badge tone={isTraining ? "primary" : "neutral"}>
-              {isTraining ? "Capacitación" : "Actividad"}
-            </Badge>
+            <span
+              className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${COLOR_DE_TIPO[occurrence.kind].insignia}`}
+            >
+              {COLOR_DE_TIPO[occurrence.kind].nombre}
+            </span>
             {isTraining && occurrence.sessionNumber && (
               <Badge tone="neutral">
                 Encuentro {occurrence.sessionNumber}

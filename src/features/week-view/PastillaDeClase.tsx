@@ -1,7 +1,7 @@
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ClassOccurrence } from "../../api/types";
-import { COLOR_DE_CLASE, ESTILO_DEBE, estadoDeClase } from "../../lib/estado-de-clase";
+import { COLOR_DE_CLASE, COLOR_DE_TIPO, ESTILO_DEBE, PASTILLA_PASADA, estadoDeClase } from "../../lib/estado-de-clase";
 import { Badge } from "../../components/ui";
 import { pesos } from "../../lib/vender";
 
@@ -72,6 +72,7 @@ export function PastillaDeClase({ clase, ahora, carril, total, top, alto, onAbri
       <button
         type="button"
         data-estado={estado}
+        data-tipo={clase.kind}
         onClick={() => onAbrir(clase)}
         onFocus={() => setFicha(true)}
         onBlur={() => setFicha(false)}
@@ -79,12 +80,13 @@ export function PastillaDeClase({ clase, ahora, carril, total, top, alto, onAbri
         className={[
           "h-full w-full overflow-hidden rounded border-l-[3px] px-1 text-left text-[10px] leading-tight shadow-sm",
           "transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-primary",
-          COLOR_DE_CLASE[estado].pastilla,
+          COLOR_DE_TIPO[clase.kind].pastilla,
+          estado === "pasada" ? PASTILLA_PASADA : "",
         ].join(" ")}
       >
         <span className="block truncate font-semibold">{clase.name}</span>
         <span className="block truncate">{clase.startTime}–{clase.endTime}</span>
-        <span className="block truncate">{cupo}</span>
+        <span className={`block truncate ${COLOR_DE_CLASE[estado].cupo}`}>{cupo}</span>
       </button>
 
       {ficha && createPortal(
