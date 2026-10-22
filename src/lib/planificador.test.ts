@@ -107,6 +107,13 @@ describe("elegirPrestadora", () => {
     expect(elegirPrestadora(c, slots, [otra, otra2], "p1")).toMatchObject({ libre: true, providerId: "p3" });
   });
 
+  it("elegirPrestadora ignora las cards desmarcadas", () => {
+    const slots = [slot("15:30", opt("p1"), opt("p2"))];
+    const c = card({ clave: "ps2", sesion: ses(2) });
+    const desmarcada = card({ clave: "ps1", providerId: "p1", marcada: false });
+    expect(elegirPrestadora(c, slots, [desmarcada], "p1")).toMatchObject({ libre: true, providerId: "p1" });
+  });
+
   it("elegirPrestadora sin nadie libre: libre false con libreDesde el próximo inicio del día", () => {
     const slots = [slot("15:30"), slot("16:00"), slot("17:00", opt("p1"))];
     const r = elegirPrestadora(card(), slots, [], "p1");

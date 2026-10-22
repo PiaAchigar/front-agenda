@@ -109,7 +109,7 @@ export function elegirPrestadora(
 ): EleccionDePrestadora {
   const [ini, fin] = intervaloDeCard(card);
   const vecinas = otras.filter((o) => {
-    if (o.clave === card.clave) return false;
+    if (o.clave === card.clave || !o.marcada) return false;
     const [oi, of] = intervaloDeCard(o);
     return oi < fin && ini < of;
   });
