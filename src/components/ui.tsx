@@ -87,6 +87,7 @@ export function Modal({
   children,
   altoFijo = false,
   arriba = false,
+  accion,
 }: {
   open: boolean;
   onClose: () => void;
@@ -99,6 +100,8 @@ export function Modal({
    *  que cambian de alto mientras se usan (un buscador con resultados), que
    *  centrados se recentran a cada letra y suben y bajan. */
   arriba?: boolean;
+  /** Un botón chico en la esquina derecha del título (la ayuda del Nuevo turno). */
+  accion?: ReactNode;
 }) {
   const tituloId = useId();
   if (!open) return null;
@@ -114,8 +117,9 @@ export function Modal({
         className={`flex w-full max-w-md flex-col rounded-2xl bg-surface-low shadow-xl ${altoFijo ? "h-[90vh]" : arriba ? "max-h-[84vh]" : "max-h-[90vh]"}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="shrink-0 px-6 pt-6 pb-4 border-b border-surface-high">
+        <div className="flex shrink-0 items-center justify-between gap-3 px-6 pt-6 pb-4 border-b border-surface-high">
           <h3 id={tituloId} className="text-2xl font-semibold">{title}</h3>
+          {accion}
         </div>
         <div className="modal-scroll min-h-0 flex-1 overflow-y-auto px-6 py-4">
           {children}

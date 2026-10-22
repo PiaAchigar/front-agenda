@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { AyudaNuevoTurno, BotonAyuda } from "./AyudaNuevoTurno";
 import {
   useCustomer,
   useDisponibilidades,
@@ -287,9 +288,16 @@ export function NuevoTurnoModal({
     setServicioDelHueco(false);
   }
 
+  // La ayuda tapa el formulario sin desmontarlo: al volver sigue todo cargado.
+  const [ayuda, setAyuda] = useState(false);
+  const botonAyuda = <BotonAyuda abierta={ayuda} onClick={() => setAyuda((a) => !a)} />;
+  const panelAyuda = ayuda && <AyudaNuevoTurno onVolver={() => setAyuda(false)} />;
+
   if (vendida && customer) {
     return (
-      <Modal open onClose={cerrar} title="Nuevo turno" altoFijo>
+      <Modal open onClose={cerrar} title="Nuevo turno" altoFijo accion={botonAyuda}>
+        {panelAyuda}
+        <div hidden={ayuda}>
         {avisoDeCierre ? (
           <div className="space-y-3">
             <p className="text-sm text-ink">
@@ -313,6 +321,7 @@ export function NuevoTurnoModal({
             onCerrar={cerrar}
           />
         )}
+        </div>
       </Modal>
     );
   }
@@ -322,8 +331,9 @@ export function NuevoTurnoModal({
   const claveCuerpo = `${customer?.id ?? ""}|${eleccion ? claveDeEleccion(eleccion) : ""}`;
 
   return (
-    <Modal open onClose={cerrar} title="Nuevo turno" altoFijo>
-      <div className="space-y-4">
+    <Modal open onClose={cerrar} title="Nuevo turno" altoFijo accion={botonAyuda}>
+      {panelAyuda}
+      <div className="space-y-4" hidden={ayuda}>
         {!cuerpoDeAgendar && (
           <>
           <div className="grid grid-cols-2 gap-3">

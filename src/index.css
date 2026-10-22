@@ -84,3 +84,33 @@ html::-webkit-scrollbar-button {
 @media (prefers-reduced-motion: reduce) {
   .referencias-panel { animation: none; }
 }
+
+/* Ayuda del Nuevo turno: la primera vez, tres latidos de luz alrededor del (?)
+   para decir "acá estoy", y queda quieto. Un anillo que se abre y se apaga
+   (transform + opacity), con un resplandor suave. */
+@keyframes ayuda-latido {
+  0%        { opacity: 0.9; transform: scale(1); }
+  70%, 100% { opacity: 0;   transform: scale(1.8); }
+}
+@keyframes ayuda-latido-suave {
+  0%        { opacity: 0.9; }
+  70%, 100% { opacity: 0; }
+}
+.ayuda-latido {
+  position: relative;
+}
+.ayuda-latido::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 2px solid var(--color-primary);
+  box-shadow: 0 0 10px var(--color-primary);
+  opacity: 0;
+  pointer-events: none;
+  animation: ayuda-latido 1100ms cubic-bezier(0.23, 1, 0.32, 1) 400ms 3;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Sin el anillo que crece: sólo se enciende y se apaga. */
+  .ayuda-latido::after { animation-name: ayuda-latido-suave; }
+}

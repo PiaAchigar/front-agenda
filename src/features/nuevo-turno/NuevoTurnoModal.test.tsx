@@ -683,3 +683,44 @@ describe("NuevoTurnoModal — el Área también filtra Prestadora", () => {
   });
 });
 
+
+describe("NuevoTurnoModal — la ayuda", () => {
+  // Pedido de Pia (2026-10-22): un (?) en la esquina derecha del título, con
+  // cómo cargar un turno, para la secretaria de Laura.
+  afterEach(() => localStorage.clear());
+
+  it("el ícono va en el renglón del título y abre la ayuda en lugar del formulario", async () => {
+    const { user } = montar();
+    const titulo = screen.getByRole("heading", { name: "Nuevo turno" });
+    const boton = screen.getByRole("button", { name: "Cómo cargar un turno" });
+    expect(titulo.parentElement).toContainElement(boton);
+
+    await user.click(boton);
+
+    expect(screen.getByRole("heading", { name: /Por prestadora/ })).toBeVisible();
+    expect(screen.getByRole("heading", { name: /Por área o servicio/ })).toBeVisible();
+    expect(screen.getByLabelText("Día")).not.toBeVisible();
+    expect(boton).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("al volver, el formulario sigue con lo que tenía cargado", async () => {
+    const { user } = montar();
+    fireEvent.change(screen.getByLabelText("Día"), { target: { value: "2027-02-03" } });
+
+    await user.click(screen.getByRole("button", { name: "Cómo cargar un turno" }));
+    // Hay uno arriba y otro al final de la ayuda.
+    await user.click(screen.getAllByRole("button", { name: /Volver al turno/ })[0]!);
+
+    expect(screen.getByLabelText("Día")).toBeVisible();
+    expect(screen.getByLabelText("Día")).toHaveValue("2027-02-03");
+  });
+
+  it("la primera vez en esta computadora el ícono late; las siguientes, no", () => {
+    const { unmount } = render(<NuevoTurnoModal date="2027-01-20" prefill={HUECO} onClose={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Cómo cargar un turno" })).toHaveClass("ayuda-latido");
+    unmount();
+
+    render(<NuevoTurnoModal date="2027-01-20" prefill={HUECO} onClose={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Cómo cargar un turno" })).not.toHaveClass("ayuda-latido");
+  });
+});
