@@ -26,6 +26,17 @@ vi.mock("../../api/agenda", () => ({
     return id ? ancla : { data: undefined, isLoading: false, isError: false };
   },
 }));
+let baseSesiones = 0;
+vi.mock("../../api/planificador", () => ({
+  useBasePlanificador: () => ({
+    data: { sesiones: Array.from({ length: baseSesiones }, (_, i) => ({ purchaseServiceId: `ps${i}` })) },
+    isLoading: false,
+    error: null,
+  }),
+}));
+vi.mock("./PlanificadorDeLaCompra", () => ({
+  PlanificadorDeLaCompra: (p: { compraId: string; inicio: unknown }) => <div>planificador de {p.compraId} {JSON.stringify(p.inicio)}</div>,
+}));
 vi.mock("./CobrarPaso", () => ({
   CobrarPaso: ({ onCobrado, onDespues }: { onCobrado: (r: number) => void; onDespues: () => void }) => (
     <div>
@@ -60,6 +71,7 @@ beforeEach(() => {
   errorSuyos = false;
   ancla = { data: { serviceId: "svc-ancla" }, isLoading: false, isError: false };
   pidioAncla.length = 0;
+  baseSesiones = 0;
 });
 
 const DEPI = { id: "pu9", description: "Pack Piernas x6", saldo: 0, servicios: [{ id: "d1", serviceId: null, depilationComboId: "dc1", serviceName: null, estado: "disponible" as const }] };
@@ -222,5 +234,27 @@ describe("DespuesDeVender — cobrarAhora", () => {
     );
     expect(screen.queryByRole("button", { name: /cobrar/i })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "¿Qué va en este turno?" })).toBeInTheDocument();
+  });
+});
+
+describe("DespuesDeVender — planificador de la compra", () => {
+  it("con 2+ sesiones muestra el planificador en vez de '¿Qué va en este turno?'", async () => {
+    const user = userEvent.setup();
+    baseSesiones = 2;
+    compra = { ...compra, data: DOS };
+    const { onAgendar } = montar();
+    await user.click(screen.getByRole("button", { name: "cobrar todo" }));
+    expect(screen.getByText(/planificador de pu9/)).toBeInTheDocument();
+    expect(screen.getByText(/"fecha":"2027-01-21","hora":"15:30","providerId":"prov1"/)).toBeInTheDocument();
+    expect(screen.queryByText(/qué va en este turno/i)).not.toBeInTheDocument();
+    expect(onAgendar).not.toHaveBeenCalled();
+  });
+
+  it("con 1 sesión traspasa como hoy", () => {
+    baseSesiones = 1;
+    estado = { ...estado, data: { pendiente: 0, minimo: 0, sugerido: 0, faltaElMinimo: false } };
+    const { onAgendar } = montar();
+    expect(screen.queryByText(/planificador de/)).not.toBeInTheDocument();
+    expect(onAgendar).toHaveBeenCalled();
   });
 });

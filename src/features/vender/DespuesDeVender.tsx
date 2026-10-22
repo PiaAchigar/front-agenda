@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParaAgendar, useServicesByProvider } from "../../api/agenda";
+import { useBasePlanificador } from "../../api/planificador";
 import { useCompraDeCliente, useEstadoDeCobro } from "../../api/ventas";
 import { Button, ErrorNote } from "../../components/ui";
 import {
@@ -12,6 +13,7 @@ import {
 } from "../../lib/que-va-en-el-turno";
 import { pesos } from "../../lib/vender";
 import { CobrarPaso } from "./CobrarPaso";
+import { PlanificadorDeLaCompra } from "./PlanificadorDeLaCompra";
 import type { TraspasoAAgendar } from "./FormularioVender";
 
 export type DespuesDeVenderProps = {
@@ -53,6 +55,12 @@ export function DespuesDeVender(p: DespuesDeVenderProps) {
   // saldo a favor cubrió todo), Cobrar no aparece (Review Focus 1).
   if (paso === null && estado.data) setPaso(estado.data.pendiente > 0 ? "cobro" : "que-va");
 
+  // Con 2 sesiones o más para agendar, el planificador reemplaza a "¿qué va en este turno?".
+  // Si la base no se puede leer, sigue el camino de siempre.
+  const base = useBasePlanificador(paso === "que-va" ? p.compraId : null);
+  const cargandoBase = paso === "que-va" && base.isLoading;
+  const usaPlanificador = paso === "que-va" && (base.data?.sesiones.length ?? 0) >= 2;
+
   const opciones: OpcionParaElTurno[] = compra.data ? opcionesParaElTurno(compra.data) : [];
 
   // Depilación: la profesional del hueco tiene que hacer el servicio ANCLA
@@ -82,7 +90,7 @@ export function DespuesDeVender(p: DespuesDeVenderProps) {
 
   // Una sola opción: el paso "¿qué va?" no aparece, se traspasa directo.
   // Efecto y no render: `onAgendar` actualiza el estado del padre.
-  const unica = paso === "que-va" && !cargandoSuyos && opciones.length === 1 && !cargandoAncla ? opciones[0]!.clave : null;
+  const unica = paso === "que-va" && !usaPlanificador && !cargandoBase && !cargandoSuyos && opciones.length === 1 && !cargandoAncla ? opciones[0]!.clave : null;
   useEffect(() => {
     if (unica) traspasar(unica);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -142,6 +150,19 @@ export function DespuesDeVender(p: DespuesDeVenderProps) {
   }
 
   // paso === "que-va"
+  if (cargandoBase) return <p className="text-sm text-ink-soft">Cargando…</p>;
+  if (usaPlanificador) {
+    const minutos = hueco.minutes;
+    const hora = minutos != null ? `${String(Math.floor(minutos / 60)).padStart(2, "0")}:${String(minutos % 60).padStart(2, "0")}` : "09:00";
+    return (
+      <PlanificadorDeLaCompra
+        compraId={p.compraId}
+        customerName={p.customerName}
+        inicio={{ fecha: p.fecha, hora, providerId: hueco.providerId ?? null, providerName: hueco.providerName }}
+        onListo={p.onCerrar}
+      />
+    );
+  }
   if (!compra.data || cargandoSuyos || (opciones.length === 1 && cargandoAncla)) return <p className="text-sm text-ink-soft">Cargando…</p>;
   if (opciones.length === 0) {
     return (

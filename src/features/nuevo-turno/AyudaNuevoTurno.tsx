@@ -108,6 +108,12 @@ export function AyudaNuevoTurno({ onVolver }: { onVolver: () => void }) {
           La que elijas hace el primer turno. Lo que ella no hace queda “A agendar” y se agenda después
           con otra.
         </p>
+        <p>
+          Si lo que vendiste tiene varias sesiones, al terminar la venta cada sesión aparece como una card con
+          su día, su hora y su prestadora. Podés cambiar cualquiera de los tres o destildar la sesión que no
+          quieras agendar ahora, y “Agendar” las deja todas juntas. Lo que no agendes queda “A agendar” en
+          la ficha de la clienta, en el CRM.
+        </p>
       </Tema>
 
       <Tema titulo="Libre u ocupada a esa hora">
