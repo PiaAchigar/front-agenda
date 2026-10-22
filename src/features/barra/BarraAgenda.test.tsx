@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
+import { todayLocal } from "../../lib/format";
 import { BarraAgenda } from "./BarraAgenda";
 
 function Ubicacion() {
@@ -121,5 +122,49 @@ describe("BarraAgenda", () => {
 
     expect(localStorage.getItem("agenda-mode")).toBe("clases");
     expect(screen.getByRole("button", { name: "Turnos grupales" }).className).toContain("bg-primary");
+  });
+
+  it("Hoy va entre Referencias y Semana, con el nombre al pasar el mouse", () => {
+    montar("semana");
+
+    const nombres = screen.getAllByRole("button").map((b) => b.getAttribute("aria-label") ?? b.textContent);
+    const i = nombres.indexOf("Referencias de colores");
+    expect(nombres.slice(i, i + 3)).toEqual(["Referencias de colores", "Hoy", "Semana"]);
+    expect(screen.getByRole("button", { name: "Hoy" })).toHaveAttribute("title", "Ir al día de hoy");
+  });
+
+  it.each([["dia", "/dia"], ["semana", "/semana"], ["mes", "/mes"]] as const)(
+    "desde %s, Hoy lleva al día de hoy conservando la búsqueda",
+    async (vista, ruta) => {
+      const user = userEvent.setup();
+      montar(vista, `${ruta}?prestadora=p1&servicio=s1&date=2026-01-05&turno=t1`);
+
+      await user.click(screen.getByRole("button", { name: "Hoy" }));
+
+      const url = new URL(ubicacion()!, "http://x");
+      expect(url.pathname).toBe("/dia");
+      expect(url.searchParams.get("date")).toBe(todayLocal());
+      expect(url.searchParams.get("prestadora")).toBe("p1");
+      expect(url.searchParams.get("servicio")).toBe("s1");
+      expect(url.searchParams.has("turno")).toBe(false);
+      expect(localStorage.getItem("agenda-view")).toBe("dia");
+    },
+  );
+
+  it("Hoy no cambia el modo individual / grupal", async () => {
+    localStorage.setItem("agenda-mode", "clases");
+    const user = userEvent.setup();
+    montar("semana");
+
+    await user.click(screen.getByRole("button", { name: "Hoy" }));
+    expect(localStorage.getItem("agenda-mode")).toBe("clases");
+  });
+
+  it("Semana y Mes tienen ícono, para cuando la barra es angosta y el texto se esconde", () => {
+    montar("semana");
+
+    for (const n of ["Semana", "Mes"]) {
+      expect(screen.getByRole("button", { name: n }).querySelector("svg")).not.toBeNull();
+    }
   });
 });
