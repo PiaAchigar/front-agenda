@@ -257,4 +257,17 @@ describe("DespuesDeVender — planificador de la compra", () => {
     expect(screen.queryByText(/planificador de/)).not.toBeInTheDocument();
     expect(onAgendar).toHaveBeenCalled();
   });
+
+  it("sin día ni hora del hueco (venta desde el CRM) con 2+ sesiones sigue el camino de antes y no rompe", async () => {
+    const user = userEvent.setup();
+    baseSesiones = 2;
+    compra = { ...compra, data: DOS };
+    render(
+      <DespuesDeVender compraId="pu9" customerId="cu1" customerName="Sofía" descripcion="Combo Glow" fecha=""
+        hueco={{}} onAgendar={vi.fn()} onCerrar={vi.fn()} />,
+    );
+    await user.click(screen.getByRole("button", { name: "cobrar todo" }));
+    expect(screen.queryByText(/planificador de/)).not.toBeInTheDocument();
+    expect(screen.getByText(/qué va en este turno/i)).toBeInTheDocument();
+  });
 });

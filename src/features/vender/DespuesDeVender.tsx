@@ -57,9 +57,13 @@ export function DespuesDeVender(p: DespuesDeVenderProps) {
 
   // Con 2 sesiones o más para agendar, el planificador reemplaza a "¿qué va en este turno?".
   // Si la base no se puede leer, sigue el camino de siempre.
-  const base = useBasePlanificador(paso === "que-va" ? p.compraId : null);
-  const cargandoBase = paso === "que-va" && base.isLoading;
-  const usaPlanificador = paso === "que-va" && (base.data?.sesiones.length ?? 0) >= 2;
+  // Sin un hueco real (día y hora; p. ej. una venta que arranca en el CRM) no se inventa
+  // ninguno: tampoco hay planificador, sigue el camino de siempre.
+  const minutosDelHueco = hueco.minutes;
+  const tieneHueco = !!p.fecha && minutosDelHueco != null;
+  const base = useBasePlanificador(paso === "que-va" && tieneHueco ? p.compraId : null);
+  const cargandoBase = paso === "que-va" && tieneHueco && base.isLoading;
+  const usaPlanificador = paso === "que-va" && tieneHueco && (base.data?.sesiones.length ?? 0) >= 2;
 
   const opciones: OpcionParaElTurno[] = compra.data ? opcionesParaElTurno(compra.data) : [];
 
@@ -152,8 +156,8 @@ export function DespuesDeVender(p: DespuesDeVenderProps) {
   // paso === "que-va"
   if (cargandoBase) return <p className="text-sm text-ink-soft">Cargando…</p>;
   if (usaPlanificador) {
-    const minutos = hueco.minutes;
-    const hora = minutos != null ? `${String(Math.floor(minutos / 60)).padStart(2, "0")}:${String(minutos % 60).padStart(2, "0")}` : "09:00";
+    const minutos = minutosDelHueco!;
+    const hora = `${String(Math.floor(minutos / 60)).padStart(2, "0")}:${String(minutos % 60).padStart(2, "0")}`;
     return (
       <PlanificadorDeLaCompra
         compraId={p.compraId}

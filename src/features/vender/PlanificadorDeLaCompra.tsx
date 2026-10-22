@@ -112,6 +112,8 @@ export function PlanificadorDeLaCompra(p: PlanificadorProps) {
 function Plan({ base, customerName, inicio, onListo }: PlanificadorProps & { base: BaseDelPlanificador }) {
   const [diasTexto, setDiasTexto] = useState(String(base.intervalo.dias));
   const [cards, setCards] = useState<CardDelPlan[]>(() => armarPlan(base, inicio, base.intervalo.dias));
+  // Cards que la puerta de pago apagó: al habilitarse de nuevo hay que tildarlas a mano.
+  const [bloqueadas, setBloqueadas] = useState<ReadonlySet<string>>(new Set());
   const [errorDeCard, setErrorDeCard] = useState<ErrorDeCard | null>(null);
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
   const [agendadas, setAgendadas] = useState<number | null>(null);
@@ -140,7 +142,13 @@ function Plan({ base, customerName, inicio, onListo }: PlanificadorProps & { bas
   }, [resultados, cards]);
 
   const hab = useMemo(() => habilitacion(cards, base, base.sesiones.length), [cards, base]);
-  const vista = useMemo(() => resolver(cards, hab, resultados, inicio.providerId), [cards, hab, resultados, inicio.providerId]);
+  const sinBloqueadas = useMemo(() => cards.map((c) => ({ ...c, marcada: c.marcada && !bloqueadas.has(c.clave) })), [cards, bloqueadas]);
+  const vista = useMemo(() => resolver(sinBloqueadas, hab, resultados, inicio.providerId), [sinBloqueadas, hab, resultados, inicio.providerId]);
+
+  useEffect(() => {
+    const apagadas = cards.filter((c) => hab.get(c.clave)?.habilitada === false && !bloqueadas.has(c.clave));
+    if (apagadas.length > 0) setBloqueadas(new Set([...bloqueadas, ...apagadas.map((c) => c.clave)]));
+  }, [cards, hab, bloqueadas]);
 
   const aAgendar = vista.cards.filter((c) => c.marcada && c.providerId);
   const n = aAgendar.length;
@@ -250,9 +258,12 @@ function Plan({ base, customerName, inicio, onListo }: PlanificadorProps & { bas
                 <label className="flex items-center gap-1.5 text-xs text-ink">
                   <input
                     type="checkbox"
-                    checked={!apagada && c.marcada}
+                    checked={!apagada && c.marcada && !bloqueadas.has(c.clave)}
                     disabled={apagada}
-                    onChange={(e) => setCards((prev) => prev.map((x) => (x.clave === c.clave ? { ...x, marcada: e.target.checked } : x)))}
+                    onChange={(e) => {
+                      setBloqueadas((prev) => new Set([...prev].filter((k) => k !== c.clave)));
+                      setCards((prev) => prev.map((x) => (x.clave === c.clave ? { ...x, marcada: e.target.checked } : x)));
+                    }}
                   />
                   Agendar
                 </label>

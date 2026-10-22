@@ -155,9 +155,8 @@ describe("PlanificadorDeLaCompra", () => {
     const cards = screen.getAllByTestId("card-sesion");
     expect(within(cards[5]!).getByText("Se agenda cuando esté pago el total (faltan $50.000)")).toBeInTheDocument();
     await user.click(within(cards[2]!).getByRole("checkbox", { name: /agendar/i }));
-    // al destildar una, la 6ª deja de ser la última libre y se habilita (la API lo acepta con 5)
-    expect(screen.getByRole("button", { name: "Agendar 5 sesiones" })).toBeInTheDocument();
-    await user.click(within(cards[5]!).getByRole("checkbox", { name: /agendar/i }));
+    // al destildar una, la 6ª se habilita pero queda sin marcar
+    expect(screen.getByRole("button", { name: "Agendar 4 sesiones" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Agendar 4 sesiones" }));
     expect(enviados).toHaveLength(1);
     const turnos = enviados[0]!.turnos;
@@ -170,6 +169,20 @@ describe("PlanificadorDeLaCompra", () => {
       customerPurchaseServiceId: "ps1",
       zonas: ["piernas"],
     });
+  });
+
+  it("con 50% pago, desmarcar otra card no marca sola la última: queda habilitada pero sin marcar", async () => {
+    const user = userEvent.setup();
+    base = armarBase(6, { puerta: { total: 100000, pagado: 50000, minimo: 40000 } });
+    montar();
+    const cards = screen.getAllByTestId("card-sesion");
+    await user.click(within(cards[2]!).getByRole("checkbox", { name: /agendar/i }));
+    const ultima = within(cards[5]!).getByRole("checkbox", { name: /agendar/i });
+    expect(ultima).toBeEnabled();
+    expect(ultima).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "Agendar 4 sesiones" })).toBeInTheDocument();
+    await user.click(ultima);
+    expect(screen.getByRole("button", { name: "Agendar 5 sesiones" })).toBeInTheDocument();
   });
 
   it("una compra sin 40% manda la card 1 como reserva de 24 h", async () => {
