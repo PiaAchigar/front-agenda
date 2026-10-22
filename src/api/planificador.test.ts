@@ -47,8 +47,11 @@ describe("hooks del planificador", () => {
     result.current.mutate({ turnos: [] } as never);
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ["appointments"] });
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["appointments-range"] });
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ["availability"] });
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["availability-month"] });
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ["ventas"] });
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["consumible"] });
   });
 
   it("useDisponibilidadEnLote no pide nada con la lista vacía", async () => {

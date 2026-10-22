@@ -67,8 +67,13 @@ export function useAgendarLote() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["appointments-range"] });
       queryClient.invalidateQueries({ queryKey: ["availability"] });
+      queryClient.invalidateQueries({ queryKey: ["availability-month"] });
       queryClient.invalidateQueries({ queryKey: ["ventas"] });
+      // Cada turno del lote sale de una compra y descuenta una sesión (igual que el
+      // alta individual en `useCreateAppointment`): lo que la clienta tiene a favor queda viejo.
+      queryClient.invalidateQueries({ queryKey: ["consumible"] });
     },
   });
 }
