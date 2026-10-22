@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  useAvailability,
   useComboPendientes,
   useConsumible,
   useCreateAppointment,
@@ -15,6 +16,7 @@ import { Button, ErrorNote, Input } from "../../components/ui";
 import { compraInicial } from "../../lib/compra-preferida";
 import { yaPaso } from "../../lib/horario";
 import { minutosDe } from "../../lib/vender";
+import { gruposDePrestadoras, libertadEnHora } from "../../lib/prestadoras-de-lo-elegido";
 import { DiaYHoraDelTurno } from "./DiaYHoraDelTurno";
 import { ComboPendientesPanel } from "./ComboPendientesPanel";
 import { ZonasDelTurno } from "./ZonasDelTurno";
@@ -472,6 +474,19 @@ export function FormularioAgendar({ onClose, encabezado, prestadoraFija = null, 
 
   const create = useCreateAppointment();
 
+  // Quién está libre a la hora del turno (spec 2026-10-22-nuevo-turno-filtros-cruzados):
+  // el desplegable las agrupa en libres y ocupadas. Sin hora, o sin la
+  // disponibilidad todavía, una sola lista: nunca dice "libre" sin saberlo.
+  const { data: disponibilidadDelDia } = useAvailability(
+    !lockedProviderId && !esDepilacion ? serviceId || null : null,
+    fecha || null,
+  );
+  const gruposDelTurno = gruposDePrestadoras(
+    providers.map((p) => ({ providerId: p.id, nombre: p.fullName, hace: [], serviceIds: [serviceId], todo: true })),
+    (q) => (disponibilidadDelDia && timeStr ? libertadEnHora(disponibilidadDelDia.slots, q.providerId, timeStr) : null),
+    timeStr || null,
+  );
+
   // V3c: si el turno recién confirmado salía de un combo "se hacen
   // juntos", pide lo que falta agendar de esa misma compra. `null` =
   // todavía no se confirmó ningún turno en este modal — el hook no dispara
@@ -758,6 +773,7 @@ export function FormularioAgendar({ onClose, encabezado, prestadoraFija = null, 
             </select>
           ) : (
             <select
+              aria-label="Prestadora"
               className={fieldClass}
               value={providerId}
               onChange={(e) => setProviderId(e.target.value)}
@@ -770,11 +786,15 @@ export function FormularioAgendar({ onClose, encabezado, prestadoraFija = null, 
                     ? "Cargando…"
                     : "Seleccioná una prestadora…"}
               </option>
-              {providers.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.fullName}
-                </option>
-              ))}
+              {gruposDelTurno.map((g) =>
+                g.titulo ? (
+                  <optgroup key={g.titulo} label={g.titulo}>
+                    {g.opciones.map((o) => <option key={o.providerId} value={o.providerId}>{o.texto}</option>)}
+                  </optgroup>
+                ) : (
+                  g.opciones.map((o) => <option key={o.providerId} value={o.providerId}>{o.texto}</option>)
+                ),
+              )}
             </select>
           )}
         </div>

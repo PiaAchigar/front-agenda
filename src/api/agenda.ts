@@ -22,6 +22,7 @@ import { huecosDelDia, type HuecoLibre } from "../lib/huecos";
 import { ahoraEnArgentina } from "../lib/horario";
 import { disponibilidadDelMesUrl, disponibilidadUrl, type OpcionesDeDisponibilidad } from "../lib/disponibilidad";
 import type { OfertaDeProveedora } from "../lib/que-ofrecer";
+import type { QuienLoHace } from "../lib/prestadoras-de-lo-elegido";
 
 export function useCategories() {
   return useQuery({
@@ -295,6 +296,32 @@ export function useOfertaDeProveedora(providerId: string | null) {
     enabled: Boolean(providerId),
     staleTime: 5 * 60 * 1000,
   });
+}
+
+/** Quién hace lo elegido en el Nuevo turno (servicio, combo/pack, depilación o promo). */
+export function useQuienHace(que: { tipo: "servicio" | "combo" | "depilacion" | "promo"; id: string } | null) {
+  return useQuery({
+    queryKey: ["providers", "quien-hace", que?.tipo ?? null, que?.id ?? null],
+    queryFn: () => api<QuienLoHace[]>(`/api/agenda/providers/quien-hace?tipo=${que!.tipo}&id=${que!.id}`),
+    enabled: Boolean(que),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** La disponibilidad de varios servicios el mismo día, por servicio (para marcar quién está libre). */
+export function useDisponibilidades(serviceIds: string[], date: string | null) {
+  const resultados = useQueries({
+    queries: serviceIds.map((serviceId) => ({
+      queryKey: ["availability", serviceId, date, null, null],
+      queryFn: () => api<Availability>(disponibilidadUrl(serviceId, date!)),
+      enabled: Boolean(date),
+    })),
+  });
+  const porServicio = new Map<string, Availability>();
+  resultados.forEach((r, i) => {
+    if (r.data) porServicio.set(serviceIds[i]!, r.data);
+  });
+  return porServicio;
 }
 
 export function useCompanyConfig() {

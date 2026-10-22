@@ -102,7 +102,7 @@ describe("FormularioAgendar con encabezado", () => {
 
   it("con serviceId ofrece las prestadoras de ese servicio", () => {
     render(<FormularioAgendar onClose={() => {}} encabezado={ENCABEZADO} />);
-    expect(screen.getByRole("option", { name: "Gabi" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /^Gabi/ })).toBeInTheDocument();
   });
 
   it("con purchaseServiceId muestra el menú de zonas", () => {

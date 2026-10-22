@@ -1,5 +1,14 @@
 import { useMemo, useState } from "react";
-import { useCustomer, useOfertaDeProveedora, useParaAgendar, useProviders, useServicesByProvider } from "../../api/agenda";
+import {
+  useCustomer,
+  useDisponibilidades,
+  useOfertaDeProveedora,
+  useParaAgendar,
+  useProviders,
+  useQuienHace,
+  useServicesByProvider,
+} from "../../api/agenda";
+import { gruposDePrestadoras, libertadEnHora, queSeBusca } from "../../lib/prestadoras-de-lo-elegido";
 import type { Customer } from "../../api/types";
 import { useCatalogoVendible, useComprasDeCliente } from "../../api/ventas";
 import { Button, ErrorNote, Modal } from "../../components/ui";
@@ -197,6 +206,38 @@ export function NuevoTurnoModal({
   const prestadoraPorSaber = !!prestadora.providerId && (!!suyos.isLoading || (!!lineaDepi && !!ancla.isLoading));
   const cuerpoDeAgendar = eleccion && modo === "agendar" && !prestadoraPorSaber ? eleccion : null;
 
+  // Buscando desde el servicio (spec 2026-10-22-nuevo-turno-filtros-cruzados):
+  // con algo elegido que se vende (el encabezado sigue a la vista), Prestadora
+  // lista sólo a las que lo hacen, con qué hace cada una y si está libre. Al
+  // agendar, eso lo hace el desplegable del cuerpo.
+  const queSeVende = eleccion && !cuerpoDeAgendar ? queSeBusca(eleccion) : null;
+  const quienHace = useQuienHace(queSeVende);
+  const quienes = queSeVende ? (quienHace.data ?? null) : null;
+  // "Libre" se mide con el primer servicio que haría cada una (depilación no:
+  // su duración sale de las zonas).
+  const primeros = useMemo(
+    () => (quienes && queSeVende?.tipo !== "depilacion" ? [...new Set(quienes.map((q) => q.serviceIds[0]!).filter(Boolean))] : []),
+    [quienes, queSeVende?.tipo],
+  );
+  const disponibilidades = useDisponibilidades(primeros, fecha && hora ? fecha : null);
+  const gruposDeQuienes = quienes
+    ? gruposDePrestadoras(
+        quienes,
+        (q) => {
+          const d = disponibilidades.get(q.serviceIds[0] ?? "");
+          return d && hora ? libertadEnHora(d.slots, q.providerId, hora) : null;
+        },
+        hora || null,
+      )
+    : null;
+  // Una sola la hace: queda elegida (una vez por cosa elegida; si Laura vuelve a "Todas", se respeta).
+  const claveQue = queSeVende ? `${queSeVende.tipo}:${queSeVende.id}` : "";
+  const [autoElegidaPara, setAutoElegidaPara] = useState("");
+  if (quienes && quienes.length === 1 && claveQue !== autoElegidaPara) {
+    setAutoElegidaPara(claveQue);
+    if (!prestadora.providerId) setPrestadora({ providerId: quienes[0]!.providerId, providerName: quienes[0]!.nombre ?? undefined });
+  }
+
   function cerrar() {
     // Después de vender, cerrar no puede ser silencioso: la compra existe.
     if (vendida && !avisoDeCierre) setAvisoDeCierre(true);
@@ -217,7 +258,10 @@ export function NuevoTurnoModal({
 
   function cambiarPrestadora(providerId: string) {
     const p = prestadoras.find((x) => x.id === providerId);
-    setPrestadora(p ? { providerId: p.id, providerName: p.fullName ?? undefined } : {});
+    const q = quienes?.find((x) => x.providerId === providerId);
+    setPrestadora(p || q ? { providerId, providerName: p?.fullName ?? q?.nombre ?? undefined } : {});
+    // Con algo ya elegido, la lista sólo ofrece a las que lo hacen: lo elegido queda.
+    if (eleccion) return;
     setArea("");
     setBusqueda("");
     limpiarEleccion();
@@ -286,14 +330,35 @@ export function NuevoTurnoModal({
               value={prestadora.providerId ?? ""}
               onChange={(e) => cambiarPrestadora(e.target.value)}
             >
-              <option value="">Cualquiera</option>
-              {/* La del hueco aunque no venga en la lista (archivada, o la lista todavía cargando). */}
-              {prestadora.providerId && !prestadoras.some((p) => p.id === prestadora.providerId) && (
-                <option value={prestadora.providerId}>{prestadora.providerName ?? "Prestadora"}</option>
+              <option value="">
+                {quienes ? `Todas (${quienes.length} ${quienes.length === 1 ? "lo hace" : "lo hacen"})` : "Todas"}
+              </option>
+              {gruposDeQuienes ? (
+                <>
+                  {gruposDeQuienes.map((g) =>
+                    g.titulo ? (
+                      <optgroup key={g.titulo} label={g.titulo}>
+                        {g.opciones.map((o) => <option key={o.providerId} value={o.providerId}>{o.texto}</option>)}
+                      </optgroup>
+                    ) : (
+                      g.opciones.map((o) => <option key={o.providerId} value={o.providerId}>{o.texto}</option>)
+                    ),
+                  )}
+                  {prestadora.providerId && !quienes!.some((q) => q.providerId === prestadora.providerId) && (
+                    <option value={prestadora.providerId}>{prestadora.providerName ?? "Prestadora"}</option>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* La del hueco aunque no venga en la lista (archivada, o la lista todavía cargando). */}
+                  {prestadora.providerId && !prestadoras.some((p) => p.id === prestadora.providerId) && (
+                    <option value={prestadora.providerId}>{prestadora.providerName ?? "Prestadora"}</option>
+                  )}
+                  {prestadoras.map((p) => (
+                    <option key={p.id} value={p.id}>{p.fullName ?? "Sin nombre"}</option>
+                  ))}
+                </>
               )}
-              {prestadoras.map((p) => (
-                <option key={p.id} value={p.id}>{p.fullName ?? "Sin nombre"}</option>
-              ))}
             </select>
           </label>
           </>

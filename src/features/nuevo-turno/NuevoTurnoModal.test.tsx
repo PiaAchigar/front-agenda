@@ -61,6 +61,10 @@ let clientaPrefill: typeof CLIENTA | undefined;
 type Oferta = { servicios: string[]; combos: string[]; depilacion: boolean; actividades: { id: string; nombre: string }[]; capacitaciones: { id: string; nombre: string }[] };
 // null = la API no dijo nada: no se recorta (los tests de siempre siguen viendo todo).
 let oferta: Oferta | null = null;
+type Quien = { providerId: string; nombre: string; hace: string[]; serviceIds: string[]; todo: boolean };
+let quienes: Quien[] = [];
+// Qué prestadoras están libres en cada horario (los `options` de la disponibilidad).
+let libresPorHora: Record<string, string[]> = {};
 const vender = vi.fn((_i: unknown, o?: { onSuccess?: (r: unknown) => void }) => {
   compraDeLaVenta = compra("pu9", "Pack Glow x4", "c1", [linea("ps9", 1)], { sessionsTotal: 4 });
   if (ventaTardia) {
@@ -84,6 +88,9 @@ vi.mock("../../api/agenda", () => ({
   useComboPendientes: () => ({ data: undefined, isSuccess: false, isError: false }),
   useOfertaDeProveedora: (id: string | null) => ({ data: id ? (oferta ?? undefined) : undefined, isLoading: false, isError: false }),
   useProviders: () => ({ data: [{ id: "prov1", fullName: "Gabi", specialties: null }, { id: "prov2", fullName: "Lu", specialties: null }] }),
+  useQuienHace: (que: unknown) => ({ data: que ? quienes : undefined, isLoading: false }),
+  useDisponibilidades: (ids: string[], date: string | null) =>
+    Object.keys(libresPorHora).length === 0 ? new Map() : new Map(ids.map((id) => [id, { date, serviceId: id, durationMinutes: 30, slots: Object.entries(libresPorHora).map(([start, ps]) => ({ start, end: start, options: ps.map((p) => ({ providerId: p, providerName: p, machineId: null })) })) }])),
   useConsumible: () => ({ data: { tipo: "ninguna" }, isFetching: false }),
   useCreateAppointment: () => ({ mutate: crear, isPending: false, error: null }),
   useCreateCustomer: () => ({ mutate: vi.fn(), isPending: false, error: null }),
@@ -97,7 +104,7 @@ vi.mock("../../api/agenda", () => ({
   }),
   useAvailability: (serviceId: string | null, date: string | null) => ({
     data: date
-      ? { date, serviceId, durationMinutes: 30, slots: horariosLibres.map((start) => ({ start, end: start, options: [] })) }
+      ? { date, serviceId, durationMinutes: 30, slots: horariosLibres.map((start) => ({ start, end: start, options: (libresPorHora[start] ?? []).map((p) => ({ providerId: p, providerName: p, machineId: null })) })) }
       : undefined,
     isFetching: false,
     isLoading: false,
@@ -132,6 +139,8 @@ beforeEach(() => {
   compraDeLaVenta = null;
   clientaPrefill = undefined;
   oferta = null;
+  quienes = [];
+  libresPorHora = {};
   vender.mockClear();
   despues.mockClear();
   crear.mockClear();
@@ -585,6 +594,64 @@ describe("NuevoTurnoModal — desde el hueco de una prestadora", () => {
     await user.click(screen.getByRole("button", { name: "Anotar en Pilates" }));
     expect(onIrAGrupales).toHaveBeenCalledWith("actividad", "act-1", "2027-01-20");
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+describe("NuevoTurnoModal — buscar desde el servicio (filtros cruzados)", () => {
+  const SIN_COLUMNA = { minutes: 930 }; // el botón "Nuevo turno": sin prestadora
+  const LU: Quien = { providerId: "prov2", nombre: "Lu", hace: ["Limpieza facial", "Masaje"], serviceIds: ["s1", "s2"], todo: true };
+  const GABI: Quien = { providerId: "prov1", nombre: "Gabi", hace: ["Limpieza facial"], serviceIds: ["s1"], todo: false };
+  const opciones = () => Array.from(select("Prestadora").options).map((o) => o.textContent);
+  const gruposDe = () => Array.from(select("Prestadora").querySelectorAll("optgroup")).map((g) => g.label);
+
+  it("sin columna arranca en 'Todas' y Área trae todo, con Promos", () => {
+    montar(SIN_COLUMNA);
+    expect(select("Prestadora").value).toBe("");
+    expect(opciones()[0]).toBe("Todas");
+    expect(within(screen.getByLabelText("Área")).getAllByRole("option").map((o) => o.textContent)).toContain("Promos");
+  });
+
+  it("elegido un combo, Prestadora lista quién lo hace: todo arriba, una parte con el detalle", async () => {
+    quienes = [LU, GABI];
+    const { user } = montar(SIN_COLUMNA);
+    await user.selectOptions(screen.getByLabelText("Área"), "a-est");
+    await user.selectOptions(screen.getByLabelText("Qué"), "combo:c1");
+    expect(opciones()).toEqual(["Todas (2 lo hacen)", "Lu", "Gabi — sólo Limpieza facial"]);
+    expect(gruposDe()).toEqual(["Hacen todo", "Hacen una parte"]);
+  });
+
+  it("con la hora del turno, libres arriba y ocupadas con desde cuándo", async () => {
+    quienes = [LU, GABI];
+    libresPorHora = { "15:30": ["prov2"], "16:30": ["prov1"] };
+    const { user } = montar(SIN_COLUMNA);
+    await user.selectOptions(screen.getByLabelText("Área"), "a-est");
+    await user.selectOptions(screen.getByLabelText("Qué"), "combo:c1");
+    expect(gruposDe()).toEqual(["Libres a las 15:30", "Ocupadas a esa hora"]);
+    expect(opciones()).toContain("Gabi — sólo Limpieza facial · libre desde 16:30");
+  });
+
+  it("elegir la prestadora desde ahí no borra lo elegido", async () => {
+    quienes = [LU, GABI];
+    const { user } = montar(SIN_COLUMNA);
+    await user.selectOptions(screen.getByLabelText("Área"), "a-est");
+    await user.selectOptions(screen.getByLabelText("Qué"), "combo:c1");
+    await user.selectOptions(select("Prestadora"), "prov2");
+    expect(screen.getByLabelText("Qué")).toHaveValue("combo:c1");
+  });
+
+  it("si una sola lo hace, queda elegida sola", async () => {
+    quienes = [LU];
+    const { user } = montar(SIN_COLUMNA);
+    await user.selectOptions(screen.getByLabelText("Área"), "a-est");
+    await user.selectOptions(screen.getByLabelText("Qué"), "combo:c1");
+    expect(select("Prestadora").value).toBe("prov2");
+  });
+
+  it("agendando un servicio con 'Todas', el desplegable del turno marca libres y ocupadas a esa hora", async () => {
+    libresPorHora = { "10:00": ["prov1"] };
+    montar({ serviceId: "s1", minutes: 600 });
+    const turno = await screen.findByRole("combobox", { name: "Prestadora" });
+    expect(Array.from(turno.querySelectorAll("optgroup")).map((g) => g.label)).toEqual(["Libres a las 10:00"]);
   });
 });
 

@@ -109,6 +109,8 @@ vi.mock("../../api/agenda", () => ({
   useServices: () => ({ data: SIN_DATOS }),
   useServicesByProvider: () => ({ data: SIN_DATOS, isFetching: false }),
   useOfertaDeProveedora: () => ({ data: undefined, isLoading: false, isError: false }),
+  useQuienHace: () => ({ data: undefined, isLoading: false }),
+  useDisponibilidades: () => new Map(),
   // `AttendanceModal`, `ReagendarTurnoModal` y `AvisoInsumosModal` se montan
   // SIEMPRE (se apagan por prop, no por `&&`), así que sus hooks corren en
   // cada render aunque el modal esté cerrado.
