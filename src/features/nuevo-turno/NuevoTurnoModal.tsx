@@ -6,6 +6,7 @@ import {
   useParaAgendar,
   useProviders,
   useQuienHace,
+  useQuienHaceEn,
   useServicesByProvider,
 } from "../../api/agenda";
 import { gruposDePrestadoras, libertadEnHora, queSeBusca } from "../../lib/prestadoras-de-lo-elegido";
@@ -19,6 +20,7 @@ import {
   areasDelTurno,
   catalogoDeLaPrestadora,
   comprasQueHace,
+  loDelArea,
   gruposDeQue,
   modoDelTurno,
   sinUsarDeLoMismo,
@@ -118,6 +120,13 @@ export function NuevoTurnoModal({
     () => (catalogoCompleto && oferta ? catalogoDeLaPrestadora(catalogoCompleto, oferta) : catalogoCompleto),
     [catalogoCompleto, oferta],
   );
+  // Una prestadora que no hace nada del Área elegida (se eligió de la lista
+  // completa, antes de que llegara la del Área): el Área y lo elegido se limpian.
+  if (area && catalogo && !esperandoOferta && oferta && !areasDelTurno(catalogo, oferta).some((a) => a.clave === area)) {
+    setArea("");
+    setBusqueda("");
+    setEleccion(null);
+  }
   const comprasVisibles = useMemo(() => (compras && oferta ? comprasQueHace(compras, oferta) : compras), [compras, oferta]);
 
   /** Todo lo que depende de lo elegido vuelve a cero (Review Focus 4). */
@@ -230,6 +239,15 @@ export function NuevoTurnoModal({
         hora || null,
       )
     : null;
+  // Con un Área elegida y sin Qué todavía, Prestadora lista a las que hacen algo de ahí.
+  const loArea = useMemo(
+    () => (!eleccion && catalogoCompleto && area ? loDelArea(catalogoCompleto, area) : null),
+    [eleccion, catalogoCompleto, area],
+  );
+  const quienHaceEn = useQuienHaceEn(loArea);
+  const quienesDelArea = loArea ? (quienHaceEn.data ?? null) : null;
+  const nombreDelArea = catalogo ? areasDelTurno(catalogo, oferta).find((a) => a.clave === area)?.nombre : undefined;
+
   // Una sola la hace: queda elegida (una vez por cosa elegida; si Laura vuelve a "Todas", se respeta).
   const claveQue = queSeVende ? `${queSeVende.tipo}:${queSeVende.id}` : "";
   const [autoElegidaPara, setAutoElegidaPara] = useState("");
@@ -258,13 +276,10 @@ export function NuevoTurnoModal({
 
   function cambiarPrestadora(providerId: string) {
     const p = prestadoras.find((x) => x.id === providerId);
-    const q = quienes?.find((x) => x.providerId === providerId);
+    const q = (quienes ?? quienesDelArea)?.find((x) => x.providerId === providerId);
     setPrestadora(p || q ? { providerId, providerName: p?.fullName ?? q?.nombre ?? undefined } : {});
-    // Con algo ya elegido, la lista sólo ofrece a las que lo hacen: lo elegido queda.
-    if (eleccion) return;
-    setArea("");
-    setBusqueda("");
-    limpiarEleccion();
+    // La lista sólo ofrece las compatibles con lo elegido: Área y Qué quedan.
+    // Si la nueva no hace nada de esa Área, se limpia al llegar su oferta (abajo).
   }
 
   function elegirLinea(l: LineaDisponible) {
@@ -331,7 +346,11 @@ export function NuevoTurnoModal({
               onChange={(e) => cambiarPrestadora(e.target.value)}
             >
               <option value="">
-                {quienes ? `Todas (${quienes.length} ${quienes.length === 1 ? "lo hace" : "lo hacen"})` : "Todas"}
+                {quienes
+                  ? `Todas (${quienes.length} ${quienes.length === 1 ? "lo hace" : "lo hacen"})`
+                  : quienesDelArea && nombreDelArea
+                    ? `Todas (${quienesDelArea.length} en ${nombreDelArea})`
+                    : "Todas"}
               </option>
               {gruposDeQuienes ? (
                 <>
@@ -345,6 +364,15 @@ export function NuevoTurnoModal({
                     ),
                   )}
                   {prestadora.providerId && !quienes!.some((q) => q.providerId === prestadora.providerId) && (
+                    <option value={prestadora.providerId}>{prestadora.providerName ?? "Prestadora"}</option>
+                  )}
+                </>
+              ) : quienesDelArea ? (
+                <>
+                  {quienesDelArea.map((q) => (
+                    <option key={q.providerId} value={q.providerId}>{q.nombre ?? "Sin nombre"}</option>
+                  ))}
+                  {prestadora.providerId && !quienesDelArea.some((q) => q.providerId === prestadora.providerId) && (
                     <option value={prestadora.providerId}>{prestadora.providerName ?? "Prestadora"}</option>
                   )}
                 </>

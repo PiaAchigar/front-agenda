@@ -308,6 +308,23 @@ export function useQuienHace(que: { tipo: "servicio" | "combo" | "depilacion" | 
   });
 }
 
+/** Las que hacen algo de un Área (sin Qué elegido todavía). */
+export function useQuienHaceEn(lista: { servicios: string[]; combos: string[]; depilacion: boolean } | null) {
+  const qs = lista
+    ? new URLSearchParams([
+        ...lista.servicios.map((id) => ["servicio", id]),
+        ...lista.combos.map((id) => ["combo", id]),
+        ["depilacion", String(lista.depilacion)],
+      ]).toString()
+    : "";
+  return useQuery({
+    queryKey: ["providers", "quien-hace-en", qs],
+    queryFn: () => api<QuienLoHace[]>(`/api/agenda/providers/quien-hace-en?${qs}`),
+    enabled: Boolean(lista),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 /** La disponibilidad de varios servicios el mismo día, por servicio (para marcar quién está libre). */
 export function useDisponibilidades(serviceIds: string[], date: string | null) {
   const resultados = useQueries({

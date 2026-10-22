@@ -217,3 +217,24 @@ export function sinUsarDeLoMismo(e: EleccionDeQue, compras: Compra[], ahora: Dat
         : c.comboId === item.id;
   return lineasDisponibles(compras.filter(mismo), ahora).map((f) => f.linea);
 }
+
+/**
+ * Lo que hay en un Área, como lo pregunta `GET /providers/quien-hace-en`: con
+ * un Área elegida y sin Qué todavía, Prestadora lista a las que hacen algo de
+ * ahí. Promos (se cruza con todas las áreas) y lo que dicta en grupales: null.
+ */
+export function loDelArea(
+  catalogo: Catalogo,
+  area: string,
+): { servicios: string[]; combos: string[]; depilacion: boolean } | null {
+  if (!area || area === CLAVE_PROMOS || area === CLAVE_ACTIVIDADES_QUE_DICTA || area === CLAVE_CAPACITACIONES_QUE_DICTA) {
+    return null;
+  }
+  const del = (lista: ItemDeCatalogo[]) => lista.filter((i) => enArea(i.area, area));
+  return {
+    servicios: del(catalogo.servicios).filter((i) => i.origen !== "capacitacion").map((i) => i.id),
+    combos: del(catalogo.combos).map((i) => i.id),
+    depilacion: del(catalogo.depilacion).length > 0,
+  };
+}
+

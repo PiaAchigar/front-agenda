@@ -63,6 +63,9 @@ type Oferta = { servicios: string[]; combos: string[]; depilacion: boolean; acti
 let oferta: Oferta | null = null;
 type Quien = { providerId: string; nombre: string; hace: string[]; serviceIds: string[]; todo: boolean };
 let quienes: Quien[] = [];
+let quienesDelArea: Quien[] | undefined = [];
+// La oferta de cada prestadora, cuando un test necesita que difieran.
+let ofertasPorId: Record<string, Oferta> = {};
 // Qué prestadoras están libres en cada horario (los `options` de la disponibilidad).
 let libresPorHora: Record<string, string[]> = {};
 const vender = vi.fn((_i: unknown, o?: { onSuccess?: (r: unknown) => void }) => {
@@ -86,9 +89,10 @@ vi.mock("../../api/ventas", () => ({
 }));
 vi.mock("../../api/agenda", () => ({
   useComboPendientes: () => ({ data: undefined, isSuccess: false, isError: false }),
-  useOfertaDeProveedora: (id: string | null) => ({ data: id ? (oferta ?? undefined) : undefined, isLoading: false, isError: false }),
+  useOfertaDeProveedora: (id: string | null) => ({ data: id ? (ofertasPorId[id] ?? oferta ?? undefined) : undefined, isLoading: false, isError: false }),
   useProviders: () => ({ data: [{ id: "prov1", fullName: "Gabi", specialties: null }, { id: "prov2", fullName: "Lu", specialties: null }] }),
   useQuienHace: (que: unknown) => ({ data: que ? quienes : undefined, isLoading: false }),
+  useQuienHaceEn: (lista: unknown) => ({ data: lista ? quienesDelArea : undefined, isLoading: false }),
   useDisponibilidades: (ids: string[], date: string | null) =>
     Object.keys(libresPorHora).length === 0 ? new Map() : new Map(ids.map((id) => [id, { date, serviceId: id, durationMinutes: 30, slots: Object.entries(libresPorHora).map(([start, ps]) => ({ start, end: start, options: ps.map((p) => ({ providerId: p, providerName: p, machineId: null })) })) }])),
   useConsumible: () => ({ data: { tipo: "ninguna" }, isFetching: false }),
@@ -140,6 +144,8 @@ beforeEach(() => {
   clientaPrefill = undefined;
   oferta = null;
   quienes = [];
+  quienesDelArea = [];
+  ofertasPorId = {};
   libresPorHora = {};
   vender.mockClear();
   despues.mockClear();
@@ -578,8 +584,10 @@ describe("NuevoTurnoModal — desde el hueco de una prestadora", () => {
     expect(areas()).toEqual(["Elegí un área…", "Depilación Definitiva", "Estética", "Promos"]);
   });
 
-  it("cambiar de prestadora limpia lo elegido", async () => {
+  it("cambiar a una prestadora que no hace nada de esa Área la limpia", async () => {
     oferta = OFERTA_GABI;
+    ofertasPorId = { prov2: { servicios: [], combos: [], depilacion: true, actividades: [], capacitaciones: [] } };
+    quienesDelArea = undefined; // la lista del Área todavía no llegó: se ofrecen todas
     const { user } = montar();
     await user.selectOptions(screen.getByLabelText("Área"), "a-est");
     await user.selectOptions(screen.getByLabelText("Prestadora"), "prov2");
@@ -652,6 +660,26 @@ describe("NuevoTurnoModal — buscar desde el servicio (filtros cruzados)", () =
     montar({ serviceId: "s1", minutes: 600 });
     const turno = await screen.findByRole("combobox", { name: "Prestadora" });
     expect(Array.from(turno.querySelectorAll("optgroup")).map((g) => g.label)).toEqual(["Libres a las 10:00"]);
+  });
+});
+
+describe("NuevoTurnoModal — el Área también filtra Prestadora", () => {
+  const TAMARA: Quien = { providerId: "prov3", nombre: "Tamara", hace: ["Depilación Definitiva"], serviceIds: ["ancla"], todo: true };
+  const opciones = () => Array.from(select("Prestadora").options).map((o) => o.textContent);
+
+  it("elegida un Área (sin Qué), Prestadora lista a las que hacen algo de ahí", async () => {
+    quienesDelArea = [TAMARA];
+    const { user } = montar({ minutes: 930 });
+    await user.selectOptions(screen.getByLabelText("Área"), "a-depi");
+    expect(opciones()).toEqual(["Todas (1 en Depilación Definitiva)", "Tamara"]);
+  });
+
+  it("elegirla desde ahí deja el Área puesta", async () => {
+    quienesDelArea = [TAMARA];
+    const { user } = montar({ minutes: 930 });
+    await user.selectOptions(screen.getByLabelText("Área"), "a-depi");
+    await user.selectOptions(select("Prestadora"), "prov3");
+    expect(screen.getByLabelText("Área")).toHaveValue("a-depi");
   });
 });
 

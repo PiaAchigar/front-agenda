@@ -6,6 +6,7 @@ import {
   areasDelTurno,
   catalogoDeLaPrestadora,
   comprasQueHace,
+  loDelArea,
   gruposDeQue,
   modoDelTurno,
   sinUsarDeLoMismo,
@@ -224,6 +225,20 @@ describe("lo que ofrece la prestadora del hueco", () => {
     const depi = compra("cp-3", { servicios: [linea("d1", { serviceId: null, depilationComboId: "d-pack" })] });
     expect(comprasQueHace([packViva, masajeComprado, depi], oferta).flatMap((c) => c.servicios.map((x) => x.id))).toEqual(["l1", "l2", "l3"]);
     expect(comprasQueHace([depi], { ...oferta, depilacion: true })[0]!.servicios).toHaveLength(1);
+  });
+});
+
+describe("loDelArea", () => {
+  // Para preguntar qué prestadoras hacen algo de un Área (sin Qué elegido todavía).
+  it("Estética: sus servicios y sus combos/packs", () => {
+    expect(loDelArea(catalogo, EST.id)).toEqual({ servicios: ["s-limp", "s-mas"], combos: ["c-1", "c-pack"], depilacion: false });
+  });
+  it("Depilación: va por el ancla", () => {
+    expect(loDelArea(catalogo, DEP.id)).toEqual({ servicios: [], combos: [], depilacion: true });
+  });
+  it("Promos y las áreas de grupales no se preguntan: null", () => {
+    expect(loDelArea(catalogo, CLAVE_PROMOS)).toBeNull();
+    expect(loDelArea(catalogo, CLAVE_ACTIVIDADES_QUE_DICTA)).toBeNull();
   });
 });
 

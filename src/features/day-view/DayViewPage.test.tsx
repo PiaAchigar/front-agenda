@@ -110,6 +110,7 @@ vi.mock("../../api/agenda", () => ({
   useServicesByProvider: () => ({ data: SIN_DATOS, isFetching: false }),
   useOfertaDeProveedora: () => ({ data: undefined, isLoading: false, isError: false }),
   useQuienHace: () => ({ data: undefined, isLoading: false }),
+  useQuienHaceEn: () => ({ data: undefined, isLoading: false }),
   useDisponibilidades: () => new Map(),
   // `AttendanceModal`, `ReagendarTurnoModal` y `AvisoInsumosModal` se montan
   // SIEMPRE (se apagan por prop, no por `&&`), así que sus hooks corren en
