@@ -725,6 +725,15 @@ describe("NuevoTurnoModal — la ayuda", () => {
     }
   });
 
+  it("el aviso de cómo cambiar de forma va en marrón y negrita", async () => {
+    const { user } = montar();
+    await user.click(screen.getByRole("button", { name: "Cómo cargar un turno" }));
+
+    const aviso = screen.getByText(/Para cambiar de forma/);
+    expect(aviso).toHaveClass("font-semibold", "text-primary-dark");
+    expect(aviso).not.toHaveClass("text-ink-soft");
+  });
+
   it("al volver, el formulario sigue con lo que tenía cargado", async () => {
     const { user } = montar();
     fireEvent.change(screen.getByLabelText("Día"), { target: { value: "2027-02-03" } });

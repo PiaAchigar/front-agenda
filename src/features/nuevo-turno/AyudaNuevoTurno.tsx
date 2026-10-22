@@ -81,7 +81,7 @@ export function AyudaNuevoTurno({ onVolver }: { onVolver: () => void }) {
           <li>Elegí <b>Qué</b>: quedan sólo las que lo hacen. Si es una sola, queda elegida.</li>
           <li>Elegí la prestadora.</li>
         </Forma>
-        <p className="text-xs text-ink-soft">
+        <p className="text-xs font-semibold text-primary-dark">
           Para cambiar de forma, volvé Prestadora a “Todas” o vaciá Qué.
         </p>
       </section>
