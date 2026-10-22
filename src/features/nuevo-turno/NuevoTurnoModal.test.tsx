@@ -187,6 +187,13 @@ describe("NuevoTurnoModal — la forma", () => {
     expect(screen.getByRole("heading", { name: "Nuevo turno" }).parentElement!.parentElement!).toHaveClass("h-[90vh]");
   });
 
+  it("es un 20% más ancho que los otros modales (28rem → 33.6rem)", () => {
+    montar();
+    const dialogo = screen.getByRole("dialog");
+    expect(dialogo).toHaveClass("max-w-[33.6rem]");
+    expect(dialogo).not.toHaveClass("max-w-md");
+  });
+
   it("el Área no ofrece Actividades ni Capacitaciones y sí Promos", () => {
     montar();
     const opciones = within(screen.getByLabelText("Área")).getAllByRole("option").map((o) => o.textContent);

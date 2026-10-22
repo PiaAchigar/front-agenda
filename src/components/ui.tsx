@@ -87,6 +87,7 @@ export function Modal({
   children,
   altoFijo = false,
   arriba = false,
+  ancho = false,
   accion,
 }: {
   open: boolean;
@@ -100,6 +101,9 @@ export function Modal({
    *  que cambian de alto mientras se usan (un buscador con resultados), que
    *  centrados se recentran a cada letra y suben y bajan. */
   arriba?: boolean;
+  /** Un 20% más ancho (33.6rem en vez de 28rem). Para el Nuevo turno, que
+   *  muestra muchos campos y textos largos (combos, prestadoras con detalle). */
+  ancho?: boolean;
   /** Un botón chico en la esquina derecha del título (la ayuda del Nuevo turno). */
   accion?: ReactNode;
 }) {
@@ -114,7 +118,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={tituloId}
-        className={`flex w-full max-w-md flex-col rounded-2xl bg-surface-low shadow-xl ${altoFijo ? "h-[90vh]" : arriba ? "max-h-[84vh]" : "max-h-[90vh]"}`}
+        className={`flex w-full ${ancho ? "max-w-[33.6rem]" : "max-w-md"} flex-col rounded-2xl bg-surface-low shadow-xl ${altoFijo ? "h-[90vh]" : arriba ? "max-h-[84vh]" : "max-h-[90vh]"}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between gap-3 px-6 pt-6 pb-4 border-b border-surface-high">

@@ -295,7 +295,7 @@ export function NuevoTurnoModal({
 
   if (vendida && customer) {
     return (
-      <Modal open onClose={cerrar} title="Nuevo turno" altoFijo accion={botonAyuda}>
+      <Modal open onClose={cerrar} title="Nuevo turno" altoFijo ancho accion={botonAyuda}>
         {panelAyuda}
         <div hidden={ayuda}>
         {avisoDeCierre ? (
@@ -331,7 +331,7 @@ export function NuevoTurnoModal({
   const claveCuerpo = `${customer?.id ?? ""}|${eleccion ? claveDeEleccion(eleccion) : ""}`;
 
   return (
-    <Modal open onClose={cerrar} title="Nuevo turno" altoFijo accion={botonAyuda}>
+    <Modal open onClose={cerrar} title="Nuevo turno" altoFijo ancho accion={botonAyuda}>
       {panelAyuda}
       <div className="space-y-4" hidden={ayuda}>
         {!cuerpoDeAgendar && (
