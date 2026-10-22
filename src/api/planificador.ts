@@ -1,4 +1,8 @@
 // Espejo de los tipos de `api-sistema-central/src/repositories/planificador.repo.ts`.
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "./client";
+import type { CreateAppointmentInput } from "./agenda";
+import type { Availability } from "./types";
 
 export type SesionPlanificable = {
   purchaseServiceId: string;
@@ -23,3 +27,48 @@ export type BaseDelPlanificador = {
   turnosDeLaClienta: { start: string; end: string }[]; // futuros, no cancelados
   sesiones: SesionPlanificable[]; // libres, ordenadas por vuelta y orden
 };
+
+export type ConsultaDeDisponibilidad = {
+  serviceId: string;
+  date: string;
+  durationMinutes?: number;
+};
+
+/** La base de una compra para armar el planificador. Sin compra, no pide nada. */
+export function useBasePlanificador(compraId: string | null) {
+  return useQuery({
+    queryKey: ["planificador", compraId],
+    queryFn: () => api<BaseDelPlanificador>(`/api/agenda/planificador/${compraId}`),
+    enabled: !!compraId,
+  });
+}
+
+/** Disponibilidad de varias consultas en un solo request. Lista vacía: no pide nada. */
+export function useDisponibilidadEnLote(consultas: ConsultaDeDisponibilidad[]) {
+  return useQuery({
+    queryKey: ["availability", "lote", consultas],
+    queryFn: () =>
+      api<{ resultados: Availability[] }>("/api/agenda/availability/lote", {
+        method: "POST",
+        body: JSON.stringify({ consultas }),
+      }),
+    enabled: consultas.length > 0,
+  });
+}
+
+/** Agenda un lote de turnos, todo o nada. Un error trae `indice` (el turno que falló). */
+export function useAgendarLote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { turnos: CreateAppointmentInput[] }) =>
+      api<{ turnos: unknown[] }>("/api/agenda/appointments/lote", {
+        method: "POST",
+        body: JSON.stringify({ turnos: input.turnos }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["availability"] });
+      queryClient.invalidateQueries({ queryKey: ["ventas"] });
+    },
+  });
+}

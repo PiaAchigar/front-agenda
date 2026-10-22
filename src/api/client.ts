@@ -4,11 +4,14 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 
 export class ApiError extends Error {
   status: number;
+  /** Algunos endpoints (p. ej. el lote de turnos) dicen qué ítem falló. */
+  indice?: number;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, indice?: number) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.indice = indice;
   }
 }
 
@@ -25,8 +28,8 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new ApiError(res.status, (body as { error?: string })?.error ?? res.statusText);
+    const body = (await res.json().catch(() => null)) as { error?: string; indice?: number } | null;
+    throw new ApiError(res.status, body?.error ?? res.statusText, body?.indice);
   }
   return res.json() as Promise<T>;
 }
