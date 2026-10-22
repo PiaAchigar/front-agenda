@@ -147,7 +147,7 @@ describe("habilitacion", () => {
 
   it("habilitacion: con pagado < minimo, sólo la card 1 y como reserva; el resto 'Se agendan cuando esté pago el 40%'", () => {
     const b = base(cards6().map((c) => c.sesion), { puerta: { total: 100000, pagado: 10000, minimo: 40000 } });
-    const h = habilitacion(cards6(), b, 6);
+    const h = habilitacion(cards6(), b);
     expect(h.get("ps1")).toEqual({ habilitada: true, reserva: true });
     for (const k of ["ps2", "ps3", "ps4", "ps5", "ps6"]) {
       expect(h.get(k)).toEqual({ habilitada: false, motivo: "Se agendan cuando esté pago el 40%" });
@@ -157,21 +157,66 @@ describe("habilitacion", () => {
   it("habilitacion: con todas marcadas y pagado < total, la última dice 'Se agenda cuando esté pago el total (faltan $X)'; si se desmarca una, la última se habilita", () => {
     const b = base(cards6().map((c) => c.sesion), { puerta: { total: 100000, pagado: 50000, minimo: 40000 } });
     const cs = cards6();
-    const h = habilitacion(cs, b, 6);
+    const h = habilitacion(cs, b);
     expect(h.get("ps5")).toEqual({ habilitada: true });
     expect(h.get("ps6")).toEqual({
       habilitada: false,
       motivo: `Se agenda cuando esté pago el total (faltan ${(50000).toLocaleString("es-AR").replace(/^/, "$")})`,
     });
     cs[2] = { ...cs[2]!, marcada: false };
-    const h2 = habilitacion(cs, b, 6);
+    const h2 = habilitacion(cs, b);
     expect(h2.get("ps6")).toEqual({ habilitada: true });
   });
 
   it("habilitacion: puerta null (no depilación) habilita todo", () => {
     const cs = cards6();
-    const h = habilitacion(cs, base(cs.map((c) => c.sesion)), 6);
+    const h = habilitacion(cs, base(cs.map((c) => c.sesion)));
     expect([...h.values()].every((v) => v.habilitada)).toBe(true);
     expect(h.size).toBe(6);
+  });
+
+  // Promo mixta: un servicio común + 3 sesiones de depilación (spec: la puerta de pago sólo rige en depilación).
+  const mixta = () =>
+    armarPlan(
+      base([
+        ses(1, { vuelta: 1 }),
+        ses(2, { vuelta: 2, esDepilacion: true }),
+        ses(3, { vuelta: 3, esDepilacion: true }),
+        ses(4, { vuelta: 4, esDepilacion: true }),
+      ]),
+      INICIO,
+      30,
+    );
+
+  it("promo mixta: las cards que no son de depilación nunca se apagan", () => {
+    const cs = mixta();
+    const sesiones = cs.map((c) => c.sesion);
+    // Sin el 40%: sólo la PRIMERA de depilación va como reserva; el servicio común queda habilitado.
+    const sin40 = habilitacion(cs, base(sesiones, { puerta: { total: 100000, pagado: 10000, minimo: 40000 } }));
+    expect(sin40.get("ps1")).toEqual({ habilitada: true });
+    expect(sin40.get("ps2")).toEqual({ habilitada: true, reserva: true });
+    expect(sin40.get("ps3")).toEqual({ habilitada: false, motivo: "Se agendan cuando esté pago el 40%" });
+    expect(sin40.get("ps4")).toEqual({ habilitada: false, motivo: "Se agendan cuando esté pago el 40%" });
+    // Con el 40% y todo marcado, la última de depilación se apaga; el servicio no.
+    const con50 = habilitacion(cs, base(sesiones, { puerta: { total: 100000, pagado: 50000, minimo: 40000 } }));
+    expect(con50.get("ps1")).toEqual({ habilitada: true });
+    expect(con50.get("ps4")).toMatchObject({ habilitada: false });
+  });
+
+  it("la última es la última de depilación", () => {
+    const cs = mixta();
+    const b = base(cs.map((c) => c.sesion), { puerta: { total: 100000, pagado: 50000, minimo: 40000 } });
+    // El servicio común va al final de la lista y está marcado: no es "la última".
+    const alFinal = [...cs.slice(1), { ...cs[0]! }];
+    const h = habilitacion(alFinal, b);
+    expect(h.get("ps4")).toMatchObject({ habilitada: false });
+    expect(h.get("ps1")).toEqual({ habilitada: true });
+    expect(h.get("ps3")).toEqual({ habilitada: true });
+    // Desmarcar una de depilación (aunque el servicio siga marcado) habilita la última.
+    const sinUna = cs.map((c) => (c.clave === "ps3" ? { ...c, marcada: false } : c));
+    expect(habilitacion(sinUna, b).get("ps4")).toEqual({ habilitada: true });
+    // Desmarcar el servicio común NO la habilita: se cuentan sólo las de depilación.
+    const sinServicio = cs.map((c) => (c.clave === "ps1" ? { ...c, marcada: false } : c));
+    expect(habilitacion(sinServicio, b).get("ps4")).toMatchObject({ habilitada: false });
   });
 });

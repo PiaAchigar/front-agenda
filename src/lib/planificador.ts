@@ -39,7 +39,7 @@ function intervaloDeCard(c: CardDelPlan): [number, number] {
 }
 
 /** ¿La card va encadenada a la anterior (mismo grupo "juntos", misma vuelta)? */
-function encadenada(prev: SesionPlanificable | undefined, s: SesionPlanificable): boolean {
+export function encadenada(prev: SesionPlanificable | undefined, s: SesionPlanificable): boolean {
   return !!prev && prev.juntos && s.juntos && prev.vuelta === s.vuelta;
 }
 
@@ -154,20 +154,21 @@ export function avisos(
 
 export type Habilitacion = { habilitada: true; reserva?: boolean } | { habilitada: false; motivo: string };
 
-/** La puerta de pago de depilación aplicada al lote (spec §"Pago y estado de cada turno"). */
-export function habilitacion(
-  cards: CardDelPlan[],
-  base: BaseDelPlanificador,
-  todasLasLibres: number,
-): Map<string, Habilitacion> {
+/**
+ * La puerta de pago de depilación aplicada al lote (spec §"Pago y estado de cada
+ * turno"). Rige SÓLO sobre las cards de depilación: en una promo mixta las
+ * demás nunca se apagan. "La última" es la última tildada de las de depilación,
+ * y sólo cuando están tildadas todas las de depilación.
+ */
+export function habilitacion(cards: CardDelPlan[], base: BaseDelPlanificador): Map<string, Habilitacion> {
   const out = new Map<string, Habilitacion>();
   const puerta = base.puerta;
-  if (!puerta) {
-    for (const c of cards) out.set(c.clave, { habilitada: true });
-    return out;
-  }
+  for (const c of cards) if (!c.sesion.esDepilacion || !puerta) out.set(c.clave, { habilitada: true });
+  if (!puerta) return out;
+
+  const depilacion = cards.filter((c) => c.sesion.esDepilacion);
   if (puerta.pagado < puerta.minimo) {
-    cards.forEach((c, i) => {
+    depilacion.forEach((c, i) => {
       out.set(
         c.clave,
         i === 0
@@ -177,10 +178,10 @@ export function habilitacion(
     });
     return out;
   }
-  const marcadas = cards.filter((c) => c.marcada);
+  const marcadas = depilacion.filter((c) => c.marcada);
   const ultima =
-    marcadas.length === todasLasLibres && puerta.pagado < puerta.total ? marcadas[marcadas.length - 1] : undefined;
-  for (const c of cards) {
+    marcadas.length === depilacion.length && puerta.pagado < puerta.total ? marcadas[marcadas.length - 1] : undefined;
+  for (const c of depilacion) {
     out.set(
       c.clave,
       c === ultima

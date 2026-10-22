@@ -11,6 +11,7 @@ import {
   armarPlan,
   avisos,
   elegirPrestadora,
+  encadenada,
   habilitacion,
   recalcular,
 } from "../../lib/planificador";
@@ -71,7 +72,10 @@ function resolver(
     const av = resultados?.[i];
     if (!av || av.date !== c.fecha) return;
     if (!c.tocada) {
-      const e = elegirPrestadora(c, av.slots, out, preferida);
+      // Un servicio encadenado de una vuelta "juntos" prefiere la prestadora que
+      // salió para el anterior; el primero de la vuelta, la del hueco pedido.
+      const previa = i > 0 && encadenada(out[i - 1]!.sesion, c.sesion) ? out[i - 1]!.providerId : null;
+      const e = elegirPrestadora(c, av.slots, out, previa ?? preferida);
       if (e.libre) {
         out[i] = { ...c, providerId: e.providerId, providerName: e.providerName, machineId: e.machineId };
         estados[i] = { libre: true };
@@ -141,7 +145,7 @@ function Plan({ base, customerName, inicio, onListo }: PlanificadorProps & { bas
     if (cambio) setCards(nuevas);
   }, [resultados, cards]);
 
-  const hab = useMemo(() => habilitacion(cards, base, base.sesiones.length), [cards, base]);
+  const hab = useMemo(() => habilitacion(cards, base), [cards, base]);
   const sinBloqueadas = useMemo(() => cards.map((c) => ({ ...c, marcada: c.marcada && !bloqueadas.has(c.clave) })), [cards, bloqueadas]);
   const vista = useMemo(() => resolver(sinBloqueadas, hab, resultados, inicio.providerId), [sinBloqueadas, hab, resultados, inicio.providerId]);
 
@@ -150,7 +154,9 @@ function Plan({ base, customerName, inicio, onListo }: PlanificadorProps & { bas
     if (apagadas.length > 0) setBloqueadas(new Set([...bloqueadas, ...apagadas.map((c) => c.clave)]));
   }, [cards, hab, bloqueadas]);
 
-  const aAgendar = vista.cards.filter((c) => c.marcada && c.providerId);
+  // Una card "Ocupada" no se manda: garantiza el 409 de todo el lote.
+  const ocupada = (i: number) => vista.estados[i]?.libre === false;
+  const aAgendar = vista.cards.filter((c, i) => c.marcada && c.providerId && !ocupada(i));
   const n = aAgendar.length;
 
   function editar(clave: string, cambios: Partial<CardDelPlan>) {
@@ -315,6 +321,9 @@ function Plan({ base, customerName, inicio, onListo }: PlanificadorProps & { bas
                             ? `Ocupada · libre desde ${estado.libreDesde}`
                             : "Ocupada · sin lugar ese día"}
                     </p>
+                    {resuelta.marcada && estado?.libre === false && (
+                      <p className="text-amber-800">No se agenda hasta que elijas otro horario u otra prestadora</p>
+                    )}
                     {c.corridaDesde && <p className="text-ink-soft">se corrió al {fechaLarga(c.fecha, "long")}</p>}
                     {h?.habilitada && h.reserva && <p className="text-ink-soft">Va como reserva de 24 h</p>}
                     {av.fueraDeVigencia && base.venceEl && (
