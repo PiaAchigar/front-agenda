@@ -54,8 +54,12 @@ export function BotonAyuda({ abierta, onClick }: { abierta: boolean; onClick: ()
 /** Ocupa el lugar del formulario; el formulario sigue cargado detrás. */
 export function AyudaNuevoTurno({ onVolver }: { onVolver: () => void }) {
   const arriba = useRef<HTMLDivElement>(null);
-  // El cuerpo del modal puede venir scrolleado desde el formulario.
-  useEffect(() => arriba.current?.scrollIntoView({ block: "start" }), []);
+  // El cuerpo del modal puede venir scrolleado desde el formulario. Con
+  // llaves: en Chrome nuevo scrollIntoView devuelve una promesa, y si el
+  // efecto la devuelve React la toma por limpieza y rompe al desmontar.
+  useEffect(() => {
+    arriba.current?.scrollIntoView({ block: "start" });
+  }, []);
 
   return (
     <div ref={arriba} className="space-y-4 text-sm text-ink">

@@ -710,6 +710,21 @@ describe("NuevoTurnoModal — la ayuda", () => {
     expect(boton).toHaveAttribute("aria-expanded", "true");
   });
 
+  it("Volver no rompe aunque scrollIntoView devuelva una promesa (Chrome nuevo)", async () => {
+    // En Chrome reciente scrollIntoView devuelve una Promise: si el efecto la
+    // devolvía, React la tomaba por limpieza y al desmontar tiraba "l is not a function".
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = () => Promise.resolve() as unknown as void;
+    try {
+      const { user } = montar();
+      await user.click(screen.getByRole("button", { name: "Cómo cargar un turno" }));
+      await user.click(screen.getAllByRole("button", { name: /Volver al turno/ })[0]!);
+      expect(screen.getByLabelText("Día")).toBeVisible();
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
+
   it("al volver, el formulario sigue con lo que tenía cargado", async () => {
     const { user } = montar();
     fireEvent.change(screen.getByLabelText("Día"), { target: { value: "2027-02-03" } });
