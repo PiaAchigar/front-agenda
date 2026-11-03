@@ -5,9 +5,10 @@ import type { Catalogo, ItemDeCatalogo, PromoVendible } from "../../api/ventas";
 
 const CLIENTA = { id: "cu1", name: "Sofía Herrera", dni: "30111222", creditBalance: null, phone: null, email: null };
 const it_ = (p: Partial<ItemDeCatalogo> & Pick<ItemDeCatalogo, "origen" | "id" | "nombre">): ItemDeCatalogo => ({
-  packSesiones: null, packDescuentoPct: null, precioDesde: 10000, descripcion: null, desglose: [], area: null, ...p,
+  packSesiones: null, packDescuentoPct: null, precioDesde: 10000, precioEfectivo: 9000, descripcion: null, desglose: [], area: null, ...p,
 });
 const SERVICIO = it_({ origen: "servicio", id: "s1", nombre: "Limpieza facial" });
+const DEPI = it_({ origen: "depilacion", id: "d1", nombre: "Piernas" });
 const PACK = it_({ origen: "combo", id: "c1", nombre: "Pack Glow x4", packSesiones: 4 });
 const PROMO_PAQUETE: PromoVendible = { id: "pp", name: "Paquete Verano", discountPercentage: null, discountAmount: null, promotionType: "paquete", precioDelPaquete: 50000, destinos: [] };
 const PROMO_DESCUENTO: PromoVendible = { id: "p1", name: "Octubre 20%", discountPercentage: 20, discountAmount: null, promotionType: "descuento", precioDelPaquete: null, destinos: [{ tipo: "servicio", id: "s1", cantidad: 1 }] };
@@ -53,16 +54,16 @@ beforeEach(() => {
 describe("FormularioVender", () => {
   it("con un pack elegido cotiza y al vender avisa con onVendido", async () => {
     const { onVendido } = montar({ tipo: "pack", item: PACK });
-    expect(pedidos.at(-1)).toEqual({ origen: "combo", id: "c1", sessions: 1, promotionId: null, customerId: "cu1" });
+    expect(pedidos.at(-1)).toEqual({ origen: "combo", id: "c1", sessions: 1, promotionId: null, customerId: "cu1", precio: "lista" });
     await userEvent.click(screen.getByRole("button", { name: "Vender y agendar" }));
-    expect(vender).toHaveBeenCalledWith({ ...COTIZACION, customerId: "cu1", usarSaldo: 0 }, expect.anything());
+    expect(vender).toHaveBeenCalledWith({ ...COTIZACION, customerId: "cu1", usarSaldo: 0, precio: "lista" }, expect.anything());
     expect(onVendido).toHaveBeenCalledWith({ compraId: "pu9", descripcion: "Pack Glow x4" });
   });
 
   it("con un servicio y cuando=ahora vende ese servicio como compra, con sesiones editables", async () => {
     const { onVendido } = montar({ tipo: "servicio", item: SERVICIO });
     expect(screen.getByLabelText("Sesiones")).toBeInTheDocument();
-    expect(pedidos.at(-1)).toEqual({ origen: "servicio", id: "s1", sessions: 1, promotionId: null, customerId: "cu1" });
+    expect(pedidos.at(-1)).toEqual({ origen: "servicio", id: "s1", sessions: 1, promotionId: null, customerId: "cu1", precio: "lista" });
     await userEvent.click(screen.getByRole("button", { name: "Vender y agendar" }));
     expect(onVendido).toHaveBeenCalledTimes(1);
   });
@@ -77,7 +78,39 @@ describe("FormularioVender", () => {
     expect(pedidos.at(-1)).toBeNull();
     expect(screen.getByRole("button", { name: "Vender y agendar" })).toBeDisabled();
     await userEvent.selectOptions(screen.getByLabelText("¿A qué se le aplica?"), "servicio:s1");
-    expect(pedidos.at(-1)).toEqual({ origen: "servicio", id: "s1", sessions: 1, promotionId: "p1", customerId: "cu1" });
+    expect(pedidos.at(-1)).toEqual({ origen: "servicio", id: "s1", sessions: 1, promotionId: "p1", customerId: "cu1", precio: "efectivo" });
+  });
+
+  it("cotiza en efectivo al elegir Efectivo", async () => {
+    montar({ tipo: "servicio", item: SERVICIO });
+    expect(screen.getByRole("button", { name: "Lista" })).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(screen.getByRole("button", { name: "Efectivo" }));
+    expect(pedidos.at(-1)).toEqual({ origen: "servicio", id: "s1", sessions: 1, promotionId: null, customerId: "cu1", precio: "efectivo" });
+  });
+
+  it("con promo queda en Efectivo y deshabilitado", async () => {
+    montar({ tipo: "promo", promo: PROMO_DESCUENTO });
+    await userEvent.selectOptions(screen.getByLabelText("¿A qué se le aplica?"), "servicio:s1");
+    expect(screen.getByRole("button", { name: "Efectivo" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Efectivo" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Lista" })).toBeDisabled();
+    expect(screen.getByText("Las promos se cobran en efectivo.")).toBeInTheDocument();
+  });
+
+  it("no aparece para depilación ni para un paquete", () => {
+    const { unmount } = render(<FormularioVender eleccion={{ tipo: "depilacion", item: DEPI }} customer={CLIENTA} fecha="2099-01-20" minutos={930} onVendido={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Lista" })).toBeNull();
+    expect(pedidos.at(-1)).not.toHaveProperty("precio");
+    unmount();
+    montar({ tipo: "promo", promo: PROMO_PAQUETE });
+    expect(screen.queryByRole("button", { name: "Efectivo" })).toBeNull();
+  });
+
+  it("la venta manda precio", async () => {
+    montar({ tipo: "servicio", item: SERVICIO });
+    await userEvent.click(screen.getByRole("button", { name: "Efectivo" }));
+    await userEvent.click(screen.getByRole("button", { name: "Vender y agendar" }));
+    expect(vender).toHaveBeenCalledWith(expect.objectContaining({ precio: "efectivo" }), expect.anything());
   });
 
   it("sin clienta no cotiza ni deja vender", () => {

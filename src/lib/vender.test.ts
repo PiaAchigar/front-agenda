@@ -19,7 +19,7 @@ const DEPI = { id: "a-depi", nombre: "Depilación Definitiva" };
 const CAPA = { id: "a-cap", nombre: "Capacitaciones" };
 
 function item(p: Partial<ItemDeCatalogo> & Pick<ItemDeCatalogo, "origen" | "id" | "nombre">): ItemDeCatalogo {
-  return { packSesiones: null, packDescuentoPct: null, precioDesde: 1000, descripcion: null, desglose: [], area: null, ...p };
+  return { packSesiones: null, packDescuentoPct: null, precioDesde: 1000, precioEfectivo: 900, descripcion: null, desglose: [], area: null, ...p };
 }
 
 const LIMPIEZA = item({ origen: "servicio", id: "s1", nombre: "Limpieza facial", area: ESTETICA });
@@ -119,13 +119,13 @@ describe("pedidoDeCotizacion", () => {
 
   it("un combo se cotiza siempre con 1 sesión aunque haya otra en pantalla", () => {
     expect(pedidoDeCotizacion({ customerId: "cu1", paquete: null, item: COMBO, sesiones: 4, promotionId: "p1" })).toEqual({
-      origen: "combo", id: "c1", sessions: 1, promotionId: "p1", customerId: "cu1",
+      origen: "combo", id: "c1", sessions: 1, promotionId: "p1", customerId: "cu1", precio: "efectivo",
     });
   });
 
   it("un servicio lleva las sesiones elegidas", () => {
     expect(pedidoDeCotizacion({ customerId: "cu1", paquete: null, item: LIMPIEZA, sesiones: 3, promotionId: null })).toEqual({
-      origen: "servicio", id: "s1", sessions: 3, promotionId: null, customerId: "cu1",
+      origen: "servicio", id: "s1", sessions: 3, promotionId: null, customerId: "cu1", precio: "lista",
     });
   });
 });

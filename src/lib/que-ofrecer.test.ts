@@ -22,7 +22,7 @@ const ACT = { id: "a-act", nombre: "Actividades" };
 const CAP = { id: "a-cap", nombre: "Capacitaciones" };
 
 function item(origen: ItemDeCatalogo["origen"], id: string, nombre: string, area: ItemDeCatalogo["area"], packSesiones: number | null = null): ItemDeCatalogo {
-  return { origen, id, nombre, packSesiones, packDescuentoPct: null, precioDesde: 1000, descripcion: null, desglose: [], area };
+  return { origen, id, nombre, packSesiones, packDescuentoPct: null, precioDesde: 1000, precioEfectivo: 900, descripcion: null, desglose: [], area };
 }
 
 const limpieza = item("servicio", "s-limp", "Limpieza facial", EST);

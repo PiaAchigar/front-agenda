@@ -23,6 +23,8 @@ export type ItemDeCatalogo = {
   packSesiones: number | null;
   packDescuentoPct: number | null;
   precioDesde: number;
+  /** Lo que sale pagando en efectivo; `precioDesde` es el de lista. */
+  precioEfectivo: number;
   descripcion: string | null;
   desglose: FilaDeDesglose[];
   area: AreaDeItem;
@@ -66,8 +68,18 @@ export type Cotizacion = {
   esPaquete?: boolean;
 };
 
+/** Con qué precio se cobra. Los paquetes y la depilación van siempre en efectivo y no lo mandan. */
+export type PrecioDeVenta = "lista" | "efectivo";
+
 export type PedidoDeCotizacion =
-  | { origen: OrigenVenta; id: string; sessions: number; promotionId?: string | null; customerId: string }
+  | {
+      origen: OrigenVenta;
+      id: string;
+      sessions: number;
+      promotionId?: string | null;
+      customerId: string;
+      precio?: PrecioDeVenta;
+    }
   | { origen: "paquete"; promotionId: string; customerId: string };
 
 export type EstadoSesion = "consumida" | "perdida" | "agendada" | "vencida" | "disponible";
@@ -117,7 +129,7 @@ export function cotizarVenta(pedido: PedidoDeCotizacion): Promise<Cotizacion> {
 }
 
 export function venderCompra(
-  input: Cotizacion & { customerId: string; usarSaldo?: number },
+  input: Cotizacion & { customerId: string; usarSaldo?: number; precio?: PrecioDeVenta },
 ): Promise<{ id: string; pagadoConSaldo?: number }> {
   return api("/api/crm/purchases", { method: "POST", body: JSON.stringify(input) });
 }

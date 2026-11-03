@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Customer } from "../../api/types";
-import { type ItemDeCatalogo, useCatalogoVendible, useCotizacion, useVender } from "../../api/ventas";
+import { type ItemDeCatalogo, type PrecioDeVenta, useCatalogoVendible, useCotizacion, useVender } from "../../api/ventas";
 import { Button, ErrorNote } from "../../components/ui";
 import type { NewApptPrefill } from "../day-view/NewAppointmentModal";
 import type { EleccionDeQue } from "../../lib/que-ofrecer";
@@ -10,6 +10,7 @@ import {
   itemsDeUnaPromo,
   pedidoDeCotizacion,
   pesos,
+  precioSeElige,
   promosQueAplican,
   saldoQueEntra,
   sesionesEditables,
@@ -65,6 +66,7 @@ export function FormularioVender({
   const [promoDelItem, setPromoDelItem] = useState<string | null>(null);
   const [itemDeLaPromo, setItemDeLaPromo] = useState<ItemDeCatalogo | null>(null);
   const [usarSaldo, setUsarSaldo] = useState(false);
+  const [precioElegido, setPrecioElegido] = useState<PrecioDeVenta>("lista");
 
   // Una promo paquete se vende como ella misma; una de descuento se aplica a
   // un item que se elige acá (el descuento nunca se calcula en el front).
@@ -75,7 +77,9 @@ export function FormularioVender({
 
   const horarioPasado = !sinHorario && Boolean(fecha) && minutos !== null && yaPaso(fecha, minutos);
 
-  const pedido = pedidoDeCotizacion({ customerId: customer?.id ?? null, paquete, item, sesiones, promotionId });
+  const pedido = pedidoDeCotizacion({ customerId: customer?.id ?? null, paquete, item, sesiones, promotionId, precio: precioElegido });
+  const muestraPrecio = precioSeElige(item, paquete);
+  const conPromo = promotionId !== null;
   const cotizacion = useCotizacion(pedido);
   const q = pedido ? cotizacion.data : undefined;
 
@@ -88,7 +92,12 @@ export function FormularioVender({
   function handleVender() {
     if (!q || !customer) return;
     vender.mutate(
-      { ...q, customerId: customer.id, usarSaldo: conSaldo },
+      {
+        ...q,
+        customerId: customer.id,
+        usarSaldo: conSaldo,
+        ...(muestraPrecio ? { precio: conPromo ? ("efectivo" as const) : precioElegido } : {}),
+      },
       { onSuccess: (r) => onVendido({ compraId: r.id, descripcion: q.description }) },
     );
   }
@@ -138,6 +147,36 @@ export function FormularioVender({
             ))}
           </select>
         </label>
+      )}
+
+      {muestraPrecio && (
+        <div>
+          <span className={LABEL}>Precio</span>
+          <div className="flex items-center gap-2">
+            {(["lista", "efectivo"] as const).map((modo) => {
+              const activo = (conPromo ? "efectivo" : precioElegido) === modo;
+              return (
+                <button
+                  key={modo}
+                  type="button"
+                  disabled={conPromo}
+                  aria-pressed={activo}
+                  onClick={() => setPrecioElegido(modo)}
+                  className={[
+                    "flex-1 rounded-xl border py-2 text-sm transition-colors",
+                    activo
+                      ? "border-primary bg-primary/10 font-medium text-primary"
+                      : "border-surface-highest text-ink-soft hover:bg-surface-low",
+                    conPromo ? "cursor-not-allowed opacity-70" : "",
+                  ].join(" ")}
+                >
+                  {modo === "lista" ? "Lista" : "Efectivo"}
+                </button>
+              );
+            })}
+          </div>
+          {conPromo && <p className="mt-1 text-xs text-ink-soft">Las promos se cobran en efectivo.</p>}
+        </div>
       )}
 
       {item && item.desglose.length > 0 && (

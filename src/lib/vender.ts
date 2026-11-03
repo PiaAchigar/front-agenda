@@ -1,4 +1,4 @@
-import type { Catalogo, ItemDeCatalogo, PedidoDeCotizacion, PromoVendible } from "../api/ventas";
+import type { Catalogo, ItemDeCatalogo, PedidoDeCotizacion, PrecioDeVenta, PromoVendible } from "../api/ventas";
 
 /**
  * Lógica pura de "Vender y agendar" (spec 2026-10-16). Nada de esto decide
@@ -92,6 +92,8 @@ export function pedidoDeCotizacion(e: {
   item: ItemDeCatalogo | null;
   sesiones: number;
   promotionId: string | null;
+  /** Lo que eligió Laura; se ignora donde el precio no se elige (ver `precioSeElige`). */
+  precio?: PrecioDeVenta;
 }): PedidoDeCotizacion | null {
   if (!e.customerId) return null;
   if (e.paquete) return { origen: "paquete", promotionId: e.paquete.id, customerId: e.customerId };
@@ -102,7 +104,14 @@ export function pedidoDeCotizacion(e: {
     sessions: sesionesEditables(e.item) ? Math.max(1, e.sesiones) : 1,
     promotionId: e.promotionId,
     customerId: e.customerId,
+    // Una promo se cobra sólo en efectivo (la API rechaza lista con promo).
+    ...(precioSeElige(e.item, e.paquete) ? { precio: e.promotionId ? "efectivo" : (e.precio ?? "lista") } : {}),
   };
+}
+
+/** Si Lista / Efectivo se elige: no en depilación ni en un paquete, que van siempre en efectivo. */
+export function precioSeElige(item: ItemDeCatalogo | null, paquete: PromoVendible | null): boolean {
+  return !!item && !paquete && item.origen !== "depilacion";
 }
 
 /** Copia de `front-crm/src/lib/compras-ui.ts`: sólo para MOSTRAR cuánto saldo

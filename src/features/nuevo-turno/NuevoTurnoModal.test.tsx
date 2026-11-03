@@ -11,7 +11,7 @@ const DEPI = { id: "a-depi", nombre: "Depilación Definitiva" };
 const ACT = { id: "a-act", nombre: "Actividades" };
 const CAP = { id: "a-cap", nombre: "Capacitaciones" };
 const it_ = (p: Partial<ItemDeCatalogo> & Pick<ItemDeCatalogo, "origen" | "id" | "nombre">): ItemDeCatalogo => ({
-  packSesiones: null, packDescuentoPct: null, precioDesde: 10000, descripcion: null, desglose: [], area: null, ...p,
+  packSesiones: null, packDescuentoPct: null, precioDesde: 10000, precioEfectivo: 0, descripcion: null, desglose: [], area: null, ...p,
 });
 const CATALOGO: Catalogo = {
   servicios: [
