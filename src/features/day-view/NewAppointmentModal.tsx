@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { EXPIRY_DEFAULT, EXPIRY_OPTIONS } from "./reservaVencimiento";
 import {
   useAvailability,
   useComboPendientes,
@@ -211,14 +212,6 @@ export type NewApptPrefill = {
 
 
 
-const EXPIRY_OPTIONS = [
-  { value: 10,  label: "10 min" },
-  { value: 15,  label: "15 min" },
-  { value: 20,  label: "20 min" },
-  { value: 30,  label: "30 min" },
-  { value: 60,  label: "1 hora" },
-  { value: 90,  label: "1 h 30 min" },
-];
 
 /**
  * El día de un vencimiento, en dd/mm/aaaa.
@@ -422,7 +415,7 @@ export function FormularioAgendar({ onClose, encabezado, prestadoraFija = null, 
   const [priceMode,     setPriceMode]    = useState<"list" | "cash">("list");
   const [notes,         setNotes]        = useState("");
   const [apptStatus,    setApptStatus]   = useState<"scheduled" | "reserved">("scheduled");
-  const [expiryMinutes, setExpiryMinutes] = useState(60);
+  const [expiryMinutes, setExpiryMinutes] = useState(EXPIRY_DEFAULT);
   const [depositAmount, setDepositAmount] = useState("");
   const [depositMethod, setDepositMethod] =
     useState<"cash" | "bank_transfer" | "mercadopago" | "credit">("cash");
